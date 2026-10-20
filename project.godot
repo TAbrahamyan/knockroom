@@ -1,0 +1,37 @@
+; Engine configuration file.
+; Godot 4.3+ / tested on 4.7. Compatibility renderer is required.
+
+config_version=5
+
+[application]
+
+config/name="Knockroom"
+config/description="Один бросок. Цепная реакция."
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+config/icon="res://icon.svg"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
+
+[layer_names]
+
+2d_physics/layer_1="world"
+2d_physics/layer_2="props"
+2d_physics/layer_3="projectile"
+
+[physics]
+
+2d/default_gravity=1100.0
+2d/solver/solver_iterations=20
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.16, 0.12, 0.14, 1)
+textures/canvas_textures/default_texture_filter=0
