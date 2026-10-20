@@ -3,6 +3,8 @@ extends RigidBody2D
 const RADIUS := 15.0
 
 var _approach_speed := 0.0
+var _recent_speed := 0.0
+var _speed_hold := 0.0
 
 
 func _ready() -> void:
@@ -41,6 +43,15 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	# Captured before the solver kills the hit. The left wall has no bounce.
 	if state.linear_velocity.x < -40.0:
 		_approach_speed = maxf(_approach_speed, -state.linear_velocity.x)
+	var speed := state.linear_velocity.length()
+	# Ignore the slow drift of flight. Only a real hit drops this fast.
+	if speed >= _recent_speed * 0.97:
+		_recent_speed = maxf(speed, _recent_speed)
+		_speed_hold = 0.25
+	else:
+		_speed_hold = maxf(0.0, _speed_hold - state.step)
+		if _speed_hold <= 0.0:
+			_recent_speed = speed
 
 
 func _on_body_entered(body: Node) -> void:

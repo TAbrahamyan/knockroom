@@ -10,6 +10,8 @@ const GOLD := Color(1.0, 0.97, 0.22)
 const GOLD_GLOW := Color(1.0, 0.9, 0.15, 0.6)
 const CHAIN_SPEED := 32.0
 const POP_TIME := 0.48
+## A fast stone on one of this shelf's spots (set per room) starts the long cascade.
+const SWEET_SPEED := 660.0
 
 @export var kind: Kind = Kind.BARREL
 @export var radius: float = 30.0
@@ -23,6 +25,16 @@ var awakened := false
 var highlighted := false
 var flash := 0.0
 var _shattered := false
+var _recent_speed := 0.0
+var _heavy := false
+var _force_wake := false
+var _hit_x := 0.0
+var _hit_speed := 0.0
+var _sweet_x: Array[float] = []
+var _sweet_reach: Array[float] = []
+var _lower_wait := -1.0
+var _stagger: Array = []
+var _stagger_gap := 0.0
 
 var _anchor: Node2D
 
@@ -65,6 +77,9 @@ func wake_from(source: Node2D) -> void:
 		return
 	if not _round_live():
 		return
+	# A light tap should not drop the wide lower shelf. The stone still does.
+	if not _impact_wakes(source):
+		return
 	awakened = true
 	freeze = false
 	sleeping = false
@@ -79,9 +94,20 @@ func wake_from(source: Node2D) -> void:
 			speed = clampf(source.linear_velocity.length(), 280.0, 860.0)
 	var coeff := 0.45
 	if kind == Kind.SHELF:
-		# Drop the plank onto the pile instead of spinning in place.
-		dir = Vector2(dir.x * 0.3, 1.0).normalized()
-		coeff = 0.52
+		# Tip and drop, with some wobble, instead of slamming the whole pile.
+		dir = Vector2(dir.x * 0.22, 1.0).normalized()
+		if _heavy and _is_lower_shelf():
+			var bias := -1.0 if _hit_x < global_position.x else 1.0
+			dir = Vector2(bias * 0.55, 1.0).normalized()
+			coeff = 0.5
+		elif _heavy:
+			var bias := -1.0 if _hit_x < global_position.x else 1.0
+			dir = Vector2(bias * 0.42, 1.0).normalized()
+			coeff = 0.62
+		elif _is_lower_shelf():
+			coeff = 0.26 * randf_range(0.7, 1.0)
+		else:
+			coeff = 0.4 * randf_range(0.78, 1.0)
 	elif kind == Kind.LAMP:
 		var horiz := dir.x if absf(dir.x) > 0.2 else 1.0
 		dir = Vector2(signf(horiz), 0.08).normalized()
@@ -90,15 +116,29 @@ func wake_from(source: Node2D) -> void:
 	apply_central_impulse(dir * speed * mass * coeff)
 	if kind == Kind.SHELF and is_instance_valid(source):
 		var side := source.global_position.x - global_position.x
-		var spin := signf(side) if absf(side) > 8.0 else 1.0
-		apply_torque_impulse(spin * mass * box_size.x * 8.0)
+		var spin := 1.0
+		if absf(side) > 8.0:
+			spin = signf(side)
+		elif randf() < 0.5:
+			spin = -1.0
+		var torque := 5.0 if _is_lower_shelf() else 6.5
+		if _heavy:
+			torque *= 1.8
+		apply_torque_impulse(spin * mass * box_size.x * torque * randf_range(0.75 if _heavy else 0.45, 1.0))
 		_wake_riders()
-		_shove_below()
+		if _heavy and not _is_lower_shelf():
+			# Upper plank first. The lower shelf and the floor follow on a timer.
+			_lower_wait = 0.22
+			set_process(true)
+		elif not _heavy:
+			_shove_below()
 
 
 func _on_body_entered(body: Node) -> void:
 	if not _round_live() or body == self:
 		return
+	if body.is_in_group("projectile"):
+		_note_projectile_hit(body)
 	if body is RigidBody2D and body.has_method("wake_from") and body.freeze:
 		body.call_deferred("wake_from", self)
 	if not counted:
@@ -128,21 +168,180 @@ func _wake_riders() -> void:
 		if absf(delta.x) > half_w or delta.y >= -4.0 or delta.y < -150.0:
 			continue
 		node.mark_chain()
-		var kick := Vector2(signf(delta.x) * randf_range(120.0, 220.0), randf_range(150.0, 240.0))
-		node.apply_central_impulse(kick * node.mass)
+		var side := signf(delta.x)
+		if absf(delta.x) < 6.0:
+			side = -1.0 if randf() < 0.5 else 1.0
+		var kick := Vector2(side * randf_range(60.0, 130.0), randf_range(28.0, 80.0))
+		if _heavy:
+			# Tumble the cargo off. Hard enough to read, not a shot into the floor.
+			kick = Vector2(side * randf_range(70.0, 140.0), randf_range(90.0, 160.0))
+			node.apply_central_impulse(kick * node.mass)
+		else:
+			node.apply_central_impulse(kick * node.mass * randf_range(0.5, 0.9))
 
 
 func _shove_below() -> void:
-	var half_w := box_size.x * 0.5 + 6.0
+	# A nudge, not a guaranteed chain. The upper shelf cannot reach the floor.
+	var lower := _is_lower_shelf()
+	var half_w := box_size.x * 0.5 + (4.0 if lower else 0.0)
+	var max_dy := 150.0 if lower else 96.0
+	var chance := 0.4 if lower else 0.3
 	for node in get_tree().get_nodes_in_group("prop"):
 		if node == self or node.freeze:
 			continue
 		var delta: Vector2 = node.global_position - global_position
-		if absf(delta.x) > half_w or delta.y < 10.0 or delta.y > 230.0:
+		if absf(delta.x) > half_w or delta.y < 10.0 or delta.y > max_dy:
 			continue
-		node.mark_chain()
+		if randf() > chance:
+			continue
 		var away := signf(delta.x) if absf(delta.x) > 12.0 else 1.0
-		node.apply_central_impulse(Vector2(away * randf_range(150.0, 280.0), 70.0) * node.mass)
+		if absf(delta.x) <= 12.0 and randf() < 0.5:
+			away = -1.0
+		var kick := Vector2(away * randf_range(36.0, 110.0), randf_range(12.0, 46.0))
+		if not lower:
+			kick *= 0.4
+		node.apply_central_impulse(kick * node.mass * randf_range(0.35, 0.75))
+
+
+func _is_lower_shelf() -> bool:
+	return kind == Kind.SHELF and box_size.x >= 360.0
+
+
+func _impact_wakes(source: Node2D) -> bool:
+	if _heavy or _force_wake:
+		return true
+	if not _is_lower_shelf():
+		return true
+	if source != null and source.is_in_group("projectile"):
+		return true
+	if source is RigidBody2D:
+		return _body_speed(source) >= 300.0
+	return false
+
+
+func _note_projectile_hit(stone: Node) -> void:
+	var shelf = null
+	if kind == Kind.SHELF and not _is_lower_shelf():
+		shelf = self
+	else:
+		var upper = _find_shelf(false)
+		if upper == null:
+			return
+		var delta: Vector2 = global_position - upper.global_position
+		if absf(delta.x) > upper.box_size.x * 0.5 + 20.0:
+			return
+		if delta.y >= -4.0 or delta.y < -100.0:
+			return
+		shelf = upper
+	if shelf != null and shelf.has_method("note_hit"):
+		shelf.note_hit(stone.global_position.x, _body_speed(stone))
+		# Cargo is already touching the plank, so the stone must wake it.
+		if shelf != self and shelf.freeze:
+			shelf.call_deferred("wake_from", stone)
+
+
+func set_sweet_spots(xs: Array, reaches: Array) -> void:
+	_sweet_x.clear()
+	_sweet_reach.clear()
+	var n := mini(xs.size(), reaches.size())
+	for i in n:
+		_sweet_x.append(float(xs[i]))
+		_sweet_reach.append(float(reaches[i]))
+
+
+func note_hit(hit_x: float, speed: float) -> void:
+	if speed >= _hit_speed:
+		_hit_x = hit_x
+		_hit_speed = speed
+	if _heavy or speed < SWEET_SPEED or _sweet_x.is_empty():
+		return
+	for i in _sweet_x.size():
+		if absf(hit_x - _sweet_x[i]) <= _sweet_reach[i]:
+			_heavy = true
+			return
+
+
+func _release_lower_shelf() -> void:
+	var lower = _find_shelf(true)
+	if lower == null:
+		return
+	lower._hit_x = _hit_x
+	lower._heavy = true
+	lower._force_wake = true
+	if lower.freeze and not lower.awakened:
+		lower.wake_from(self)
+	else:
+		lower._wake_riders()
+
+
+func _queue_floor_wave() -> void:
+	# Nearest to the hit first, one prop per beat. Shelves and cargo already counted stay out.
+	var batch: Array = []
+	for node in get_tree().get_nodes_in_group("prop"):
+		if node == self:
+			continue
+		if node.has_method("is_shelf") and node.is_shelf():
+			continue
+		if bool(node.get("counted")):
+			continue
+		if node.global_position.x < 40.0 or node.global_position.x > 1240.0:
+			continue
+		var delta_y = node.global_position.y - global_position.y
+		if delta_y < 10.0 or delta_y > 520.0:
+			continue
+		batch.append(node)
+	var hit_x := _hit_x
+	batch.sort_custom(func(a, b): return absf(a.global_position.x - hit_x) < absf(b.global_position.x - hit_x))
+	_stagger = batch
+	_stagger_gap = 0.14
+	set_process(true)
+
+
+func _kick_next_stagger() -> void:
+	while not _stagger.is_empty():
+		var node = _stagger.pop_front()
+		if not is_instance_valid(node) or bool(node.get("counted")):
+			continue
+		var away = signf(float(node.global_position.x) - _hit_x)
+		if absf(away) < 0.5:
+			away = 1.0 if node.global_position.x >= global_position.x else -1.0
+		if node.freeze and node.has_method("wake_from"):
+			node._force_wake = true
+			node.wake_from(self)
+			if node.kind == Kind.LAMP:
+				node.apply_central_impulse(Vector2(away * 480.0, 50.0) * node.mass)
+			return
+		node.mark_chain()
+		# Pop them up off the floor. A downward kick just presses them into the ground.
+		var kick := Vector2(away * randf_range(160.0, 320.0), randf_range(-280.0, -140.0))
+		node.apply_central_impulse(kick * node.mass)
+		return
+
+
+func _find_shelf(lower: bool):
+	for node in get_tree().get_nodes_in_group("prop"):
+		if not node.has_method("is_shelf") or not node.is_shelf():
+			continue
+		var wide = node.box_size.x >= 360.0
+		if wide == lower:
+			return node
+	return null
+
+
+func _body_speed(body: Node) -> float:
+	if not body is RigidBody2D:
+		return 0.0
+	var rigid := body as RigidBody2D
+	var speed := rigid.linear_velocity.length()
+	var remembered = rigid.get("_recent_speed")
+	if remembered != null:
+		speed = maxf(speed, float(remembered))
+	return speed
+
+
+func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
+	# Kept across the contact, because the solver zeroes a hard hit before wake_from.
+	_recent_speed = maxf(state.linear_velocity.length(), _recent_speed * 0.85)
 
 
 func _join_chain() -> void:
@@ -217,19 +416,31 @@ func _shatter() -> void:
 		var dir := Vector2.from_angle(float(i) / 5.0 * TAU + randf_range(-0.25, 0.25))
 		parent.add_child(bit)
 		bit.global_position = origin + dir * 18.0
-		bit.linear_velocity = carry * 0.35 + dir * randf_range(360.0, 640.0) + Vector2(0, randf_range(-40.0, 160.0))
+		bit.linear_velocity = carry * 0.22 + dir * randf_range(200.0, 380.0) + Vector2(0, randf_range(-20.0, 90.0))
 		bit.angular_velocity = randf_range(-14.0, 14.0)
 
 
 func _process(delta: float) -> void:
+	if _lower_wait >= 0.0:
+		_lower_wait -= delta
+		if _lower_wait <= 0.0:
+			_lower_wait = -1.0
+			_release_lower_shelf()
+			_queue_floor_wave()
+	if not _stagger.is_empty():
+		_stagger_gap -= delta
+		while _stagger_gap <= 0.0 and not _stagger.is_empty():
+			_kick_next_stagger()
+			_stagger_gap += 0.08
 	var redraw := kind == Kind.LAMP
 	if flash > 0.0:
 		flash = maxf(0.0, flash - delta / POP_TIME)
 		redraw = true
-		if flash == 0.0 and kind != Kind.LAMP:
-			set_process(false)
 	if redraw:
 		queue_redraw()
+	var busy := _lower_wait >= 0.0 or not _stagger.is_empty()
+	if not busy and flash == 0.0 and kind != Kind.LAMP:
+		set_process(false)
 
 
 func _draw() -> void:
@@ -335,25 +546,31 @@ func _apply_material() -> void:
 	match kind:
 		Kind.BARREL:
 			mass = 1.3
-			linear_damp = 0.04
-			angular_damp = 0.06
+			linear_damp = 0.16
+			angular_damp = 0.22
 			gravity_scale = 1.0
-			mat.friction = 0.32 if mass_scale < 0.9 else 0.48
-			mat.bounce = 0.04
+			mat.friction = 0.5 if mass_scale < 0.9 else 0.66
+			mat.bounce = 0.03
 		Kind.CAGE:
 			mass = 1.5
-			linear_damp = 0.2
-			angular_damp = 0.4
+			linear_damp = 0.34
+			angular_damp = 0.55
 			gravity_scale = 1.0
-			mat.friction = 0.62
-			mat.bounce = 0.02
+			mat.friction = 0.74
+			mat.bounce = 0.01
 		Kind.SHELF:
 			mass = 5.5
-			linear_damp = 0.15
-			angular_damp = 1.05
-			gravity_scale = 1.6
-			mat.friction = 0.42
 			mat.bounce = 0.01
+			if box_size.x >= 360.0:
+				linear_damp = 0.5
+				angular_damp = 2.1
+				gravity_scale = 1.15
+				mat.friction = 0.78
+			else:
+				linear_damp = 0.3
+				angular_damp = 1.4
+				gravity_scale = 1.3
+				mat.friction = 0.58
 		Kind.LAMP:
 			mass = 3.2
 			linear_damp = 0.16
@@ -412,6 +629,8 @@ class Burst extends Node2D:
 ## Glass from the bottle. Counts as already in the chain so it can knock
 ## the next prop, without adding its own +1.
 class GlassBit extends RigidBody2D:
+	var _recent_speed := 0.0
+
 	func _ready() -> void:
 		add_to_group("prop")
 		collision_layer = 2
@@ -441,6 +660,9 @@ class GlassBit extends RigidBody2D:
 
 	func mark_chain() -> void:
 		pass
+
+	func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
+		_recent_speed = maxf(state.linear_velocity.length(), _recent_speed * 0.85)
 
 	func _on_glass_hit(body: Node) -> void:
 		if body is RigidBody2D and body.has_method("wake_from") and body.freeze:

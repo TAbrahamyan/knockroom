@@ -39,6 +39,7 @@ func _ready() -> void:
 	thrower.aim_started.connect(_on_aim_started)
 	thrower.aim_ended.connect(_on_aim_ended)
 	chain.set_hint(HINT_READY)
+	_randomize_room()
 
 
 func _input(event: InputEvent) -> void:
@@ -171,3 +172,265 @@ func _reset() -> void:
 		return
 	_reloading = true
 	get_tree().reload_current_scene()
+
+
+func _randomize_room() -> void:
+	# New seed on every launch and every R, so the pile is not the scene file.
+	randomize()
+	var props: Array = []
+	for node in get_tree().get_nodes_in_group("prop"):
+		props.append(node)
+	var upper = null
+	var lower = null
+	var lamp = null
+	var loose: Array = []
+	for prop in props:
+		if not prop.has_method("is_shelf"):
+			continue
+		if prop.is_shelf():
+			if prop.box_size.x >= 360.0:
+				lower = prop
+			else:
+				upper = prop
+		elif int(prop.kind) == 3:
+			lamp = prop
+		else:
+			loose.append(prop)
+	if upper == null or lower == null:
+		return
+	loose.shuffle()
+	if lamp != null:
+		var lp: Vector2 = lamp.global_position
+		lp.x = clampf(lp.x + randf_range(-28.0, 28.0), 560.0, 720.0)
+		lp.y = clampf(lp.y + randf_range(-18.0, 18.0), 548.0, 586.0)
+		_place_prop(lamp, lp)
+		lamp.freeze = true
+		_retie_lamp()
+	var ux := randf_range(880.0, 1010.0)
+	var uy := randf_range(268.0, 304.0)
+	_place_prop(upper, Vector2(ux, uy))
+	upper.freeze = true
+	var lamp_clear := 800.0
+	if lamp != null:
+		lamp_clear = lamp.global_position.x + float(lamp.radius) + float(lower.box_size.x) * 0.5 + 24.0
+	var lx := clampf(ux + randf_range(-70.0, 50.0), maxf(lamp_clear, 800.0), 1010.0)
+	var ly := clampf(uy + randf_range(162.0, 196.0), 445.0, 508.0)
+	if lamp != null:
+		var shelf_left := lx - float(lower.box_size.x) * 0.5
+		var lamp_pos: Vector2 = lamp.global_position
+		var lamp_radius := float(lamp.radius)
+		var lamp_right := lamp_pos.x + lamp_radius + 8.0
+		if shelf_left < lamp_right:
+			var lamp_top := lamp_pos.y - lamp_radius
+			ly = minf(ly, lamp_top - float(lower.box_size.y) * 0.5 - 12.0)
+			ly = clampf(ly, uy + 150.0, 508.0)
+	_place_prop(lower, Vector2(lx, ly))
+	lower.freeze = true
+	var rest := _seat_on_shelf(upper, loose, randi_range(2, 3), 84.0)
+	rest = _seat_on_shelf(lower, rest, randi_range(3, 4), 0.0)
+	_place_on_floor(rest, lamp)
+	_pick_sweet_spots(upper)
+	var backdrop := get_node_or_null("Backdrop")
+	if backdrop:
+		backdrop.queue_redraw()
+
+
+func _retie_lamp() -> void:
+	# The pin captured its anchors before this shuffle. Rebuild them at the new pose
+	# or the rope yanks the lamp across the room on the first physics frame.
+	var pin = get_node_or_null("LampPin")
+	if pin == null:
+		return
+	var path_a = pin.node_a
+	var path_b = pin.node_b
+	pin.node_b = NodePath("")
+	pin.node_a = NodePath("")
+	pin.node_a = path_a
+	pin.node_b = path_b
+
+
+func _place_prop(body, pos: Vector2) -> void:
+	body.rotation = 0.0
+	body.global_position = pos
+	body.linear_velocity = Vector2.ZERO
+	body.angular_velocity = 0.0
+	body.sleeping = false
+	var rid = body.get_rid()
+	PhysicsServer2D.body_set_state(rid, PhysicsServer2D.BODY_STATE_TRANSFORM, body.global_transform)
+	PhysicsServer2D.body_set_state(rid, PhysicsServer2D.BODY_STATE_LINEAR_VELOCITY, Vector2.ZERO)
+	PhysicsServer2D.body_set_state(rid, PhysicsServer2D.BODY_STATE_ANGULAR_VELOCITY, 0.0)
+
+
+func _prop_half(prop) -> Vector2:
+	var k = int(prop.kind)
+	if k == 0 or k == 3:
+		return Vector2(prop.radius, prop.radius)
+	return prop.box_size * 0.5
+
+
+func _seat_on_shelf(shelf, candidates: Array, goal: int, max_height: float) -> Array:
+	var chosen: Array = []
+	var skipped: Array = []
+	var usable := float(shelf.box_size.x) - 16.0
+	var used := 0.0
+	for prop in candidates:
+		var full := _prop_half(prop) * 2.0
+		var too_tall := max_height > 0.0 and full.y > max_height
+		var gap := 0.0 if chosen.is_empty() else 8.0
+		var fits := chosen.size() < goal and not too_tall and used + gap + full.x <= usable + 0.5
+		if fits:
+			chosen.append(prop)
+			used += gap + full.x
+		else:
+			skipped.append(prop)
+	if chosen.is_empty():
+		return skipped
+	var widths := 0.0
+	for prop in chosen:
+		widths += _prop_half(prop).x * 2.0
+	var gap_size := 10.0
+	if chosen.size() > 1:
+		gap_size = clampf((usable - widths) / float(chosen.size() - 1), 6.0, 22.0)
+	var row := widths + gap_size * float(maxi(chosen.size() - 1, 0))
+	var x = shelf.global_position.x - row * 0.5
+	var shelf_top = shelf.global_position.y - float(shelf.box_size.y) * 0.5
+	for prop in chosen:
+		var half := _prop_half(prop)
+		x += half.x
+		_place_prop(prop, Vector2(x, shelf_top - half.y - 3.0))
+		x += half.x + gap_size
+	return skipped
+
+
+func _place_on_floor(props: Array, lamp) -> void:
+	if props.is_empty():
+		return
+	props.shuffle()
+	var widths := 0.0
+	for prop in props:
+		widths += _prop_half(prop).x * 2.0
+	var start := randf_range(250.0, 300.0)
+	var lamp_left := 9999.0
+	var lamp_right := -9999.0
+	var lamp_span := 0.0
+	if lamp != null:
+		lamp_span = float(lamp.radius) * 2.0 + 36.0
+		lamp_left = lamp.global_position.x - float(lamp.radius) - 18.0
+		lamp_right = lamp.global_position.x + float(lamp.radius) + 18.0
+	var room := 1234.0 - start - lamp_span
+	var gap := 16.0
+	if props.size() > 1:
+		gap = clampf((room - widths) / float(props.size() - 1), 10.0, 24.0)
+	var x := start
+	for prop in props:
+		var half := _prop_half(prop)
+		x += half.x
+		if lamp != null and x + half.x > lamp_left and x - half.x < lamp_right:
+			x = lamp_right + half.x
+		if x + half.x > 1234.0:
+			x = 1234.0 - half.x
+		_place_prop(prop, Vector2(x, 640.0 - half.y - 1.0))
+		x += half.x + gap
+	_separate_row(props)
+	_clear_lamp(props, lamp)
+	_separate_row(props)
+	_clear_lamp(props, lamp)
+
+
+func _separate_row(props: Array) -> void:
+	if props.size() < 2:
+		return
+	props.sort_custom(func(a, b): return a.global_position.x < b.global_position.x)
+	for i in range(1, props.size()):
+		var prev = props[i - 1]
+		var cur = props[i]
+		var need = _prop_half(prev).x + _prop_half(cur).x + 8.0
+		if cur.global_position.x - prev.global_position.x < need:
+			var pos: Vector2 = cur.global_position
+			pos.x = prev.global_position.x + need
+			_place_prop(cur, pos)
+	var last = props[props.size() - 1]
+	var overflow = last.global_position.x + _prop_half(last).x - 1234.0
+	if overflow > 0.0:
+		for prop in props:
+			var shifted: Vector2 = prop.global_position
+			shifted.x -= overflow
+			_place_prop(prop, shifted)
+
+
+func _clear_lamp(props: Array, lamp) -> void:
+	if lamp == null:
+		return
+	var lpos: Vector2 = lamp.global_position
+	var lrad := float(lamp.radius) + 12.0
+	for prop in props:
+		var half := _prop_half(prop)
+		var pos: Vector2 = prop.global_position
+		var dx := absf(pos.x - lpos.x)
+		var dy := absf(pos.y - lpos.y)
+		if dx < half.x + lrad and dy < half.y + lrad:
+			if pos.x >= lpos.x:
+				pos.x = lpos.x + lrad + half.x + 8.0
+			else:
+				pos.x = lpos.x - lrad - half.x - 8.0
+			pos.x = clampf(pos.x, 250.0 + half.x, 1234.0 - half.x)
+			_place_prop(prop, pos)
+
+
+func _pick_sweet_spots(upper) -> void:
+	var half_w := float(upper.box_size.x) * 0.5
+	var left = upper.global_position.x - half_w
+	var right = upper.global_position.x + half_w
+	var candidates: Array = []
+	var props: Array = []
+	for node in get_tree().get_nodes_in_group("prop"):
+		props.append(node)
+	for node in props:
+		if node == upper or node.is_shelf() or int(node.kind) == 3:
+			continue
+		var delta: Vector2 = node.global_position - upper.global_position
+		if absf(delta.x) > half_w + 4.0 or delta.y >= -4.0 or delta.y < -130.0:
+			continue
+		var reach := clampf(_prop_half(node).x * 0.55, 11.0, 16.0)
+		candidates.append([node.global_position.x, reach])
+	var lips: Array = [[left + 18.0, 12.0], [right - 18.0, 12.0]]
+	for lip in lips:
+		var clear := true
+		for spot in candidates:
+			if absf(float(lip[0]) - float(spot[0])) < 34.0:
+				clear = false
+				break
+		if clear:
+			candidates.append(lip)
+	if candidates.size() < 2:
+		candidates.append([upper.global_position.x - 40.0, 12.0])
+		candidates.append([upper.global_position.x + 40.0, 12.0])
+	candidates.shuffle()
+	var picked: Array = []
+	for spot in candidates:
+		var apart := true
+		for kept in picked:
+			if absf(float(spot[0]) - float(kept[0])) < 36.0:
+				apart = false
+				break
+		if apart:
+			picked.append(spot)
+		if picked.size() == 2:
+			break
+	if picked.size() < 2:
+		for spot in candidates:
+			var seen := false
+			for kept in picked:
+				if absf(float(spot[0]) - float(kept[0])) < 1.0:
+					seen = true
+					break
+			if not seen:
+				picked.append(spot)
+			if picked.size() == 2:
+				break
+	var xs: Array = []
+	var reaches: Array = []
+	for spot in picked:
+		xs.append(float(spot[0]))
+		reaches.append(float(spot[1]))
+	upper.set_sweet_spots(xs, reaches)

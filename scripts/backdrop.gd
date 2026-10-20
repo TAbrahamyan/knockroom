@@ -1,7 +1,7 @@
 extends Node2D
 
 ## Static room paint. Collision lives on the StaticBody2D nodes in main.tscn.
-## Bracket positions follow the shelves: main (900, 468, 440×18), upper (940, 280, 240×16).
+## Pegs are paint only and follow the shelves after the room is shuffled.
 
 const WALL := Color(0.16, 0.115, 0.13)
 const FRAME := Color(0.09, 0.06, 0.07)
@@ -35,10 +35,24 @@ func _draw() -> void:
 	draw_rect(Rect2(630, 138, 20, 18), WOOD)
 
 	# Pegs under the planks. They are paint only — a hit knocks the plank off them.
-	draw_rect(Rect2(752, 477, 16, 46), WOOD_DARK)
-	draw_rect(Rect2(1032, 477, 16, 46), WOOD_DARK)
-	draw_rect(Rect2(860, 288, 14, 36), WOOD_DARK)
-	draw_rect(Rect2(1000, 288, 14, 36), WOOD_DARK)
+	var kids: Array = []
+	if get_parent():
+		for node in get_parent().get_children():
+			kids.append(node)
+	for child in kids:
+		if not child.has_method("is_shelf") or not child.is_shelf():
+			continue
+		var box = child.get("box_size")
+		var half_w := float(box.x) * 0.5
+		var wide := half_w > 150.0
+		var inset := 28.0 if wide else 22.0
+		var peg_w := 16.0 if wide else 14.0
+		var peg_h := 46.0 if wide else 36.0
+		var body := child as Node2D
+		var origin := body.global_position - global_position
+		var top := origin.y + float(box.y) * 0.5
+		draw_rect(Rect2(origin.x - half_w + inset, top, peg_w, peg_h), WOOD_DARK)
+		draw_rect(Rect2(origin.x + half_w - inset - peg_w, top, peg_w, peg_h), WOOD_DARK)
 
 	draw_rect(Rect2(32, 626, 1216, 14), BOARD)
 	draw_rect(Rect2(0, 640, 1280, 80), FLOOR)
