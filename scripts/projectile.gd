@@ -2,6 +2,8 @@ extends RigidBody2D
 
 const RADIUS := 15.0
 
+var _approach_speed := 0.0
+
 
 func _ready() -> void:
 	add_to_group("projectile")
@@ -35,9 +37,28 @@ func launch(velocity: Vector2) -> void:
 		rotation = velocity.angle()
 
 
+func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
+	# Captured before the solver kills the hit. The left wall has no bounce.
+	if state.linear_velocity.x < -40.0:
+		_approach_speed = maxf(_approach_speed, -state.linear_velocity.x)
+
+
 func _on_body_entered(body: Node) -> void:
 	if body.has_method("wake_from"):
 		body.call_deferred("wake_from", self)
+	if body.is_in_group("back_wall"):
+		call_deferred("_kick_off_back_wall")
+
+
+func _kick_off_back_wall() -> void:
+	# Stronger than a floor or shelf graze: fly back into the room.
+	var kick := clampf(maxf(_approach_speed * 1.5, 900.0), 900.0, 1320.0)
+	var drop := linear_velocity.y
+	if absf(drop) < 80.0:
+		drop = 180.0
+	linear_velocity = Vector2(kick, clampf(drop, -180.0, 420.0))
+	angular_velocity = randf_range(-6.0, 6.0)
+	_approach_speed = 0.0
 
 
 func _draw() -> void:

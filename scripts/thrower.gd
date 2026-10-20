@@ -10,8 +10,8 @@ signal stone_launched(body: RigidBody2D)
 const PROJECTILE := preload("res://scenes/projectile.tscn")
 
 @export var max_pull := 180.0
-@export var min_pull := 28.0
-@export var min_speed := 480.0
+@export var min_pull := 48.0
+@export var min_speed := 560.0
 @export var max_speed := 1360.0
 
 var can_aim := false
@@ -84,7 +84,7 @@ func _draw() -> void:
 	if can_aim and not aiming:
 		var font := ThemeDB.fallback_font
 		if font:
-			draw_string(font, Vector2(-30, 52), "тяни", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 0.9, 0.55, alpha))
+			draw_string(font, Vector2(-30, 52), "pull", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 0.9, 0.55, alpha))
 	if not aiming:
 		return
 	var pull := to_local(get_global_mouse_position())
@@ -92,19 +92,27 @@ func _draw() -> void:
 		return
 	var shown := pull.limit_length(max_pull)
 	var power := clampf(shown.length() / max_pull, 0.0, 1.0)
-	var band := Color(1.0, 0.86, 0.32).lerp(Color(1.0, 0.32, 0.18), power)
-	band.a = 0.95
-	draw_line(Vector2.ZERO, shown, band, lerpf(2.0, 6.0, power))
-	draw_circle(shown, 7.0, band)
+	if shown.length() < min_pull:
+		var dim := Color(0.62, 0.62, 0.66, 0.8)
+		draw_line(Vector2.ZERO, shown, dim, 2.5)
+		draw_circle(shown, 5.0, dim)
+		return
+	var hot := smoothstep(0.15, 1.0, power)
+	var band := Color(1.0, 0.95, 0.35).lerp(Color(1.0, 0.14, 0.05), hot)
+	band.a = 0.98
+	var width := lerpf(5.0, 16.0, hot)
+	draw_line(Vector2.ZERO, shown, band, width)
+	draw_circle(shown, lerpf(7.0, 13.0, hot), band)
 	var velocity := _velocity_from_mouse()
 	if velocity == Vector2.ZERO:
 		return
 	_draw_arrow(-shown.normalized() * 36.0, -shown.normalized())
 	var points := _trajectory(global_position, velocity)
+	var dot := lerpf(2.8, 5.4, hot)
 	for i in points.size():
 		var local := to_local(points[i])
-		var dot := 4.2 if i == points.size() - 1 else 2.3
-		draw_circle(local, dot, Color(1.0, 0.94, 0.62, 0.95))
+		var radius := dot + 2.4 if i == points.size() - 1 else dot
+		draw_circle(local, radius, band)
 
 
 func _draw_arrow(tip: Vector2, dir: Vector2) -> void:
