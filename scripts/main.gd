@@ -253,7 +253,7 @@ func _build_money() -> void:
 
 
 func _refresh_money(punch: bool) -> void:
-	_money.text = Loadout.shards(Loadout.money)
+	_money.text = Loadout.coins(Loadout.money)
 	if not punch or Loadout.last_earn <= 0:
 		return
 	_money.pivot_offset = Vector2(180.0, 13.0)
@@ -703,76 +703,28 @@ func _has_rider(carrier, props: Array) -> bool:
 
 
 func _pick_sweet_spots(upper) -> void:
+	# One spot on the highest shelf. It sits on a rider when one is there,
+	# otherwise in the middle band of the plank, inset from the lips.
 	var half_w := float(upper.box_size.x) * 0.5
-	var left = upper.global_position.x - half_w
-	var right = upper.global_position.x + half_w
-	var candidates: Array = []
-	var props: Array = []
+	var left: float = upper.global_position.x - half_w
+	var right: float = upper.global_position.x + half_w
+	var riders: Array = []
 	for node in get_tree().get_nodes_in_group("prop"):
-		props.append(node)
-	for node in props:
 		if node == upper or node.is_shelf() or int(node.kind) == 3:
 			continue
 		var delta: Vector2 = node.global_position - upper.global_position
-		if absf(delta.x) > half_w + 4.0 or delta.y >= -4.0 or delta.y < -130.0:
+		if absf(delta.x) > half_w - 36.0 or delta.y >= -4.0 or delta.y < -130.0:
 			continue
-		var reach := clampf(_prop_half(node).x * 0.55, 11.0, 16.0)
-		candidates.append([node.global_position.x, reach])
-	# Ends, center, and a couple of in-between points, so a bare shelf still has three targets.
-	# Inset past the corner. A stone has a 15px radius and clips the plank face inside that.
-	var fillers: Array = [
-		[left + 28.0, 12.0],
-		[upper.global_position.x, 12.0],
-		[right - 28.0, 12.0],
-		[upper.global_position.x - half_w * 0.42, 12.0],
-		[upper.global_position.x + half_w * 0.42, 12.0],
-	]
-	for fill in fillers:
-		var crowded := false
-		for spot in candidates:
-			if absf(float(fill[0]) - float(spot[0])) < 28.0:
-				crowded = true
-				break
-		if not crowded:
-			candidates.append(fill)
-	candidates.shuffle()
-	var min_gap := clampf((right - left) / 4.5, 42.0, 96.0)
-	var picked: Array = []
-	for spot in candidates:
-		var apart := true
-		for kept in picked:
-			if absf(float(spot[0]) - float(kept[0])) < min_gap:
-				apart = false
-				break
-		if apart:
-			picked.append(spot)
-		if picked.size() == 3:
-			break
-	if picked.size() < 3:
-		var stations: Array = [0.18, 0.5, 0.82, 0.34, 0.66]
-		for t in stations:
-			if picked.size() == 3:
-				break
-			var station_x := lerpf(left, right, float(t))
-			var station_clear := true
-			for kept in picked:
-				if absf(station_x - float(kept[0])) < 42.0:
-					station_clear = false
-					break
-			if station_clear:
-				picked.append([station_x, 12.0])
-	if picked.size() < 3:
-		picked = [
-			[left + 28.0, 12.0],
-			[upper.global_position.x, 12.0],
-			[right - 28.0, 12.0],
-		]
-	var xs: Array = []
-	var reaches: Array = []
-	for spot in picked:
-		xs.append(clampf(float(spot[0]), left + 22.0, right - 22.0))
-		reaches.append(float(spot[1]))
-	upper.set_sweet_spots(xs, reaches)
+		riders.append(node.global_position.x)
+	var spot_x: float
+	if riders.is_empty():
+		spot_x = randf_range(lerpf(left, right, 0.32), lerpf(left, right, 0.68))
+	else:
+		riders.shuffle()
+		spot_x = float(riders[0])
+	spot_x = clampf(spot_x, left + 36.0, right - 36.0)
+	# 18px is about one stone. A careful aim lands it. A guess along the plank does not.
+	upper.set_sweet_spots([spot_x], [18.0])
 
 
 func _layout_long(wide) -> Array:

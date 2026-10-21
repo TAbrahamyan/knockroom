@@ -99,17 +99,17 @@ func resize_shelf(width: float) -> void:
 		rect.size = Vector2(box_size.x, box_size.y)
 		shape_node.shape = rect
 	if box_size.x >= 360.0:
-		linear_damp = 0.4
-		angular_damp = 1.35
-		gravity_scale = 1.0
-		if physics_material_override:
-			physics_material_override.friction = 0.72
-	else:
 		linear_damp = 0.28
-		angular_damp = 0.95
+		angular_damp = 0.72
 		gravity_scale = 1.0
 		if physics_material_override:
-			physics_material_override.friction = 0.6
+			physics_material_override.friction = 0.58
+	else:
+		linear_damp = 0.2
+		angular_damp = 0.55
+		gravity_scale = 1.0
+		if physics_material_override:
+			physics_material_override.friction = 0.48
 	queue_redraw()
 
 
@@ -148,27 +148,27 @@ func wake_from(source: Node2D) -> void:
 			dir = rel.normalized()
 		if source is RigidBody2D:
 			speed = clampf(source.linear_velocity.length(), 280.0, 860.0)
-	var coeff := 0.28
+	var coeff := 0.2
 	if kind == Kind.SHELF:
-		# Tip and drop. Gravity finishes the fall.
-		dir = Vector2(dir.x * 0.22, 1.0).normalized()
+		# A small shove and a real tip. Gravity does the falling.
+		dir = Vector2(dir.x * 0.16, 1.0).normalized()
 		if _heavy and _is_support_shelf():
 			var bias := -1.0 if _hit_x < global_position.x else 1.0
-			dir = Vector2(bias * 0.55, 1.0).normalized()
-			coeff = 0.32
+			dir = Vector2(bias * 0.4, 1.0).normalized()
+			coeff = 0.22
 		elif _heavy:
 			var bias := -1.0 if _hit_x < global_position.x else 1.0
-			dir = Vector2(bias * 0.42, 1.0).normalized()
-			coeff = 0.4
+			dir = Vector2(bias * 0.32, 1.0).normalized()
+			coeff = 0.26
 		elif _is_support_shelf():
-			coeff = 0.16 * randf_range(0.75, 1.0)
+			coeff = 0.12 * randf_range(0.75, 1.0)
 		else:
-			coeff = 0.24 * randf_range(0.8, 1.0)
+			coeff = 0.16 * randf_range(0.8, 1.0)
 	elif kind == Kind.LAMP:
 		var horiz := dir.x if absf(dir.x) > 0.2 else 1.0
-		dir = Vector2(signf(horiz), 0.08).normalized()
-		speed = clampf(speed, 420.0, 640.0)
-		coeff = 0.55
+		dir = Vector2(signf(horiz), 0.06).normalized()
+		speed = clampf(speed, 340.0, 520.0)
+		coeff = 0.36
 	apply_central_impulse(dir * speed * mass * coeff)
 	if kind == Kind.SHELF and is_instance_valid(source):
 		var side := source.global_position.x - global_position.x
@@ -177,9 +177,9 @@ func wake_from(source: Node2D) -> void:
 			spin = signf(side)
 		elif randf() < 0.5:
 			spin = -1.0
-		var torque := 3.2 if _is_support_shelf() else 4.0
+		var torque := 3.6 if _is_support_shelf() else 5.0
 		if _heavy:
-			torque *= 1.35
+			torque *= 1.2
 		apply_torque_impulse(spin * mass * box_size.x * torque * randf_range(0.75 if _heavy else 0.45, 1.0))
 		_wake_riders()
 		if _heavy and not _is_support_shelf():
@@ -397,11 +397,11 @@ func _kick_next_stagger() -> void:
 			node._force_wake = true
 			node.wake_from(self)
 			if node.kind == Kind.LAMP:
-				node.apply_central_impulse(Vector2(away * 240.0, 30.0) * node.mass)
+				node.apply_central_impulse(Vector2(away * 160.0, 16.0) * node.mass)
 			return
 		node.mark_chain()
-		# A short hop and a sideways shove. Enough to roll, not a jump.
-		var kick := Vector2(away * randf_range(100.0, 180.0), randf_range(-150.0, -80.0))
+		# A roll along the floor. Almost no lift, so they tumble instead of jumping.
+		var kick := Vector2(away * randf_range(260.0, 380.0), randf_range(-28.0, 16.0))
 		node.apply_central_impulse(kick * node.mass)
 		return
 
@@ -648,39 +648,39 @@ func _apply_material() -> void:
 	var mat := PhysicsMaterial.new()
 	match kind:
 		Kind.BARREL:
-			mass = 1.7
-			linear_damp = 0.32
+			mass = 1.55
+			linear_damp = 0.18
+			angular_damp = 0.32
+			gravity_scale = 1.0
+			mat.friction = 0.42 if mass_scale < 0.9 else 0.55
+			mat.bounce = 0.06
+		Kind.CAGE:
+			mass = 2.4
+			linear_damp = 0.26
 			angular_damp = 0.5
 			gravity_scale = 1.0
-			mat.friction = 0.62 if mass_scale < 0.9 else 0.74
-			mat.bounce = 0.02
-		Kind.CAGE:
-			mass = 2.1
-			linear_damp = 0.42
-			angular_damp = 0.8
-			gravity_scale = 1.0
-			mat.friction = 0.84
+			mat.friction = 0.7
 			mat.bounce = 0.0
 		Kind.SHELF:
-			mass = 6.8
+			mass = 5.2
 			mat.bounce = 0.0
 			if box_size.x >= 360.0:
-				linear_damp = 0.4
-				angular_damp = 1.35
-				gravity_scale = 1.0
-				mat.friction = 0.72
-			else:
 				linear_damp = 0.28
-				angular_damp = 0.95
+				angular_damp = 0.72
 				gravity_scale = 1.0
-				mat.friction = 0.6
+				mat.friction = 0.58
+			else:
+				linear_damp = 0.2
+				angular_damp = 0.55
+				gravity_scale = 1.0
+				mat.friction = 0.48
 		Kind.LAMP:
-			mass = 2.6
-			linear_damp = 0.24
-			angular_damp = 0.9
+			mass = 2.2
+			linear_damp = 0.16
+			angular_damp = 0.65
 			gravity_scale = 1.0
-			mat.friction = 0.45
-			mat.bounce = 0.05
+			mat.friction = 0.38
+			mat.bounce = 0.04
 	mass *= mass_scale
 	physics_material_override = mat
 

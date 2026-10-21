@@ -32,9 +32,9 @@ func show_offers() -> void:
 		_fill_card(_cards[i], pool[i])
 	var sub := get_node("Root/Panel/Sub") as Label
 	if Loadout.last_earn > 0:
-		sub.text = "Earned %s.  You have %s." % [Loadout.shards(Loadout.last_earn), Loadout.shards(Loadout.money)]
+		sub.text = "Earned %s.  You have %s." % [Loadout.coins(Loadout.last_earn), Loadout.coins(Loadout.money)]
 	else:
-		sub.text = "You have %s. Buy one, or skip." % Loadout.shards(Loadout.money)
+		sub.text = "You have %s. Buy one, or skip." % Loadout.coins(Loadout.money)
 	var root := get_node("Root") as Control
 	root.modulate = Color(1, 1, 1, 0)
 	visible = true
@@ -56,10 +56,10 @@ func _fill_card(card: Button, offer: Dictionary) -> void:
 	card.get_node("Line").text = str(offer["line"])
 	var take := card.get_node("Take") as Label
 	if afford:
-		take.text = "Buy  %s" % Loadout.shards(price)
+		take.text = "Buy  %s" % Loadout.coins(price)
 		take.add_theme_color_override("font_color", GOLD)
 	else:
-		take.text = "Need %s" % Loadout.shards(price)
+		take.text = "Need %s" % Loadout.coins(price)
 		take.add_theme_color_override("font_color", MUTED)
 	var glyph = card.get_node("Glyph")
 	glyph.tint = offer["tint"]
@@ -120,7 +120,7 @@ func _build_ui() -> void:
 	var title := _label("For the next throw", 32, GOLD, Vector2(24, 22), Vector2(772, 42))
 	panel.add_child(title)
 
-	var sub := _label("You have 0 shards. Buy one, or skip.", 16, MUTED, Vector2(24, 68), Vector2(772, 26))
+	var sub := _label("You have 0 coins. Buy one, or skip.", 16, MUTED, Vector2(24, 68), Vector2(772, 26))
 	sub.name = "Sub"
 	panel.add_child(sub)
 

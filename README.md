@@ -6,19 +6,19 @@ Open the project in Godot 4.7 and run `scenes/main.tscn`.
 
 ## Loop
 
-Hold the left mouse button, pull back from the slingshot, and release. The stone flies the opposite way. When the room settles, the result shows the chain and the shards just earned. The shop then offers three stones. Buy one you can afford, or skip. The room is rebuilt, and the stone you bought changes the next throw.
+Hold the left mouse button, pull back from the slingshot, and release. The stone flies the opposite way. When the room settles, the result shows the chain and the coins just earned. The shop then offers three stones. Buy one you can afford, or skip. The room is rebuilt, and the stone you bought changes the next throw.
 
-R restarts the room. Shards and the equipped stone stay for the session.
+R restarts the room. Coins and the equipped stone stay for the session.
 
 ## Room
 
-Every launch and every restart builds a new shelf layout. A room has 18–23 loose objects and exactly 3 sweet spots on the highest shelf. Hitting a sweet spot drops the shelves one after another, then the floor. A miss uses a softer cascade. The floor beside the slingshot stays clear.
+Every launch and every restart builds a new shelf layout. A room has 18–23 loose objects and exactly 1 sweet spot on the highest shelf. Hitting that spot drops the shelves one after another, then the floor. A miss uses a softer cascade. The floor beside the slingshot stays clear.
 
-## Shards
+## Coins
 
-Broken glass is the purse. A miss or a single knock pays nothing. A chain of 2 or 3 pays 1 or 2 shards. A chain of 4 to 9 pays that many shards. From 10 links the payout starts at 11 and caps at 16, so one throw buys one stone.
+A miss or one or two knocks pay nothing. A chain of 3 or 4 pays 1 coin. The payout then climbs slowly: 10 links pay 7, 14 pay 9, and 18 or more pay 11. That buys one stone and does not pay for a second.
 
-The amount is shown on the result line (`+8 shards`) and again in the shop. The purse is in the top-right corner. Cards you cannot afford stay dimmed. Skip is free.
+The amount is shown on the result line (`+7 coins`) and again in the shop. The purse is in the top-right corner. Cards you cannot afford stay dimmed. Skip is free.
 
 ## Stones
 
@@ -26,14 +26,14 @@ The equipped stone is tinted, carries an icon for what it does, and is named in 
 
 | Stone | Price | Effect |
 | --- | --- | --- |
-| Light Stone | 8 shards | Lighter, and it flies farther |
-| Spring Stone | 9 shards | Bounces hard off what it hits |
-| Wide Stone | 10 shards | A fatter stone with a wider collision |
-| Glass Charm | 11 shards | Shatters bottles near the impact |
-| High Pop | 13 shards | Throws nearby props upward |
-| Heavy Stone | 15 shards | Heavier, shorter flight, harder hit |
-| Magnet Stone | 18 shards | Pulls nearby props in after a hit |
-| Blast Stone | 22 shards | Shoves nearby props on impact |
+| Light Stone | 7 coins | Lighter, and it flies farther |
+| Spring Stone | 8 coins | Bounces hard off what it hits |
+| Wide Stone | 9 coins | A fatter stone with a wider collision |
+| Glass Charm | 10 coins | Shatters bottles near the impact |
+| High Pop | 11 coins | Throws nearby props upward |
+| Heavy Stone | 13 coins | Heavier, shorter flight, harder hit |
+| Magnet Stone | 16 coins | Pulls nearby props in after a hit |
+| Blast Stone | 19 coins | Shoves nearby props on impact |
 
 ## Still one room
 

@@ -38,8 +38,8 @@ func _ready() -> void:
 	continuous_cd = CCD_MODE_CAST_SHAPE
 	mass = 2.5
 	gravity_scale = 1.0
-	linear_damp = 0.1
-	angular_damp = 0.28
+	linear_damp = 0.06
+	angular_damp = 0.22
 	z_index = 5
 	_apply_loadout()
 	var mat := PhysicsMaterial.new()
@@ -86,15 +86,15 @@ func _apply_loadout() -> void:
 func _bounce() -> float:
 	var item := Loadout.effect()
 	if item.is_empty():
-		return 0.05
-	return float(item.get("bounce", 0.05))
+		return 0.08
+	return float(item.get("bounce", 0.08))
 
 
 func _friction() -> float:
 	var item := Loadout.effect()
 	if item.is_empty():
-		return 0.62
-	return float(item.get("friction", 0.62))
+		return 0.5
+	return float(item.get("friction", 0.5))
 
 
 func _process(delta: float) -> void:
