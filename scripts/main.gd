@@ -175,63 +175,64 @@ func _reset() -> void:
 
 
 func _randomize_room() -> void:
-	# New seed on every launch and every R, so the pile is not the scene file.
+	# New seed on every launch and every R. The shelves, window, and lamp move, not just the props.
 	randomize()
-	var props: Array = []
-	for node in get_tree().get_nodes_in_group("prop"):
-		props.append(node)
-	var upper = null
-	var lower = null
-	var lamp = null
-	var loose: Array = []
-	for prop in props:
-		if not prop.has_method("is_shelf"):
-			continue
-		if prop.is_shelf():
-			if prop.box_size.x >= 360.0:
-				lower = prop
-			else:
-				upper = prop
-		elif int(prop.kind) == 3:
-			lamp = prop
-		else:
-			loose.append(prop)
-	if upper == null or lower == null:
+	var wide = get_node_or_null("ShelfMain")
+	var high = get_node_or_null("ShelfUpper")
+	var extra = get_node_or_null("ShelfSide")
+	var lamp = get_node_or_null("Lamp")
+	if wide == null or high == null:
 		return
+	var loose: Array = []
+	for node in get_tree().get_nodes_in_group("prop"):
+		if node == lamp or node == wide or node == high or node == extra:
+			continue
+		if node.has_method("is_shelf") and node.is_shelf():
+			continue
+		if int(node.kind) == 3:
+			continue
+		loose.append(node)
+	wide.park_shelf()
+	high.park_shelf()
+	if extra != null:
+		extra.park_shelf()
+	var roll := randi() % 6
+	if extra == null and (roll == 1 or roll == 4):
+		roll = 0
+	var active: Array = []
+	match roll:
+		0:
+			active = _layout_long(wide)
+		1:
+			active = _layout_sides(high, extra)
+		2:
+			active = _layout_stack(high, wide, true)
+		3:
+			active = _layout_stack(high, wide, false)
+		4:
+			active = _layout_stairs(high, extra, wide)
+		_:
+			active = _layout_balcony(high, wide)
+	_separate_overlapping(active)
+	active.sort_custom(func(a, b): return a.global_position.y < b.global_position.y)
+	var hook := Vector2(640, 140)
+	if lamp != null:
+		hook = _place_hanging_lamp(lamp, active)
 	loose.shuffle()
+	var rest: Array = loose
+	for shelf in active:
+		var limit: float = _rider_limit(shelf, active)
+		rest = _seat_on_shelf(shelf, rest, _seat_goal(float(shelf.box_size.x)), limit)
 	if lamp != null:
-		var lp: Vector2 = lamp.global_position
-		lp.x = clampf(lp.x + randf_range(-28.0, 28.0), 560.0, 720.0)
-		lp.y = clampf(lp.y + randf_range(-18.0, 18.0), 548.0, 586.0)
-		_place_prop(lamp, lp)
-		lamp.freeze = true
-		_retie_lamp()
-	var ux := randf_range(880.0, 1010.0)
-	var uy := randf_range(268.0, 304.0)
-	_place_prop(upper, Vector2(ux, uy))
-	upper.freeze = true
-	var lamp_clear := 800.0
-	if lamp != null:
-		lamp_clear = lamp.global_position.x + float(lamp.radius) + float(lower.box_size.x) * 0.5 + 24.0
-	var lx := clampf(ux + randf_range(-70.0, 50.0), maxf(lamp_clear, 800.0), 1010.0)
-	var ly := clampf(uy + randf_range(162.0, 196.0), 445.0, 508.0)
-	if lamp != null:
-		var shelf_left := lx - float(lower.box_size.x) * 0.5
-		var lamp_pos: Vector2 = lamp.global_position
-		var lamp_radius := float(lamp.radius)
-		var lamp_right := lamp_pos.x + lamp_radius + 8.0
-		if shelf_left < lamp_right:
-			var lamp_top := lamp_pos.y - lamp_radius
-			ly = minf(ly, lamp_top - float(lower.box_size.y) * 0.5 - 12.0)
-			ly = clampf(ly, uy + 150.0, 508.0)
-	_place_prop(lower, Vector2(lx, ly))
-	lower.freeze = true
-	var rest := _seat_on_shelf(upper, loose, randi_range(2, 3), 84.0)
-	rest = _seat_on_shelf(lower, rest, randi_range(3, 4), 0.0)
+		_nudge_away_from_lamp(lamp)
 	_place_on_floor(rest, lamp)
-	_pick_sweet_spots(upper)
-	var backdrop := get_node_or_null("Backdrop")
-	if backdrop:
+	for shelf in active:
+		shelf.set_sweet_spots([], [])
+	if not active.is_empty():
+		_pick_sweet_spots(active[0])
+	var backdrop = get_node_or_null("Backdrop")
+	if backdrop and backdrop.has_method("set_room_dressing"):
+		backdrop.set_room_dressing(_pick_window(hook), hook)
 		backdrop.queue_redraw()
 
 
@@ -431,6 +432,425 @@ func _pick_sweet_spots(upper) -> void:
 	var xs: Array = []
 	var reaches: Array = []
 	for spot in picked:
-		xs.append(float(spot[0]))
+		xs.append(clampf(float(spot[0]), left + 12.0, right - 12.0))
 		reaches.append(float(spot[1]))
 	upper.set_sweet_spots(xs, reaches)
+
+
+func _layout_long(wide) -> Array:
+	var w := randf_range(510.0, 640.0)
+	var y := randf_range(286.0, 405.0)
+	var half := w * 0.5
+	var min_x := 290.0 + half
+	if y > 385.0:
+		min_x = 360.0 + half
+	var max_x := 1210.0 - half
+	if min_x > max_x:
+		min_x = max_x
+	_use_shelf(wide, randf_range(min_x, max_x), y, w)
+	return [wide]
+
+
+func _layout_sides(left_shelf, right_shelf) -> Array:
+	var w_left := randf_range(180.0, 270.0)
+	var w_right := randf_range(210.0, 340.0)
+	var node_left = left_shelf
+	var node_right = right_shelf
+	if randf() < 0.5:
+		var swap_w := w_left
+		w_left = w_right
+		w_right = swap_w
+		node_left = right_shelf
+		node_right = left_shelf
+	var gap := randf_range(56.0, 130.0)
+	var span := w_left + gap + w_right
+	var edge_max := 1200.0 - span
+	if edge_max < 290.0:
+		gap = 40.0
+		span = w_left + gap + w_right
+		edge_max = maxf(290.0, 1200.0 - span)
+	var edge := randf_range(290.0, edge_max)
+	var x_left := edge + w_left * 0.5
+	var x_right := x_left + w_left * 0.5 + gap + w_right * 0.5
+	var y_high := randf_range(232.0, 300.0)
+	var y_low := minf(y_high + randf_range(58.0, 124.0), 440.0)
+	if randf() < 0.5:
+		_use_shelf(node_left, x_left, y_high, w_left)
+		_use_shelf(node_right, x_right, y_low, w_right)
+	else:
+		_use_shelf(node_left, x_left, y_low, w_left)
+		_use_shelf(node_right, x_right, y_high, w_right)
+	_keep_x_apart([node_left, node_right], 36.0)
+	return [node_left, node_right]
+
+
+func _layout_stack(upper, lower, on_left: bool) -> Array:
+	var uw := randf_range(190.0, 270.0)
+	var lw := randf_range(400.0, 530.0)
+	var uy := randf_range(232.0, 292.0)
+	var ly := uy + randf_range(158.0, 198.0)
+	if on_left:
+		ly = minf(ly, 446.0)
+	else:
+		ly = minf(ly, 492.0)
+	var lx := 0.0
+	if on_left:
+		var max_center := 900.0 - lw * 0.5
+		var min_center := 280.0 + lw * 0.5
+		if min_center > max_center:
+			min_center = max_center
+		lx = randf_range(min_center, max_center)
+	else:
+		var max_center := 1220.0 - lw * 0.5
+		var min_center := maxf(700.0 + lw * 0.5, max_center - 90.0)
+		if min_center > max_center:
+			min_center = max_center
+		lx = randf_range(min_center, max_center)
+	var left := lx - lw * 0.5
+	var right := lx + lw * 0.5
+	var ux := clampf(lx + randf_range(-100.0, 70.0), left + uw * 0.5 + 6.0, right - uw * 0.5 - 6.0)
+	_use_shelf(upper, ux, uy, uw)
+	_use_shelf(lower, lx, ly, lw)
+	_keep_stacked(upper, lower, 152.0)
+	return [upper, lower]
+
+
+func _layout_stairs(top, mid, bot) -> Array:
+	var w1 := randf_range(168.0, 230.0)
+	var w2 := randf_range(176.0, 246.0)
+	var w3 := randf_range(184.0, 260.0)
+	var g1 := randf_range(40.0, 88.0)
+	var g2 := randf_range(40.0, 88.0)
+	var span := w1 + g1 + w2 + g2 + w3
+	var edge_max := 1210.0 - span
+	if edge_max < 280.0:
+		var overflow := 280.0 - edge_max
+		g1 = maxf(28.0, g1 - overflow * 0.5)
+		g2 = maxf(28.0, g2 - overflow * 0.5)
+		span = w1 + g1 + w2 + g2 + w3
+		edge_max = maxf(280.0, 1210.0 - span)
+	var edge := randf_range(280.0, edge_max)
+	var x1 := edge + w1 * 0.5
+	var x2 := x1 + w1 * 0.5 + g1 + w2 * 0.5
+	var x3 := x2 + w2 * 0.5 + g2 + w3 * 0.5
+	var y1 := randf_range(226.0, 268.0)
+	var y2 := y1 + randf_range(76.0, 112.0)
+	var y3 := minf(y2 + randf_range(76.0, 116.0), 488.0)
+	_use_shelf(top, x1, y1, w1)
+	_use_shelf(mid, x2, y2, w2)
+	_use_shelf(bot, x3, y3, w3)
+	_keep_x_apart([top, mid, bot], 26.0)
+	return [top, mid, bot]
+
+
+func _layout_balcony(short, long_shelf) -> Array:
+	var on_left := randf() < 0.5
+	var sw := randf_range(176.0, 250.0)
+	var lw := randf_range(500.0, 630.0)
+	var hy := randf_range(226.0, 278.0)
+	var ly := minf(hy + randf_range(166.0, 208.0), 486.0)
+	var sx := randf_range(310.0, 540.0)
+	if not on_left:
+		sx = randf_range(800.0, 1060.0)
+	var max_center := 1210.0 - lw * 0.5
+	var min_center := 300.0 + lw * 0.5
+	if min_center > max_center:
+		min_center = max_center
+	var lx := clampf(sx + randf_range(-140.0, 140.0), min_center, max_center)
+	_use_shelf(short, sx, hy, sw)
+	_use_shelf(long_shelf, lx, ly, lw)
+	_keep_stacked(short, long_shelf, 158.0)
+	_tuck_under(short, long_shelf)
+	return [short, long_shelf]
+
+
+func _use_shelf(shelf, center: float, y: float, width: float) -> void:
+	if shelf == null:
+		return
+	shelf.unpark_shelf()
+	shelf.resize_shelf(width)
+	_place_prop(shelf, _clamp_shelf(center, y, width))
+	shelf.freeze = true
+
+
+func _clamp_shelf(center: float, y: float, width: float) -> Vector2:
+	var half := width * 0.5
+	var min_left := 270.0
+	if y > 455.0:
+		min_left = 430.0
+	elif y > 385.0:
+		min_left = 330.0
+	var x := clampf(center, min_left + half, 1220.0 - half)
+	var yy := clampf(y, 218.0, 500.0)
+	return Vector2(x, yy)
+
+
+func _keep_x_apart(shelves: Array, gap: float) -> void:
+	var row: Array = []
+	for shelf in shelves:
+		if shelf != null and shelf.visible:
+			row.append(shelf)
+	row.sort_custom(func(a, b): return a.global_position.x < b.global_position.x)
+	for i in range(1, row.size()):
+		var prev = row[i - 1]
+		var cur = row[i]
+		var need = float(prev.box_size.x) * 0.5 + float(cur.box_size.x) * 0.5 + gap
+		if cur.global_position.x - prev.global_position.x >= need:
+			continue
+		var pos: Vector2 = cur.global_position
+		pos.x = prev.global_position.x + need
+		pos = _clamp_shelf(pos.x, pos.y, float(cur.box_size.x))
+		_place_prop(cur, pos)
+		cur.freeze = true
+
+
+func _keep_stacked(upper, lower, gap: float) -> void:
+	if upper == null or lower == null:
+		return
+	if lower.global_position.y >= upper.global_position.y + gap:
+		return
+	var pos: Vector2 = lower.global_position
+	pos.y = upper.global_position.y + gap
+	pos = _clamp_shelf(pos.x, pos.y, float(lower.box_size.x))
+	_place_prop(lower, pos)
+	lower.freeze = true
+
+
+func _tuck_under(short, long_shelf) -> void:
+	if short == null or long_shelf == null:
+		return
+	var sp: Vector2 = short.global_position
+	var lp: Vector2 = long_shelf.global_position
+	var sw := float(short.box_size.x)
+	var lw := float(long_shelf.box_size.x)
+	var overlap := minf(sp.x + sw * 0.5, lp.x + lw * 0.5) - maxf(sp.x - sw * 0.5, lp.x - lw * 0.5)
+	if overlap >= 64.0:
+		return
+	var pos := lp
+	if lp.x + lw * 0.5 < sp.x - sw * 0.5 + 80.0:
+		pos.x += (sp.x - sw * 0.5 + 80.0) - (lp.x + lw * 0.5)
+	else:
+		pos.x -= (lp.x - lw * 0.5) - (sp.x + sw * 0.5 - 80.0)
+	pos = _clamp_shelf(pos.x, pos.y, lw)
+	_place_prop(long_shelf, pos)
+	long_shelf.freeze = true
+
+
+func _separate_overlapping(shelves: Array) -> void:
+	for i in shelves.size():
+		for j in range(i + 1, shelves.size()):
+			_push_shelves(shelves[i], shelves[j])
+
+
+func _push_shelves(a, b) -> void:
+	if a == null or b == null or not a.visible or not b.visible:
+		return
+	var ca: Vector2 = a.global_position
+	var cb: Vector2 = b.global_position
+	var ha: Vector2 = a.box_size * 0.5
+	var hb: Vector2 = b.box_size * 0.5
+	var overlap_x := ha.x + hb.x + 18.0 - absf(ca.x - cb.x)
+	var overlap_y := ha.y + hb.y + 10.0 - absf(ca.y - cb.y)
+	if overlap_x <= 0.0 or overlap_y <= 0.0:
+		return
+	var pos := cb
+	if overlap_y < overlap_x:
+		var dir_y := 1.0 if cb.y >= ca.y else -1.0
+		pos.y += dir_y * (overlap_y + 8.0)
+	else:
+		var dir_x := 1.0 if cb.x >= ca.x else -1.0
+		pos.x += dir_x * (overlap_x + 8.0)
+	pos = _clamp_shelf(pos.x, pos.y, float(b.box_size.x))
+	_place_prop(b, pos)
+	b.freeze = true
+
+
+func _seat_goal(width: float) -> int:
+	if width < 260.0:
+		return randi_range(1, 2)
+	if width < 400.0:
+		return randi_range(2, 3)
+	return randi_range(3, 5)
+
+
+func _rider_limit(shelf, shelves: Array) -> float:
+	var top: float = shelf.global_position.y - float(shelf.box_size.y) * 0.5
+	var cap := top - 70.0
+	var shelf_half := float(shelf.box_size.x) * 0.5
+	for other in shelves:
+		if other == shelf or not other.visible:
+			continue
+		var other_half := float(other.box_size.x) * 0.5
+		var dx := absf(other.global_position.x - shelf.global_position.x)
+		if dx > other_half + shelf_half - 8.0:
+			continue
+		var other_bottom: float = other.global_position.y + float(other.box_size.y) * 0.5
+		if other_bottom < top - 8.0:
+			cap = minf(cap, top - other_bottom - 14.0)
+	return maxf(cap, 18.0)
+
+
+func _place_hanging_lamp(lamp, shelves: Array) -> Vector2:
+	var hook_y := randf_range(104.0, 166.0)
+	var hook_x := _pick_hook_x(shelves)
+	var solved := _solve_lamp(hook_x, hook_y, float(lamp.radius), shelves)
+	var hook := Vector2(solved.x, hook_y)
+	_move_hook(hook)
+	_place_prop(lamp, solved)
+	lamp.freeze = true
+	_retie_lamp()
+	lamp.freeze = true
+	lamp.linear_velocity = Vector2.ZERO
+	lamp.angular_velocity = 0.0
+	return hook
+
+
+func _pick_hook_x(shelves: Array) -> float:
+	var blocked: Array = []
+	for shelf in shelves:
+		if shelf == null or not shelf.visible:
+			continue
+		var half := float(shelf.box_size.x) * 0.5
+		var cx: float = shelf.global_position.x
+		blocked.append([cx - half - 48.0, cx + half + 48.0])
+	blocked.sort_custom(func(a, b): return float(a[0]) < float(b[0]))
+	var gaps: Array = []
+	var cursor := 300.0
+	var limit := 1080.0
+	for span in blocked:
+		var span_start := float(span[0])
+		var span_end := float(span[1])
+		if span_start > cursor + 80.0:
+			gaps.append([cursor, minf(span_start, limit)])
+		cursor = maxf(cursor, span_end)
+	if limit > cursor + 80.0:
+		gaps.append([cursor, limit])
+	if gaps.is_empty():
+		return _hook_beside(shelves)
+	var gap = gaps[randi() % gaps.size()]
+	var gap_a := float(gap[0]) + 12.0
+	var gap_b := float(gap[1]) - 12.0
+	if gap_b < gap_a:
+		return (float(gap[0]) + float(gap[1])) * 0.5
+	return randf_range(gap_a, gap_b)
+
+
+func _solve_lamp(hook_x: float, hook_y: float, radius: float, shelves: Array) -> Vector2:
+	var y := clampf(hook_y + randf_range(270.0, 430.0), 430.0, 588.0)
+	var x := hook_x
+	for _step in 4:
+		var hit = _lamp_hits_shelf(x, y, radius, shelves)
+		if hit == null:
+			break
+		var center: Vector2 = hit.global_position
+		var half: Vector2 = hit.box_size * 0.5
+		var below := center.y + half.y + radius + 16.0
+		var above := center.y - half.y - radius - 16.0
+		if below <= 592.0:
+			y = below
+		elif above >= hook_y + 80.0:
+			y = above
+		else:
+			var left := center.x - half.x - radius - 22.0
+			var right := center.x + half.x + radius + 22.0
+			if absf(x - left) <= absf(x - right):
+				x = left
+			else:
+				x = right
+			x = clampf(x, 280.0, 1120.0)
+	x = _clear_rope_x(x, shelves)
+	return Vector2(clampf(x, 280.0, 1120.0), clampf(y, hook_y + 70.0, 592.0))
+
+
+func _hook_beside(shelves: Array) -> float:
+	var best := 360.0
+	var best_room := -1.0
+	for shelf in shelves:
+		if shelf == null or not shelf.visible:
+			continue
+		var half := float(shelf.box_size.x) * 0.5
+		var cx: float = shelf.global_position.x
+		var left := cx - half - 48.0
+		var right := cx + half + 48.0
+		if left >= 300.0 and left - 300.0 > best_room:
+			best = left
+			best_room = left - 300.0
+		if right <= 1080.0 and 1080.0 - right > best_room:
+			best = right
+			best_room = 1080.0 - right
+	return clampf(best, 300.0, 1080.0)
+
+
+func _clear_rope_x(x: float, shelves: Array) -> float:
+	for _step in 3:
+		var blocked := false
+		for shelf in shelves:
+			if shelf == null or not shelf.visible:
+				continue
+			var half := float(shelf.box_size.x) * 0.5
+			var cx: float = shelf.global_position.x
+			if absf(x - cx) > half + 50.0:
+				continue
+			blocked = true
+			var left := cx - half - 52.0
+			var right := cx + half + 52.0
+			if absf(x - left) <= absf(x - right):
+				x = left
+			else:
+				x = right
+			break
+		if not blocked:
+			break
+	return clampf(x, 280.0, 1120.0)
+
+
+func _lamp_hits_shelf(x: float, y: float, radius: float, shelves: Array):
+	for shelf in shelves:
+		if shelf == null or not shelf.visible:
+			continue
+		var center: Vector2 = shelf.global_position
+		var half: Vector2 = shelf.box_size * 0.5
+		var nearest_x := clampf(x, center.x - half.x, center.x + half.x)
+		var nearest_y := clampf(y, center.y - half.y, center.y + half.y)
+		var dx := x - nearest_x
+		var dy := y - nearest_y
+		var reach := radius + 12.0
+		if dx * dx + dy * dy < reach * reach:
+			return shelf
+	return null
+
+
+func _move_hook(hook: Vector2) -> void:
+	var anchor := get_node_or_null("LampAnchor") as Node2D
+	var pin := get_node_or_null("LampPin") as Node2D
+	if anchor:
+		anchor.global_position = hook
+		if anchor is CollisionObject2D:
+			var body := anchor as CollisionObject2D
+			PhysicsServer2D.body_set_state(body.get_rid(), PhysicsServer2D.BODY_STATE_TRANSFORM, anchor.global_transform)
+	if pin:
+		pin.global_position = hook
+
+
+func _pick_window(hook: Vector2) -> Rect2:
+	var win_w := randf_range(228.0, 340.0)
+	var win_h := randf_range(108.0, 146.0)
+	var win_x := randf_range(56.0, 1224.0 - win_w)
+	var win_y := randf_range(90.0, 156.0)
+	if hook.x > win_x - 18.0 and hook.x < win_x + win_w + 18.0:
+		if hook.x > 640.0:
+			win_x = clampf(hook.x - win_w - 36.0, 48.0, 1224.0 - win_w)
+		else:
+			win_x = clampf(hook.x + 36.0, 48.0, 1224.0 - win_w)
+	return Rect2(win_x, win_y, win_w, win_h)
+
+
+func _nudge_away_from_lamp(lamp) -> void:
+	var props: Array = []
+	for node in get_tree().get_nodes_in_group("prop"):
+		if node == lamp:
+			continue
+		if node.has_method("is_shelf") and node.is_shelf():
+			continue
+		props.append(node)
+	_clear_lamp(props, lamp)

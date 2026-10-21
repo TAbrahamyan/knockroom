@@ -162,6 +162,11 @@ position = Vector2(940, 280)
 kind = 2
 box_size = Vector2(240, 16)
 
+[node name="ShelfSide" parent="." instance=ExtResource("5_prop")]
+position = Vector2(-900, -900)
+kind = 2
+box_size = Vector2(220, 16)
+
 [node name="BarrelU" parent="." instance=ExtResource("5_prop")]
 position = Vector2(900, 246)
 kind = 0

@@ -33,6 +33,7 @@ var _hit_speed := 0.0
 var _sweet_x: Array[float] = []
 var _sweet_reach: Array[float] = []
 var _lower_wait := -1.0
+var _below: Array = []
 var _stagger: Array = []
 var _stagger_gap := 0.0
 
@@ -62,6 +63,56 @@ func is_shelf() -> bool:
 	return kind == Kind.SHELF
 
 
+func park_shelf() -> void:
+	# Unused planks stay out of the group, the draw, and the physics world.
+	visible = false
+	collision_layer = 0
+	collision_mask = 0
+	freeze = true
+	if is_in_group("prop"):
+		remove_from_group("prop")
+	set_sweet_spots([], [])
+	global_position = Vector2(-900.0, -900.0)
+	linear_velocity = Vector2.ZERO
+	angular_velocity = 0.0
+	var rid := get_rid()
+	PhysicsServer2D.body_set_state(rid, PhysicsServer2D.BODY_STATE_TRANSFORM, global_transform)
+	PhysicsServer2D.body_set_state(rid, PhysicsServer2D.BODY_STATE_LINEAR_VELOCITY, Vector2.ZERO)
+	PhysicsServer2D.body_set_state(rid, PhysicsServer2D.BODY_STATE_ANGULAR_VELOCITY, 0.0)
+
+
+func unpark_shelf() -> void:
+	visible = true
+	collision_layer = 2
+	collision_mask = 7
+	if not is_in_group("prop"):
+		add_to_group("prop")
+	freeze = true
+	awakened = false
+
+
+func resize_shelf(width: float) -> void:
+	box_size.x = clampf(width, 150.0, 680.0)
+	var shape_node := get_node_or_null("Shape") as CollisionShape2D
+	if shape_node != null and shape_node.shape is RectangleShape2D:
+		var rect := shape_node.shape as RectangleShape2D
+		rect.size = Vector2(box_size.x, box_size.y)
+		shape_node.shape = rect
+	if box_size.x >= 360.0:
+		linear_damp = 0.5
+		angular_damp = 2.1
+		gravity_scale = 1.15
+		if physics_material_override:
+			physics_material_override.friction = 0.78
+	else:
+		linear_damp = 0.3
+		angular_damp = 1.4
+		gravity_scale = 1.3
+		if physics_material_override:
+			physics_material_override.friction = 0.58
+	queue_redraw()
+
+
 func is_in_chain() -> bool:
 	return counted
 
@@ -77,7 +128,7 @@ func wake_from(source: Node2D) -> void:
 		return
 	if not _round_live():
 		return
-	# A light tap should not drop the wide lower shelf. The stone still does.
+	# A light tap should not drop a shelf below the aim plank. The stone still does.
 	if not _impact_wakes(source):
 		return
 	awakened = true
@@ -96,7 +147,7 @@ func wake_from(source: Node2D) -> void:
 	if kind == Kind.SHELF:
 		# Tip and drop, with some wobble, instead of slamming the whole pile.
 		dir = Vector2(dir.x * 0.22, 1.0).normalized()
-		if _heavy and _is_lower_shelf():
+		if _heavy and _is_support_shelf():
 			var bias := -1.0 if _hit_x < global_position.x else 1.0
 			dir = Vector2(bias * 0.55, 1.0).normalized()
 			coeff = 0.5
@@ -104,7 +155,7 @@ func wake_from(source: Node2D) -> void:
 			var bias := -1.0 if _hit_x < global_position.x else 1.0
 			dir = Vector2(bias * 0.42, 1.0).normalized()
 			coeff = 0.62
-		elif _is_lower_shelf():
+		elif _is_support_shelf():
 			coeff = 0.26 * randf_range(0.7, 1.0)
 		else:
 			coeff = 0.4 * randf_range(0.78, 1.0)
@@ -121,13 +172,14 @@ func wake_from(source: Node2D) -> void:
 			spin = signf(side)
 		elif randf() < 0.5:
 			spin = -1.0
-		var torque := 5.0 if _is_lower_shelf() else 6.5
+		var torque := 5.0 if _is_support_shelf() else 6.5
 		if _heavy:
 			torque *= 1.8
 		apply_torque_impulse(spin * mass * box_size.x * torque * randf_range(0.75 if _heavy else 0.45, 1.0))
 		_wake_riders()
-		if _heavy and not _is_lower_shelf():
-			# Upper plank first. The lower shelf and the floor follow on a timer.
+		if _heavy and not _is_support_shelf():
+			# Aim plank first. Each shelf below, then the floor, follows on a timer.
+			_queue_shelves_below()
 			_lower_wait = 0.22
 			set_process(true)
 		elif not _heavy:
@@ -181,8 +233,8 @@ func _wake_riders() -> void:
 
 
 func _shove_below() -> void:
-	# A nudge, not a guaranteed chain. The upper shelf cannot reach the floor.
-	var lower := _is_lower_shelf()
+	# A nudge, not a guaranteed chain. The aim shelf cannot reach the floor.
+	var lower := _is_support_shelf()
 	var half_w := box_size.x * 0.5 + (4.0 if lower else 0.0)
 	var max_dy := 150.0 if lower else 96.0
 	var chance := 0.4 if lower else 0.3
@@ -203,14 +255,15 @@ func _shove_below() -> void:
 		node.apply_central_impulse(kick * node.mass * randf_range(0.35, 0.75))
 
 
-func _is_lower_shelf() -> bool:
-	return kind == Kind.SHELF and box_size.x >= 360.0
+func _is_support_shelf() -> bool:
+	# The shelf that owns the two sweet spots is the aim plank. The rest wait.
+	return kind == Kind.SHELF and _sweet_x.is_empty()
 
 
 func _impact_wakes(source: Node2D) -> bool:
 	if _heavy or _force_wake:
 		return true
-	if not _is_lower_shelf():
+	if not _is_support_shelf():
 		return true
 	if source != null and source.is_in_group("projectile"):
 		return true
@@ -221,18 +274,19 @@ func _impact_wakes(source: Node2D) -> bool:
 
 func _note_projectile_hit(stone: Node) -> void:
 	var shelf = null
-	if kind == Kind.SHELF and not _is_lower_shelf():
+	if kind == Kind.SHELF and not _sweet_x.is_empty():
 		shelf = self
 	else:
-		var upper = _find_shelf(false)
-		if upper == null:
+		var aim = _find_aim_shelf()
+		if aim == null:
 			return
-		var delta: Vector2 = global_position - upper.global_position
-		if absf(delta.x) > upper.box_size.x * 0.5 + 20.0:
+		var delta: Vector2 = global_position - aim.global_position
+		var half_w = aim.box_size.x * 0.5 + 20.0
+		if absf(delta.x) > half_w:
 			return
-		if delta.y >= -4.0 or delta.y < -100.0:
+		if delta.y >= -4.0 or delta.y < -150.0:
 			return
-		shelf = upper
+		shelf = aim
 	if shelf != null and shelf.has_method("note_hit"):
 		shelf.note_hit(stone.global_position.x, _body_speed(stone))
 		# Cargo is already touching the plank, so the stone must wake it.
@@ -261,17 +315,32 @@ func note_hit(hit_x: float, speed: float) -> void:
 			return
 
 
+func _queue_shelves_below() -> void:
+	_below.clear()
+	for node in get_tree().get_nodes_in_group("prop"):
+		if node == self:
+			continue
+		if not node.has_method("is_shelf") or not node.is_shelf():
+			continue
+		if node.global_position.y < global_position.y + 36.0:
+			continue
+		_below.append(node)
+	_below.sort_custom(func(a, b): return a.global_position.y < b.global_position.y)
+
+
 func _release_lower_shelf() -> void:
-	var lower = _find_shelf(true)
-	if lower == null:
+	while not _below.is_empty():
+		var lower = _below.pop_front()
+		if not is_instance_valid(lower):
+			continue
+		lower._hit_x = _hit_x
+		lower._heavy = true
+		lower._force_wake = true
+		if lower.freeze and not lower.awakened:
+			lower.wake_from(self)
+		else:
+			lower._wake_riders()
 		return
-	lower._hit_x = _hit_x
-	lower._heavy = true
-	lower._force_wake = true
-	if lower.freeze and not lower.awakened:
-		lower.wake_from(self)
-	else:
-		lower._wake_riders()
 
 
 func _queue_floor_wave() -> void:
@@ -318,12 +387,12 @@ func _kick_next_stagger() -> void:
 		return
 
 
-func _find_shelf(lower: bool):
+func _find_aim_shelf():
 	for node in get_tree().get_nodes_in_group("prop"):
 		if not node.has_method("is_shelf") or not node.is_shelf():
 			continue
-		var wide = node.box_size.x >= 360.0
-		if wide == lower:
+		var spots = node.get("_sweet_x")
+		if spots is Array and not spots.is_empty():
 			return node
 	return null
 
@@ -425,8 +494,14 @@ func _process(delta: float) -> void:
 		_lower_wait -= delta
 		if _lower_wait <= 0.0:
 			_lower_wait = -1.0
-			_release_lower_shelf()
-			_queue_floor_wave()
+			if not _below.is_empty():
+				_release_lower_shelf()
+				if not _below.is_empty():
+					_lower_wait = 0.20
+				else:
+					_queue_floor_wave()
+			else:
+				_queue_floor_wave()
 	if not _stagger.is_empty():
 		_stagger_gap -= delta
 		while _stagger_gap <= 0.0 and not _stagger.is_empty():
@@ -438,7 +513,7 @@ func _process(delta: float) -> void:
 		redraw = true
 	if redraw:
 		queue_redraw()
-	var busy := _lower_wait >= 0.0 or not _stagger.is_empty()
+	var busy := _lower_wait >= 0.0 or not _stagger.is_empty() or not _below.is_empty()
 	if not busy and flash == 0.0 and kind != Kind.LAMP:
 		set_process(false)
 
