@@ -124,7 +124,12 @@ func mark_chain() -> void:
 
 func wake_from(source: Node2D) -> void:
 	# Deferred from the physics callback. Freeze changes are unsafe inside it.
+	# The projectile can wake the plank before the spot is scored. Score it here too.
+	if kind == Kind.SHELF and not _sweet_x.is_empty() and is_instance_valid(source) and source.is_in_group("projectile"):
+		note_hit(source.global_position.x, _body_speed(source))
 	if awakened or not freeze:
+		if _heavy:
+			_arm_heavy_if_idle()
 		return
 	if not _round_live():
 		return
@@ -256,7 +261,7 @@ func _shove_below() -> void:
 
 
 func _is_support_shelf() -> bool:
-	# The shelf that owns the two sweet spots is the aim plank. The rest wait.
+	# The shelf that owns the sweet spots is the aim plank. The rest wait.
 	return kind == Kind.SHELF and _sweet_x.is_empty()
 
 
@@ -312,7 +317,20 @@ func note_hit(hit_x: float, speed: float) -> void:
 	for i in _sweet_x.size():
 		if absf(hit_x - _sweet_x[i]) <= _sweet_reach[i]:
 			_heavy = true
+			# The plank may already have flinched. A real spot hit still starts the wave.
+			if awakened:
+				_arm_heavy_if_idle()
 			return
+
+
+func _arm_heavy_if_idle() -> void:
+	if not _heavy or _is_support_shelf():
+		return
+	if _lower_wait >= 0.0 or not _below.is_empty() or not _stagger.is_empty():
+		return
+	_queue_shelves_below()
+	_lower_wait = 0.22
+	set_process(true)
 
 
 func _queue_shelves_below() -> void:
@@ -351,7 +369,8 @@ func _queue_floor_wave() -> void:
 			continue
 		if node.has_method("is_shelf") and node.is_shelf():
 			continue
-		if bool(node.get("counted")):
+		# Glass bits have no counted flag. bool(null) is not a constructor.
+		if node.get("counted") != false:
 			continue
 		if node.global_position.x < 40.0 or node.global_position.x > 1240.0:
 			continue
@@ -369,7 +388,7 @@ func _queue_floor_wave() -> void:
 func _kick_next_stagger() -> void:
 	while not _stagger.is_empty():
 		var node = _stagger.pop_front()
-		if not is_instance_valid(node) or bool(node.get("counted")):
+		if not is_instance_valid(node) or node.get("counted") != false:
 			continue
 		var away = signf(float(node.global_position.x) - _hit_x)
 		if absf(away) < 0.5:

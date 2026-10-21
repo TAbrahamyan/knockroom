@@ -1,15 +1,20 @@
 extends Node2D
 
 ## READY: pull back, the stone flies the other way.
-## WATCHING: the chain counts itself. SETTLED: look, then click or R reloads.
+## WATCHING: the chain counts itself. SETTLED: look, then the shop, then a new room.
 
 enum Phase { WARMUP, READY, AIMING, WATCHING, SETTLED }
+
+const Loadout := preload("res://scripts/loadout.gd")
+const ShopScript := preload("res://scripts/shop.gd")
+const PROP_SCENE := preload("res://scenes/prop.tscn")
+const PropScript := preload("res://scripts/prop.gd")
 
 const HINT_READY := "Hold LMB and pull back — stone flies backward.   R — restart"
 const HINT_AIM := "Release to throw"
 const HINT_WATCH := "Watch the chain"
 const HINT_LOOK := "Watch the result"
-const HINT_AGAIN := "LMB or R to throw again"
+const HINT_SHOP := "Pick one for the next throw, or skip"
 const WARM_FRAMES := 45
 const LOOK_TIME := 2.6
 const SHAKE_TIME := 0.2
@@ -22,11 +27,14 @@ var _watch := 0.0
 var _calm := 0.0
 var _look := 0.0
 var _reloading := false
+var _shop_open := false
 var _shake := 0.0
 var _shake_time := 0.0
 var _shake_duration := 0.2
 var _shake_cap := 8.0
 var _shaking := false
+var _shop
+var _equipped: Label
 
 @onready var thrower: Node2D = $Thrower
 @onready var chain: Node2D = $Chain
@@ -39,6 +47,8 @@ func _ready() -> void:
 	thrower.aim_started.connect(_on_aim_started)
 	thrower.aim_ended.connect(_on_aim_ended)
 	chain.set_hint(HINT_READY)
+	_build_shop()
+	_build_equipped()
 	_randomize_room()
 
 
@@ -46,6 +56,8 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_R:
 		_reset()
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		if _shop_open:
+			return
 		if phase == Phase.SETTLED and _look <= 0.0:
 			_reset()
 
@@ -53,8 +65,8 @@ func _input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if _look > 0.0:
 		_look = maxf(0.0, _look - delta)
-		if _look == 0.0 and phase == Phase.SETTLED:
-			chain.set_hint(HINT_AGAIN)
+		if _look == 0.0 and phase == Phase.SETTLED and not _shop_open:
+			_open_shop()
 	_update_shake(delta)
 
 
@@ -171,7 +183,65 @@ func _reset() -> void:
 	if _reloading:
 		return
 	_reloading = true
+	_shop_open = false
 	get_tree().reload_current_scene()
+
+
+func _build_shop() -> void:
+	_shop = ShopScript.new()
+	_shop.name = "Shop"
+	add_child(_shop)
+	_shop.picked.connect(_on_shop_picked)
+	_shop.skipped.connect(_on_shop_skipped)
+
+
+func _build_equipped() -> void:
+	var label := Label.new()
+	label.name = "Equipped"
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	label.offset_left = -340.0
+	label.offset_top = 8.0
+	label.offset_right = -16.0
+	label.offset_bottom = 34.0
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 15)
+	label.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
+	label.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.04, 0.85))
+	label.add_theme_constant_override("outline_size", 4)
+	chain.get_node("UI/Root").add_child(label)
+	_equipped = label
+	_refresh_equipped()
+
+
+func _refresh_equipped() -> void:
+	if Loadout.item_name == "":
+		_equipped.visible = false
+		_equipped.text = ""
+		return
+	_equipped.visible = true
+	_equipped.text = "Equipped: %s" % Loadout.item_name
+
+
+func _open_shop() -> void:
+	_shop_open = true
+	thrower.can_aim = false
+	chain.set_hint(HINT_SHOP)
+	_shop.show_offers()
+
+
+func _on_shop_picked(item_id: String, item_name: String) -> void:
+	if not _shop_open or _reloading:
+		return
+	Loadout.equip(item_id, item_name)
+	_reset()
+
+
+func _on_shop_skipped() -> void:
+	if not _shop_open or _reloading:
+		return
+	_reset()
 
 
 func _randomize_room() -> void:
@@ -192,6 +262,7 @@ func _randomize_room() -> void:
 		if int(node.kind) == 3:
 			continue
 		loose.append(node)
+	loose = _fill_loose(loose)
 	wide.park_shelf()
 	high.park_shelf()
 	if extra != null:
@@ -219,10 +290,7 @@ func _randomize_room() -> void:
 	if lamp != null:
 		hook = _place_hanging_lamp(lamp, active)
 	loose.shuffle()
-	var rest: Array = loose
-	for shelf in active:
-		var limit: float = _rider_limit(shelf, active)
-		rest = _seat_on_shelf(shelf, rest, _seat_goal(float(shelf.box_size.x)), limit)
+	var rest := _seat_pile(active, loose, lamp)
 	if lamp != null:
 		_nudge_away_from_lamp(lamp)
 	_place_on_floor(rest, lamp)
@@ -234,6 +302,102 @@ func _randomize_room() -> void:
 	if backdrop and backdrop.has_method("set_room_dressing"):
 		backdrop.set_room_dressing(_pick_window(hook), hook)
 		backdrop.queue_redraw()
+
+
+func _fill_loose(loose: Array) -> Array:
+	# Shelves and the lamp are the room. Only barrels, cages, crates, and bottles count.
+	var target := randi_range(18, 23)
+	var made := 0
+	while loose.size() < target:
+		var body := _make_extra(made)
+		made += 1
+		add_child(body)
+		loose.append(body)
+	while loose.size() > target:
+		_park_loose(loose.pop_back())
+	return loose
+
+
+func _make_extra(index: int) -> RigidBody2D:
+	var body := PROP_SCENE.instantiate() as RigidBody2D
+	body.name = "Extra%d" % index
+	var roll := randi() % 10
+	if roll < 4:
+		body.kind = PropScript.Kind.BARREL
+		body.radius = randf_range(15.0, 18.0)
+		body.mass_scale = 0.82
+	elif roll < 7:
+		body.kind = PropScript.Kind.BARREL
+		body.radius = randf_range(12.0, 14.0)
+		body.mass_scale = 0.52
+		body.shatters = true
+	elif roll < 9:
+		body.kind = PropScript.Kind.CAGE
+		body.box_size = Vector2(randf_range(36.0, 44.0), randf_range(48.0, 56.0))
+		body.mass_scale = 0.88
+	else:
+		body.kind = PropScript.Kind.CAGE
+		body.box_size = Vector2(randf_range(40.0, 48.0), randf_range(32.0, 40.0))
+		body.mass_scale = 0.7
+	return body
+
+
+func _park_loose(body) -> void:
+	body.visible = false
+	body.collision_layer = 0
+	body.collision_mask = 0
+	body.freeze = true
+	if body.is_in_group("prop"):
+		body.remove_from_group("prop")
+	body.global_position = Vector2(-800.0, -800.0)
+
+
+func _seat_pile(active: Array, loose: Array, lamp) -> Array:
+	var ordered: Array = loose.duplicate()
+	ordered.sort_custom(func(a, b): return _prop_half(a).x > _prop_half(b).x)
+	var goals: Array = []
+	for shelf in active:
+		var goal := _seat_goal(float(shelf.box_size.x))
+		if loose.size() >= 20:
+			goal += 1
+		goals.append(goal)
+	var rest: Array = loose
+	var budget := _floor_budget(lamp)
+	for _attempt in 5:
+		rest = ordered.duplicate()
+		var capped: Array = []
+		for i in active.size():
+			var before := rest.size()
+			rest = _seat_on_shelf(active[i], rest, int(goals[i]), _rider_limit(active[i], active))
+			capped.append(before - rest.size() < int(goals[i]))
+		if _row_span(rest) <= budget:
+			return rest
+		var bumped := false
+		for i in active.size():
+			if capped[i] or int(goals[i]) >= 8:
+				continue
+			goals[i] = int(goals[i]) + 1
+			bumped = true
+			break
+		if not bumped:
+			return rest
+	return rest
+
+
+func _floor_budget(lamp) -> float:
+	var span := 0.0
+	if lamp != null:
+		span = float(lamp.radius) * 2.0 + 36.0
+	return 900.0 - span
+
+
+func _row_span(props: Array) -> float:
+	var width := 0.0
+	for prop in props:
+		width += _prop_half(prop).x * 2.0
+	if props.size() > 1:
+		width += 6.0 * float(props.size() - 1)
+	return width
 
 
 func _retie_lamp() -> void:
@@ -310,7 +474,7 @@ func _place_on_floor(props: Array, lamp) -> void:
 	var widths := 0.0
 	for prop in props:
 		widths += _prop_half(prop).x * 2.0
-	var start := randf_range(250.0, 300.0)
+	var start := randf_range(220.0, 270.0)
 	var lamp_left := 9999.0
 	var lamp_right := -9999.0
 	var lamp_span := 0.0
@@ -321,7 +485,7 @@ func _place_on_floor(props: Array, lamp) -> void:
 	var room := 1234.0 - start - lamp_span
 	var gap := 16.0
 	if props.size() > 1:
-		gap = clampf((room - widths) / float(props.size() - 1), 10.0, 24.0)
+		gap = clampf((room - widths) / float(props.size() - 1), 6.0, 22.0)
 	var x := start
 	for prop in props:
 		var half := _prop_half(prop)
@@ -345,7 +509,7 @@ func _separate_row(props: Array) -> void:
 	for i in range(1, props.size()):
 		var prev = props[i - 1]
 		var cur = props[i]
-		var need = _prop_half(prev).x + _prop_half(cur).x + 8.0
+		var need = _prop_half(prev).x + _prop_half(cur).x + 6.0
 		if cur.global_position.x - prev.global_position.x < need:
 			var pos: Vector2 = cur.global_position
 			pos.x = prev.global_position.x + need
@@ -357,6 +521,13 @@ func _separate_row(props: Array) -> void:
 			var shifted: Vector2 = prop.global_position
 			shifted.x -= overflow
 			_place_prop(prop, shifted)
+	var first = props[0]
+	var left_overflow = 64.0 - (first.global_position.x - _prop_half(first).x)
+	if left_overflow > 0.0:
+		for prop in props:
+			var pushed: Vector2 = prop.global_position
+			pushed.x += left_overflow
+			_place_prop(prop, pushed)
 
 
 func _clear_lamp(props: Array, lamp) -> void:
@@ -374,7 +545,7 @@ func _clear_lamp(props: Array, lamp) -> void:
 				pos.x = lpos.x + lrad + half.x + 8.0
 			else:
 				pos.x = lpos.x - lrad - half.x - 8.0
-			pos.x = clampf(pos.x, 250.0 + half.x, 1234.0 - half.x)
+			pos.x = clampf(pos.x, 210.0 + half.x, 1234.0 - half.x)
 			_place_prop(prop, pos)
 
 
@@ -394,45 +565,59 @@ func _pick_sweet_spots(upper) -> void:
 			continue
 		var reach := clampf(_prop_half(node).x * 0.55, 11.0, 16.0)
 		candidates.append([node.global_position.x, reach])
-	var lips: Array = [[left + 18.0, 12.0], [right - 18.0, 12.0]]
-	for lip in lips:
-		var clear := true
+	# Ends, center, and a couple of in-between points, so a bare shelf still has three targets.
+	# Inset past the corner. A stone has a 15px radius and clips the plank face inside that.
+	var fillers: Array = [
+		[left + 28.0, 12.0],
+		[upper.global_position.x, 12.0],
+		[right - 28.0, 12.0],
+		[upper.global_position.x - half_w * 0.42, 12.0],
+		[upper.global_position.x + half_w * 0.42, 12.0],
+	]
+	for fill in fillers:
+		var crowded := false
 		for spot in candidates:
-			if absf(float(lip[0]) - float(spot[0])) < 34.0:
-				clear = false
+			if absf(float(fill[0]) - float(spot[0])) < 28.0:
+				crowded = true
 				break
-		if clear:
-			candidates.append(lip)
-	if candidates.size() < 2:
-		candidates.append([upper.global_position.x - 40.0, 12.0])
-		candidates.append([upper.global_position.x + 40.0, 12.0])
+		if not crowded:
+			candidates.append(fill)
 	candidates.shuffle()
+	var min_gap := clampf((right - left) / 4.5, 42.0, 96.0)
 	var picked: Array = []
 	for spot in candidates:
 		var apart := true
 		for kept in picked:
-			if absf(float(spot[0]) - float(kept[0])) < 36.0:
+			if absf(float(spot[0]) - float(kept[0])) < min_gap:
 				apart = false
 				break
 		if apart:
 			picked.append(spot)
-		if picked.size() == 2:
+		if picked.size() == 3:
 			break
-	if picked.size() < 2:
-		for spot in candidates:
-			var seen := false
-			for kept in picked:
-				if absf(float(spot[0]) - float(kept[0])) < 1.0:
-					seen = true
-					break
-			if not seen:
-				picked.append(spot)
-			if picked.size() == 2:
+	if picked.size() < 3:
+		var stations: Array = [0.18, 0.5, 0.82, 0.34, 0.66]
+		for t in stations:
+			if picked.size() == 3:
 				break
+			var station_x := lerpf(left, right, float(t))
+			var station_clear := true
+			for kept in picked:
+				if absf(station_x - float(kept[0])) < 42.0:
+					station_clear = false
+					break
+			if station_clear:
+				picked.append([station_x, 12.0])
+	if picked.size() < 3:
+		picked = [
+			[left + 28.0, 12.0],
+			[upper.global_position.x, 12.0],
+			[right - 28.0, 12.0],
+		]
 	var xs: Array = []
 	var reaches: Array = []
 	for spot in picked:
-		xs.append(clampf(float(spot[0]), left + 12.0, right - 12.0))
+		xs.append(clampf(float(spot[0]), left + 22.0, right - 22.0))
 		reaches.append(float(spot[1]))
 	upper.set_sweet_spots(xs, reaches)
 
