@@ -56,8 +56,20 @@ static func draw(canvas: CanvasItem, center: Vector2, radius: float, shape: Stri
 			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.55, inner * 0.05), Vector2(inner * 0.7, inner * 0.16)), tint)
 			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.2, inner * 0.42), Vector2(inner * 0.85, inner * 0.16)), tint)
 		"bay":
-			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.78, -inner * 0.08), Vector2(inner * 0.38, inner * 0.16)), tint)
-			canvas.draw_rect(Rect2(center + Vector2(inner * 0.28, inner * 0.22), Vector2(inner * 0.46, inner * 0.16)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.78, -inner * 0.35), Vector2(inner * 0.34, inner * 0.14)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(inner * 0.22, inner * 0.38), Vector2(inner * 0.42, inner * 0.14)), tint)
+		"narrow":
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.28, -inner * 0.62), Vector2(inner * 0.56, inner * 0.14)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.28, inner * 0.42), Vector2(inner * 0.56, inner * 0.14)), tint)
+		"clutter":
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.72, inner * 0.28), Vector2(inner * 0.22, inner * 0.28)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.38, inner * 0.16), Vector2(inner * 0.2, inner * 0.4)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.06, inner * 0.32), Vector2(inner * 0.18, inner * 0.24)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(inner * 0.24, inner * 0.1), Vector2(inner * 0.28, inner * 0.46)), tint)
+		"window":
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.62, -inner * 0.72), Vector2(inner * 1.24, inner * 0.9)), Color(0.05, 0.03, 0.04))
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.5, -inner * 0.6), Vector2(inner * 1.0, inner * 0.66)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.42, inner * 0.28), Vector2(inner * 0.84, inner * 0.14)), tint)
 		_:
 			canvas.draw_circle(center, inner * 0.62, tint)
 

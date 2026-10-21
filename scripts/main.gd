@@ -40,7 +40,11 @@ var _shake_cap := 8.0
 var _shaking := false
 var _shop
 var _meta
-var _meta_button: Button
+var _menu_button: Button
+var _menu_panel: Control
+var _menu_note: Label
+var _menu_mark: Control
+var _room_label: Label
 var _equipped: Label
 var _money: Label
 var layout_name := ""
@@ -59,6 +63,7 @@ func _ready() -> void:
 	chain.set_hint(HINT_READY)
 	_build_shop()
 	_build_meta()
+	_build_corner_menu()
 	_build_equipped()
 	_build_money()
 	_randomize_room()
@@ -66,6 +71,11 @@ func _ready() -> void:
 
 func _input(event: InputEvent) -> void:
 	if _meta != null and _meta.visible:
+		return
+	if _menu_panel != null and _menu_panel.visible:
+		if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+			_set_menu_open(false)
+			get_viewport().set_input_as_handled()
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_R:
 		_reset()
@@ -77,9 +87,11 @@ func _input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
-	if _meta_button != null:
+	if _menu_button != null:
 		var busy := phase == Phase.WARMUP or phase == Phase.AIMING or phase == Phase.WATCHING
-		_meta_button.disabled = busy or (_meta != null and _meta.visible)
+		_menu_button.disabled = busy or (_meta != null and _meta.visible)
+		if _menu_mark != null:
+			_menu_mark.modulate = Color(0.55, 0.5, 0.46) if _menu_button.disabled else Color(1, 1, 1)
 	if _look > 0.0:
 		_look = maxf(0.0, _look - delta)
 		if _look == 0.0 and phase == Phase.SETTLED and not _shop_open:
@@ -232,12 +244,26 @@ func _build_meta() -> void:
 	_meta.new_room.connect(_reset)
 	_meta.unlocked.connect(_on_meta_unlocked)
 
+
+func _build_corner_menu() -> void:
+	var layer := CanvasLayer.new()
+	layer.name = "CornerMenu"
+	layer.layer = 48
+	add_child(layer)
+
+	var root := Control.new()
+	root.name = "Root"
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.gui_input.connect(_on_menu_backdrop)
+	layer.add_child(root)
+
 	var button := Button.new()
-	button.name = "MetaButton"
-	button.text = "Meta"
+	button.name = "MenuButton"
 	button.focus_mode = Control.FOCUS_NONE
 	button.flat = true
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	button.tooltip_text = "Menu"
 	var empty := StyleBoxEmpty.new()
 	button.add_theme_stylebox_override("normal", empty)
 	button.add_theme_stylebox_override("hover", empty)
@@ -245,18 +271,147 @@ func _build_meta() -> void:
 	button.add_theme_stylebox_override("focus", empty)
 	button.add_theme_stylebox_override("disabled", empty)
 	button.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	button.offset_left = 16.0
-	button.offset_top = 40.0
-	button.offset_right = 132.0
-	button.offset_bottom = 74.0
+	button.offset_left = 8.0
+	button.offset_top = 6.0
+	button.offset_right = 44.0
+	button.offset_bottom = 42.0
+	button.pressed.connect(_toggle_menu)
+	var mark := MenuMark.new()
+	mark.name = "Mark"
+	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mark.set_anchors_preset(Control.PRESET_FULL_RECT)
+	button.add_child(mark)
+	root.add_child(button)
+	_menu_button = button
+	_menu_mark = mark
+
+	var panel := Control.new()
+	panel.name = "MenuPanel"
+	panel.visible = false
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	panel.offset_left = 12.0
+	panel.offset_top = 48.0
+	panel.offset_right = 268.0
+	panel.offset_bottom = 292.0
+	root.add_child(panel)
+	_menu_panel = panel
+
+	var wash := ColorRect.new()
+	wash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	wash.color = Color(0.10, 0.12, 0.15, 0.98)
+	wash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(wash)
+
+	var title := Label.new()
+	title.text = "Menu"
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title.position = Vector2(16, 8)
+	title.size = Vector2(220, 28)
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
+	panel.add_child(title)
+
+	_add_menu_button(panel, "Meta shop", Vector2(16, 44), _on_menu_meta)
+	_add_menu_button(panel, "Restart room", Vector2(16, 92), _on_menu_restart)
+	_add_menu_button(panel, "Settings", Vector2(16, 140), _on_menu_settings)
+	_add_menu_button(panel, "Close", Vector2(16, 188), _on_menu_close)
+
+	var note := Label.new()
+	note.name = "SettingsNote"
+	note.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	note.position = Vector2(16, 228)
+	note.size = Vector2(224, 22)
+	note.add_theme_font_size_override("font_size", 13)
+	note.add_theme_color_override("font_color", Color(0.72, 0.76, 0.82))
+	panel.add_child(note)
+	_menu_note = note
+
+	var room := Label.new()
+	room.name = "RoomName"
+	room.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	room.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	room.offset_left = 52.0
+	room.offset_top = 32.0
+	room.offset_right = 360.0
+	room.offset_bottom = 54.0
+	room.add_theme_font_size_override("font_size", 14)
+	room.add_theme_color_override("font_color", Color(0.95, 0.9, 0.82, 0.85))
+	chain.get_node("UI/Root").add_child(room)
+	_room_label = room
+
+
+func _add_menu_button(panel: Control, text: String, pos: Vector2, handler: Callable) -> void:
+	var button := Button.new()
+	button.text = text
+	button.name = text.replace(" ", "")
+	button.focus_mode = Control.FOCUS_NONE
+	button.flat = true
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	var empty := StyleBoxEmpty.new()
+	button.add_theme_stylebox_override("normal", empty)
+	button.add_theme_stylebox_override("hover", empty)
+	button.add_theme_stylebox_override("pressed", empty)
+	button.add_theme_stylebox_override("focus", empty)
+	button.position = pos
+	button.size = Vector2(224, 40)
 	button.add_theme_font_size_override("font_size", 18)
 	button.add_theme_color_override("font_color", Color(0.95, 0.9, 0.82))
 	button.add_theme_color_override("font_hover_color", Color(1.0, 0.86, 0.42))
 	button.add_theme_color_override("font_pressed_color", Color(1.0, 0.86, 0.42))
-	button.add_theme_color_override("font_disabled_color", Color(0.55, 0.5, 0.46))
-	button.pressed.connect(_open_meta)
-	chain.get_node("UI/Root").add_child(button)
-	_meta_button = button
+	button.pressed.connect(handler)
+	panel.add_child(button)
+
+
+func _toggle_menu() -> void:
+	var open := true
+	if _menu_panel != null and _menu_panel.visible:
+		open = false
+	_set_menu_open(open)
+
+
+func _set_menu_open(show_menu: bool) -> void:
+	if _menu_panel == null:
+		return
+	_menu_panel.visible = show_menu
+	var backdrop := _menu_panel.get_parent() as Control
+	if backdrop != null:
+		backdrop.mouse_filter = Control.MOUSE_FILTER_STOP if show_menu else Control.MOUSE_FILTER_IGNORE
+	if show_menu:
+		thrower.aiming = false
+		thrower.can_aim = false
+		if _menu_note != null:
+			_menu_note.text = ""
+		chain.set_hint("Menu")
+	else:
+		_restore_aim()
+
+
+func _on_menu_backdrop(event: InputEvent) -> void:
+	if _menu_panel == null or not _menu_panel.visible:
+		return
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_set_menu_open(false)
+
+
+func _on_menu_meta() -> void:
+	_set_menu_open(false)
+	_open_meta()
+
+
+func _on_menu_restart() -> void:
+	_set_menu_open(false)
+	_reset()
+
+
+func _on_menu_settings() -> void:
+	if _menu_note != null:
+		_menu_note.text = "Settings are not in yet."
+
+
+func _on_menu_close() -> void:
+	_set_menu_open(false)
 
 
 func _open_meta() -> void:
@@ -270,16 +425,20 @@ func _open_meta() -> void:
 
 
 func _on_meta_closed() -> void:
-	if _shop_open:
+	_restore_aim()
+
+
+func _on_meta_unlocked(_id: String) -> void:
+	_refresh_money(true)
+
+
+func _restore_aim() -> void:
+	if _shop_open or (_meta != null and _meta.visible) or (_menu_panel != null and _menu_panel.visible):
 		thrower.can_aim = false
 		return
 	if phase == Phase.READY:
 		thrower.can_aim = true
 		chain.set_hint(HINT_READY)
-
-
-func _on_meta_unlocked(_id: String) -> void:
-	_refresh_money(true)
 
 
 func _build_equipped() -> void:
@@ -404,9 +563,13 @@ func _randomize_room() -> void:
 	if not active.is_empty():
 		_pick_sweet_spots(active[0])
 	var backdrop = get_node_or_null("Backdrop")
+	if backdrop and backdrop.has_method("set_layout_tone"):
+		backdrop.set_layout_tone(layout_name)
 	if backdrop and backdrop.has_method("set_room_dressing"):
 		backdrop.set_room_dressing(_pick_window(hook), hook)
 		backdrop.queue_redraw()
+	if _room_label != null:
+		_room_label.text = _layout_title(layout_name)
 
 
 func _fill_loose(loose: Array) -> Array:
@@ -469,6 +632,11 @@ func _seat_pile(active: Array, loose: Array, lamp) -> Array:
 			goal += 1
 		goals.append(goal)
 	var rest: Array = loose
+	if layout_name == "floor_clutter":
+		rest = ordered.duplicate()
+		for shelf_i in active.size():
+			rest = _seat_on_shelf(active[shelf_i], rest, 2, _rider_limit(active[shelf_i], active))
+		return rest
 	var budget := _floor_budget(lamp)
 	for _attempt in 5:
 		rest = ordered.duplicate()
@@ -787,6 +955,12 @@ func _roll_layout(wide, high, extra) -> Array:
 		names.append("low_loft")
 	if Loadout.owns("split_bay"):
 		names.append("split_bay")
+	if Loadout.owns("narrow"):
+		names.append("narrow")
+	if Loadout.owns("floor_clutter"):
+		names.append("floor_clutter")
+	if Loadout.owns("window_heavy"):
+		names.append("window_heavy")
 	var pick := str(names[randi() % names.size()])
 	if extra == null and (pick == "sides" or pick == "stairs"):
 		pick = "long"
@@ -806,6 +980,12 @@ func _roll_layout(wide, high, extra) -> Array:
 			return _layout_low_loft(high, wide)
 		"split_bay":
 			return _layout_split_bay(high, wide)
+		"narrow":
+			return _layout_narrow(high, wide)
+		"floor_clutter":
+			return _layout_floor_clutter(wide)
+		"window_heavy":
+			return _layout_window_heavy(high, wide)
 		_:
 			return _layout_long(wide)
 
@@ -829,24 +1009,86 @@ func _layout_low_loft(short, long_shelf) -> Array:
 
 
 func _layout_split_bay(left_shelf, right_shelf) -> Array:
-	# A clear vertical gap in the middle. Nothing bridges the two sides.
-	var w_left := randf_range(170.0, 230.0)
-	var w_right := randf_range(190.0, 270.0)
-	var left_max := 560.0 - w_left * 0.5
+	# A wide empty center. The right plank sits much lower, so the two piles fall apart.
+	var w_left := randf_range(160.0, 210.0)
+	var w_right := randf_range(170.0, 220.0)
+	var left_max := 500.0 - w_left * 0.5
 	var left_min := 300.0 + w_left * 0.5
 	if left_min > left_max:
 		left_min = left_max
-	var right_min := 900.0 + w_right * 0.5
-	var right_max := 1200.0 - w_right * 0.5
+	var right_min := 980.0 + w_right * 0.5
+	var right_max := 1210.0 - w_right * 0.5
 	if right_min > right_max:
 		right_min = right_max
 	var x_left := randf_range(left_min, left_max)
 	var x_right := randf_range(right_min, right_max)
-	var y_left := randf_range(240.0, 340.0)
-	var y_right := randf_range(300.0, 430.0)
+	var y_left := randf_range(228.0, 276.0)
+	var y_right := randf_range(400.0, 448.0)
 	_use_shelf(left_shelf, x_left, y_left, w_left)
 	_use_shelf(right_shelf, x_right, y_right, w_right)
+	_keep_x_apart([left_shelf, right_shelf], 400.0)
 	return [left_shelf, right_shelf]
+
+
+func _layout_narrow(upper, lower) -> Array:
+	# Two short planks in one column, with a long fall between them.
+	var uw := randf_range(150.0, 190.0)
+	var lw := randf_range(156.0, 200.0)
+	var uy := randf_range(228.0, 260.0)
+	var ly := uy + randf_range(156.0, 196.0)
+	var cx := randf_range(560.0, 960.0)
+	_use_shelf(upper, cx + randf_range(-20.0, 20.0), uy, uw)
+	_use_shelf(lower, cx + randf_range(-20.0, 20.0), ly, lw)
+	_keep_stacked(upper, lower, 148.0)
+	return [upper, lower]
+
+
+func _layout_floor_clutter(wide) -> Array:
+	# One small shelf high up. The seating pass leaves almost every prop on the floor.
+	var w := randf_range(200.0, 280.0)
+	var y := randf_range(228.0, 270.0)
+	var x := randf_range(520.0, 980.0)
+	_use_shelf(wide, x, y, w)
+	return [wide]
+
+
+func _layout_window_heavy(upper, lower) -> Array:
+	# Both planks sit on the right, under a large window.
+	var uw := randf_range(240.0, 320.0)
+	var lw := randf_range(220.0, 300.0)
+	var uy := randf_range(240.0, 286.0)
+	var ly := uy + randf_range(108.0, 150.0)
+	var cx := randf_range(900.0, 1040.0)
+	_use_shelf(upper, cx + randf_range(-24.0, 24.0), uy, uw)
+	_use_shelf(lower, cx + randf_range(-36.0, 36.0), ly, lw)
+	_keep_stacked(upper, lower, 100.0)
+	return [upper, lower]
+
+
+func _layout_title(id: String) -> String:
+	match id:
+		"long":
+			return "Long shelf"
+		"sides":
+			return "Side shelves"
+		"stack_l", "stack_r":
+			return "Stack"
+		"stairs":
+			return "Stairs"
+		"balcony":
+			return "Balcony"
+		"low_loft":
+			return "Low loft"
+		"split_bay":
+			return "Split bay"
+		"narrow":
+			return "Narrow shelves"
+		"floor_clutter":
+			return "Floor clutter"
+		"window_heavy":
+			return "Window heavy"
+		_:
+			return "Room"
 
 
 func _layout_long(wide) -> Array:
@@ -1105,6 +1347,16 @@ func _rider_limit(shelf, shelves: Array) -> float:
 func _place_hanging_lamp(lamp, shelves: Array) -> Vector2:
 	var hook_y := randf_range(104.0, 166.0)
 	var hook_x := _pick_hook_x(shelves)
+	if layout_name == "window_heavy" and not shelves.is_empty():
+		var sum_x := 0.0
+		var count := 0
+		for shelf in shelves:
+			if shelf != null and shelf.visible:
+				sum_x += float(shelf.global_position.x)
+				count += 1
+		if count > 0:
+			hook_x = clampf(sum_x / float(count), 760.0, 1080.0)
+			hook_y = 96.0
 	var solved := _solve_lamp(hook_x, hook_y, float(lamp.radius), shelves)
 	var hook := Vector2(solved.x, hook_y)
 	_move_hook(hook)
@@ -1245,6 +1497,11 @@ func _move_hook(hook: Vector2) -> void:
 
 
 func _pick_window(hook: Vector2) -> Rect2:
+	if layout_name == "window_heavy":
+		var wide := randf_range(440.0, 520.0)
+		var tall := randf_range(170.0, 200.0)
+		var left := clampf(hook.x - wide * 0.45, 620.0, 1224.0 - wide)
+		return Rect2(left, 72.0, wide, tall)
 	var win_w := randf_range(228.0, 340.0)
 	var win_h := randf_range(108.0, 146.0)
 	var win_x := randf_range(56.0, 1224.0 - win_w)
@@ -1266,3 +1523,13 @@ func _nudge_away_from_lamp(lamp) -> void:
 			continue
 		props.append(node)
 	_clear_lamp(props, lamp)
+
+
+class MenuMark extends Control:
+	func _draw() -> void:
+		var ink := Color(0.95, 0.9, 0.82)
+		var bar_w := size.x - 14.0
+		var y := 9.0
+		for _bar in 3:
+			draw_rect(Rect2(7.0, y, bar_w, 3.0), ink)
+			y += 8.0

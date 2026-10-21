@@ -14,6 +14,11 @@ const WOOD_DARK := Color(0.28, 0.16, 0.10)
 
 var window_rect := Rect2(470, 128, 300, 134)
 var hook_pos := Vector2(640, 150)
+var layout_id := ""
+
+
+func set_layout_tone(id: String) -> void:
+	layout_id = id
 
 
 func set_room_dressing(window: Rect2, hook: Vector2) -> void:
@@ -28,14 +33,19 @@ func _ready() -> void:
 
 
 func _draw() -> void:
-	draw_rect(Rect2(0, 0, 1280, 720), WALL)
+	draw_rect(Rect2(0, 0, 1280, 720), _wall_color())
 	draw_rect(Rect2(0, 0, 32, 720), FRAME)
 	draw_rect(Rect2(1248, 0, 32, 720), FRAME)
 	draw_rect(Rect2(0, 0, 1280, 36), FRAME)
+	if layout_id == "split_bay":
+		draw_rect(Rect2(590, 160, 100, 470), Color(0.0, 0.0, 0.0, 0.22))
 
 	var window := window_rect
+	var glass := GLASS
+	if layout_id == "window_heavy":
+		glass = Color(0.68, 0.86, 0.94)
 	draw_rect(window.grow(8), WOOD_DARK)
-	draw_rect(window, GLASS)
+	draw_rect(window, glass)
 	draw_line(Vector2(window.position.x + window.size.x * 0.5, window.position.y), Vector2(window.position.x + window.size.x * 0.5, window.end.y), WOOD, 4.0)
 	draw_line(Vector2(window.position.x, window.position.y + window.size.y * 0.55), Vector2(window.end.x, window.position.y + window.size.y * 0.55), WOOD, 4.0)
 	draw_rect(Rect2(window.position + Vector2(10, 8), Vector2(36, 18)), GLASS_LITE)
@@ -66,5 +76,27 @@ func _draw() -> void:
 		draw_rect(Rect2(origin.x + half_w - inset - peg_w, top, peg_w, peg_h), WOOD_DARK)
 
 	draw_rect(Rect2(32, 626, 1216, 14), BOARD)
-	draw_rect(Rect2(0, 640, 1280, 80), FLOOR)
+	var floor := FLOOR
+	if layout_id == "floor_clutter":
+		floor = Color(0.24, 0.15, 0.10)
+	draw_rect(Rect2(0, 640, 1280, 80), floor)
 	draw_line(Vector2(32, 640), Vector2(1248, 640), Color(0.62, 0.44, 0.28), 2.0)
+	if layout_id == "floor_clutter":
+		draw_line(Vector2(32, 656), Vector2(1248, 656), Color(0.46, 0.30, 0.18), 2.0)
+		draw_line(Vector2(32, 674), Vector2(1248, 674), Color(0.36, 0.22, 0.14), 2.0)
+
+
+func _wall_color() -> Color:
+	match layout_id:
+		"low_loft":
+			return Color(0.22, 0.13, 0.10)
+		"narrow":
+			return Color(0.12, 0.13, 0.17)
+		"floor_clutter":
+			return Color(0.20, 0.15, 0.11)
+		"split_bay":
+			return Color(0.12, 0.14, 0.18)
+		"window_heavy":
+			return Color(0.17, 0.15, 0.12)
+		_:
+			return WALL

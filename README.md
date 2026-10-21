@@ -40,17 +40,20 @@ The equipped stone is tinted, carries an icon for what it does, and is named in 
 
 ## Meta shop
 
-The Meta button, and Meta shop on the throw shop, open a separate list. Coins spent there stay spent. Unlocks stay after you close the game.
+The menu icon in the top-left opens Meta shop, Restart room, and a Settings placeholder. Meta shop is also on the throw shop. Coins spent there stay spent. Unlocks stay after you close the game. The list is cheapest first, and each row says Stone or Room.
 
-| Unlock | Cost | What it does |
-| --- | --- | --- |
-| Cork Stone | 22 coins | Joins the throw shop |
-| Low Loft | 24 coins | Shelves sit close to the floor |
-| Needle Stone | 30 coins | Joins the throw shop |
-| Split Bay | 34 coins | Two shelves with a wide gap between them |
-| Thud Stone | 38 coins | Joins the throw shop |
+| Unlock | Kind | Cost | What it does |
+| --- | --- | --- | --- |
+| Cork Stone | Stone | 28 coins | Joins the throw shop |
+| Narrow Shelves | Room | 36 coins | Short planks with a tall drop between them |
+| Low Loft | Room | 46 coins | Shelves sit close to the floor |
+| Needle Stone | Stone | 56 coins | Joins the throw shop |
+| Floor Clutter | Room | 66 coins | One small shelf. Most props sit on the floor |
+| Split Bay | Room | 78 coins | Two shelves far apart, at different heights |
+| Window Heavy | Room | 88 coins | A large window with the shelves crowded under it |
+| Thud Stone | Stone | 98 coins | Joins the throw shop |
 
-A full clear pays 11, so the cheapest unlock takes more than one strong throw. Back returns to the room. New room rolls the layout again, including anything you just unlocked.
+A full clear pays 11. Two clears are 22, so the first unlock takes a third strong throw. Later unlocks cost more. Owned rows stay marked Owned. Back returns to the room. New room rolls the layout again from the default shelves plus anything you just unlocked. The throw shop only offers base stones and stones you already own.
 
 ## Still one room
 

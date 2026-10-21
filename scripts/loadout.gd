@@ -140,52 +140,88 @@ const CATALOG: Array = [
 	},
 ]
 
-## Permanent unlocks. Costs sit above one full clear (11 coins).
+## Permanent unlocks. A full clear pays 11, so 28 takes about three strong throws.
+## kind is "stone" or "room". The shop sorts this list by cost.
 const META: Array = [
 	{
 		"id": "cork_stone",
+		"kind": "stone",
 		"name": "Cork Stone",
 		"line": "Stops where it lands.",
 		"blurb": "Throw shop, 8 coins",
-		"cost": 22,
+		"cost": 28,
 		"shape": "cork",
 		"tint": Color(0.73, 0.50, 0.30),
 	},
 	{
-		"id": "needle_stone",
-		"name": "Needle Stone",
-		"line": "Small and fast. Flies far.",
-		"blurb": "Throw shop, 9 coins",
-		"cost": 30,
-		"shape": "needle",
-		"tint": Color(0.86, 0.91, 0.96),
-	},
-	{
-		"id": "thud_stone",
-		"name": "Thud Stone",
-		"line": "The first hit shoves harder.",
-		"blurb": "Throw shop, 10 coins",
-		"cost": 38,
-		"shape": "thud",
-		"tint": Color(0.55, 0.36, 0.28),
+		"id": "narrow",
+		"kind": "room",
+		"name": "Narrow Shelves",
+		"line": "Short planks with a tall drop between them.",
+		"blurb": "Next rooms can roll this",
+		"cost": 36,
+		"shape": "narrow",
+		"tint": Color(0.72, 0.78, 0.86),
 	},
 	{
 		"id": "low_loft",
+		"kind": "room",
 		"name": "Low Loft",
 		"line": "Both shelves sit close to the floor.",
 		"blurb": "Next rooms can roll this",
-		"cost": 24,
+		"cost": 46,
 		"shape": "loft",
 		"tint": Color(0.86, 0.72, 0.42),
 	},
 	{
-		"id": "split_bay",
-		"name": "Split Bay",
-		"line": "A wide empty gap between two shelves.",
+		"id": "needle_stone",
+		"kind": "stone",
+		"name": "Needle Stone",
+		"line": "Small and fast. Flies far.",
+		"blurb": "Throw shop, 9 coins",
+		"cost": 56,
+		"shape": "needle",
+		"tint": Color(0.86, 0.91, 0.96),
+	},
+	{
+		"id": "floor_clutter",
+		"kind": "room",
+		"name": "Floor Clutter",
+		"line": "A small high shelf. Almost everything sits on the floor.",
 		"blurb": "Next rooms can roll this",
-		"cost": 34,
+		"cost": 66,
+		"shape": "clutter",
+		"tint": Color(0.78, 0.58, 0.36),
+	},
+	{
+		"id": "split_bay",
+		"kind": "room",
+		"name": "Split Bay",
+		"line": "Two shelves far apart, one much higher than the other.",
+		"blurb": "Next rooms can roll this",
+		"cost": 78,
 		"shape": "bay",
 		"tint": Color(0.55, 0.72, 0.84),
+	},
+	{
+		"id": "window_heavy",
+		"kind": "room",
+		"name": "Window Heavy",
+		"line": "A large window. Shelves and the lamp crowd under it.",
+		"blurb": "Next rooms can roll this",
+		"cost": 88,
+		"shape": "window",
+		"tint": Color(0.62, 0.84, 0.90),
+	},
+	{
+		"id": "thud_stone",
+		"kind": "stone",
+		"name": "Thud Stone",
+		"line": "The first hit shoves harder.",
+		"blurb": "Throw shop, 10 coins",
+		"cost": 98,
+		"shape": "thud",
+		"tint": Color(0.55, 0.36, 0.28),
 	},
 ]
 
@@ -291,6 +327,14 @@ static func spend(price: int) -> bool:
 
 static func owns(id: String) -> bool:
 	return owned.has(id)
+
+
+static func meta_sorted() -> Array:
+	var rows: Array = []
+	for offer in META:
+		rows.append(offer)
+	rows.sort_custom(func(a, b): return int(a["cost"]) < int(b["cost"]))
+	return rows
 
 
 static func throw_pool() -> Array:
