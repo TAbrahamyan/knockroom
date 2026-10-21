@@ -130,6 +130,7 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 
 func _on_body_entered(body: Node) -> void:
 	AudioKit.play_impact()
+	_shake_if_hard(body)
 	if body.has_method("wake_from"):
 		body.call_deferred("wake_from", self)
 	if body.is_in_group("back_wall"):
@@ -143,6 +144,16 @@ func _on_body_entered(body: Node) -> void:
 	if _blast_r > 0.0 or _pop_r > 0.0 or _glass_r > 0.0 or _magnet_duration > 0.0:
 		_effect_used = true
 		call_deferred("_release_effect")
+
+
+func _shake_if_hard(body: Node) -> void:
+	if _recent_speed < 780.0:
+		return
+	if not body.is_in_group("prop") and not body.is_in_group("back_wall") and not body.is_in_group("world"):
+		return
+	var round := get_tree().get_first_node_in_group("round")
+	if round and round.has_method("add_hit_shake"):
+		round.add_hit_shake(_recent_speed)
 
 
 func _kick_off_back_wall() -> void:

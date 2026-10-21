@@ -14,7 +14,7 @@ R restarts the room. Coins, the equipped stone, unlocks, language, and volume ar
 
 ## Room
 
-Every new room builds a new shelf layout. The name of that layout sits under the title. A room has 18–23 loose objects and exactly 1 sweet spot on the highest shelf. Hitting that spot drops the shelves one after another, then the floor. A miss uses a softer cascade. The floor beside the slingshot stays clear.
+Every new room builds a new shelf layout, and the name of that layout sits on a plate under the title. Narrow shelves and the alcove stock bottles. Market row and floor clutter stock boxes. Split bay and the stacks stock crates. The long shelf and the low loft stock pots. The window and the balcony stock glass. Walls, floors, and shelf colors follow the same room. A room has 18–23 loose objects and exactly 1 sweet spot on the highest shelf. A hard hit and the sweet spot shake the view. Breaking glass and wood throw chips. An excellent chain flashes gold, and the coins pop beside the count. Hitting that spot drops the shelves one after another, then the floor. A miss uses a softer cascade. The floor beside the slingshot stays clear.
 
 Default layouts are the long shelf, side shelves, a stack against one wall, stairs, a balcony, and an alcove. Unlocked rooms join that roll. Narrow shelves are a short column with a tall drop. Floor clutter keeps almost everything on the ground. Split bay leaves a wide empty middle, including on the floor. Window heavy crowds the shelves under a large window. Market row is one long low counter. Low loft keeps both boards near the floor.
 

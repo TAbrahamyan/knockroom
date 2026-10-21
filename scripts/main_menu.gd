@@ -162,11 +162,36 @@ func _center(node: Control, width: float, height: float, y_bias: float) -> void:
 
 
 class RoomArt extends Control:
+	var _dust: Array = []
+
+	func _process(delta: float) -> void:
+		if size.x < 10.0 or size.y < 10.0:
+			return
+		if _dust.is_empty():
+			for _i in 26:
+				_dust.append({
+					"p": Vector2(randf() * size.x, randf() * size.y),
+					"v": Vector2(randf_range(-8.0, 8.0), randf_range(-14.0, -3.0)),
+					"r": randf_range(1.1, 2.4),
+				})
+		for mote in _dust:
+			var p: Vector2 = mote["p"]
+			var v: Vector2 = mote["v"]
+			p += v * delta
+			if p.y < -6.0:
+				p = Vector2(randf() * size.x, size.y + 4.0)
+			if p.x < -4.0 or p.x > size.x + 4.0:
+				v.x = -v.x
+				p.x = clampf(p.x, 0.0, size.x)
+			mote["p"] = p
+			mote["v"] = v
+		queue_redraw()
+
 	func _draw() -> void:
 		var s := size
 		if s.x < 10.0 or s.y < 10.0:
 			return
-		draw_rect(Rect2(Vector2.ZERO, s), Color(0.10, 0.07, 0.075))
+		draw_rect(Rect2(Vector2.ZERO, s), Color(0.08, 0.05, 0.055))
 		draw_rect(Rect2(0, 0, s.x, 28), Color(0.05, 0.03, 0.04))
 		draw_rect(Rect2(0, 0, 26, s.y), Color(0.05, 0.03, 0.04))
 		draw_rect(Rect2(s.x - 26, 0, 26, s.y), Color(0.05, 0.03, 0.04))
@@ -178,8 +203,9 @@ class RoomArt extends Control:
 		draw_line(Vector2(win.position.x, win.position.y + win.size.y * 0.55), Vector2(win.end.x, win.position.y + win.size.y * 0.55), Color(0.34, 0.22, 0.14), 4.0)
 		var lamp := Vector2(s.x * 0.22, 168)
 		draw_line(Vector2(lamp.x, 48), lamp, Color(0.38, 0.24, 0.15), 3.0)
-		draw_circle(lamp + Vector2(0, 36), 78, Color(1.0, 0.68, 0.28, 0.08))
-		draw_circle(lamp + Vector2(0, 18), 18, Color(1.0, 0.82, 0.46, 0.95))
+		draw_circle(lamp + Vector2(0, 48), 170, Color(1.0, 0.58, 0.2, 0.07))
+		draw_circle(lamp + Vector2(0, 36), 96, Color(1.0, 0.7, 0.28, 0.12))
+		draw_circle(lamp + Vector2(0, 18), 22, Color(1.0, 0.88, 0.55, 0.98))
 		draw_rect(Rect2(lamp.x - 16, lamp.y + 8, 32, 10), Color(0.42, 0.26, 0.16))
 		draw_rect(Rect2(s.x * 0.12, 300, 300, 14), Color(0.46, 0.28, 0.16))
 		draw_rect(Rect2(s.x * 0.16, 292, 18, 8), Color(0.28, 0.16, 0.12))
@@ -191,3 +217,11 @@ class RoomArt extends Control:
 		draw_rect(Rect2(s.x * 0.18 + 200, 400, 28, 48), Color(0.55, 0.72, 0.7, 0.7))
 		draw_rect(Rect2(0, s.y - 92, s.x, 92), Color(0.20, 0.12, 0.09))
 		draw_line(Vector2(26, s.y - 92), Vector2(s.x - 26, s.y - 92), Color(0.55, 0.38, 0.24), 2.0)
+		draw_rect(Rect2(0, 0, s.x, 90), Color(0, 0, 0, 0.28))
+		draw_rect(Rect2(0, s.y - 120, s.x, 120), Color(0, 0, 0, 0.32))
+		draw_rect(Rect2(0, 0, 80, s.y), Color(0, 0, 0, 0.22))
+		draw_rect(Rect2(s.x - 80, 0, 80, s.y), Color(0, 0, 0, 0.22))
+		for mote in _dust:
+			var p: Vector2 = mote["p"]
+			var rad: float = mote["r"]
+			draw_circle(p, rad, Color(1.0, 0.9, 0.7, 0.35))

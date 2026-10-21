@@ -39,6 +39,11 @@ var _stagger: Array = []
 var _stagger_gap := 0.0
 
 var _anchor: Node2D
+## 0 pot, 1 bottle, 2 crate, 3 box, 4 glass jar. Physics stays a circle or a box.
+var look := 0
+var dye := Color(0.86, 0.50, 0.20)
+var wood := Color(0.84, 0.62, 0.30)
+var lip := Color(1.0, 0.90, 0.62, 0.75)
 
 
 func _ready() -> void:
@@ -112,6 +117,60 @@ func resize_shelf(width: float) -> void:
 		if physics_material_override:
 			physics_material_override.friction = 0.48
 	queue_redraw()
+
+
+func set_wood(fill: Color, edge: Color) -> void:
+	wood = fill
+	lip = edge
+	queue_redraw()
+
+
+func apply_look(look_id: int) -> void:
+	look = clampi(look_id, 0, 4)
+	shatters = look == 1 or look == 4
+	if look == 2 or look == 3:
+		kind = Kind.CAGE
+		if look == 2:
+			box_size = Vector2(randf_range(36.0, 44.0), randf_range(48.0, 56.0))
+			mass_scale = 0.88
+			dye = Color(0.62, 0.40, 0.22).lerp(Color(0.48, 0.30, 0.16), randf())
+		else:
+			box_size = Vector2(randf_range(40.0, 50.0), randf_range(30.0, 38.0))
+			mass_scale = 0.7
+			dye = Color(0.74, 0.56, 0.32).lerp(Color(0.58, 0.42, 0.24), randf())
+	else:
+		kind = Kind.BARREL
+		if look == 0:
+			radius = randf_range(15.0, 18.0)
+			mass_scale = 0.82
+			shatters = false
+			dye = Color(0.86, 0.48, 0.22).lerp(Color(0.70, 0.36, 0.18), randf())
+		elif look == 1:
+			radius = randf_range(12.0, 14.0)
+			mass_scale = 0.52
+			dye = Color(0.42, 0.74, 0.70) if randf() < 0.55 else Color(0.70, 0.82, 0.48)
+		else:
+			radius = randf_range(13.0, 16.0)
+			mass_scale = 0.55
+			dye = Color(0.95, 0.88, 0.62).lerp(Color(0.78, 0.90, 0.86), randf())
+	_sync_shape()
+	_apply_material()
+	queue_redraw()
+
+
+func _sync_shape() -> void:
+	var shape_node := get_node_or_null("Shape") as CollisionShape2D
+	if shape_node == null:
+		_build_collision()
+		return
+	if kind == Kind.BARREL or kind == Kind.LAMP:
+		var circle := CircleShape2D.new()
+		circle.radius = radius
+		shape_node.shape = circle
+	else:
+		var rect := RectangleShape2D.new()
+		rect.size = box_size
+		shape_node.shape = rect
 
 
 func is_in_chain() -> bool:
@@ -320,6 +379,9 @@ func note_hit(hit_x: float, speed: float) -> void:
 	for i in _sweet_x.size():
 		if absf(hit_x - _sweet_x[i]) <= _sweet_reach[i]:
 			_heavy = true
+			var round := get_tree().get_first_node_in_group("round")
+			if round and round.has_method("add_sweet_shake"):
+				round.add_sweet_shake()
 			# The plank may already have flinched. A real spot hit still starts the wave.
 			if awakened:
 				_arm_heavy_if_idle()
@@ -481,12 +543,15 @@ func _play_hit() -> void:
 	elif kind == Kind.LAMP:
 		_burst(Color(1.0, 0.95, 0.55), 14, 210.0)
 	elif kind == Kind.BARREL and (speed > 150.0 or shatters):
-		_burst(Color(0.95, 0.58, 0.28), 11, 170.0)
+		var chip := Color(0.88, 0.96, 0.94) if shatters else dye
+		_burst(chip, 14, 190.0, shatters)
+	elif kind == Kind.CAGE and speed > 160.0:
+		_burst(dye, 12, 160.0, true)
 	elif speed > 220.0:
 		_burst(Color(0.86, 0.78, 0.66), 8, 130.0)
 
 
-func _burst(color: Color, count: int, power: float) -> void:
+func _burst(color: Color, count: int, power: float, shards: bool = false) -> void:
 	var parent := get_parent()
 	if parent == null:
 		return
@@ -494,7 +559,7 @@ func _burst(color: Color, count: int, power: float) -> void:
 	burst.z_index = 6
 	parent.add_child(burst)
 	burst.global_position = global_position
-	burst.setup(color, count, power)
+	burst.setup(color, count, power, shards)
 
 
 func _shatter() -> void:
@@ -505,7 +570,8 @@ func _shatter() -> void:
 	var parent := get_parent()
 	if parent == null:
 		return
-	_burst(Color(0.88, 1.0, 0.95), 18, 280.0)
+	var glass := Color(0.82, 0.98, 0.94) if look == 1 else Color(1.0, 0.94, 0.72)
+	_burst(glass, 24, 320.0, true)
 	var origin := global_position
 	var carry := linear_velocity
 	collision_layer = 0
@@ -560,9 +626,17 @@ func _draw() -> void:
 		draw_circle(Vector2.ZERO, radius + 14.0, Color(1.0, 1.0, 0.82, flash * 0.75))
 	match kind:
 		Kind.BARREL:
-			_draw_barrel()
+			if look == 1:
+				_draw_bottle()
+			elif look == 4:
+				_draw_jar()
+			else:
+				_draw_barrel()
 		Kind.CAGE:
-			_draw_cage()
+			if look == 3:
+				_draw_box()
+			else:
+				_draw_crate()
 		Kind.SHELF:
 			_draw_shelf()
 		Kind.LAMP:
@@ -577,40 +651,86 @@ func _fill(base: Color) -> Color:
 
 func _body_color(base: Color) -> Color:
 	var tinted := base
-	if mass_scale < 0.75:
-		tinted = base.lerp(Color(0.98, 0.9, 0.62), 0.45)
-	elif mass_scale > 1.5:
+	if look == 0 and mass_scale > 1.5:
 		tinted = base.lerp(Color(0.16, 0.1, 0.1), 0.55)
 	return _fill(tinted)
 
 
+func _mark_round(radius_pad: float) -> void:
+	if not highlighted:
+		return
+	draw_circle(Vector2.ZERO, radius + radius_pad + 6.0, GOLD_GLOW)
+	draw_circle(Vector2.ZERO, radius + radius_pad, GOLD)
+
+
+func _mark_rect(rect: Rect2) -> void:
+	if not highlighted:
+		return
+	draw_rect(rect.grow(12.0), GOLD_GLOW)
+	draw_rect(rect.grow(8.0), GOLD)
+
+
 func _draw_barrel() -> void:
-	var color := _body_color(Color(0.86, 0.50, 0.20))
-	if highlighted:
-		draw_circle(Vector2.ZERO, radius + 16.0, GOLD_GLOW)
-		draw_circle(Vector2.ZERO, radius + 10.0, GOLD)
+	var color := _body_color(dye)
+	_mark_round(10.0)
 	draw_circle(Vector2.ZERO, radius + 2.0, INK)
 	draw_circle(Vector2.ZERO, radius, color)
-	var band := Color(0.42, 0.22, 0.10)
+	var band := color.darkened(0.35)
 	var chord := radius * 0.72
 	draw_line(Vector2(-chord, -radius * 0.22), Vector2(chord, -radius * 0.22), band, 3.0)
 	draw_line(Vector2(-chord, radius * 0.28), Vector2(chord, radius * 0.28), band, 3.0)
 	draw_line(Vector2(-radius * 0.32, -radius * 0.55), Vector2(-radius * 0.32, radius * 0.55), Color(1, 1, 1, 0.22), 3.0)
 
 
-func _draw_cage() -> void:
+func _draw_bottle() -> void:
+	var color := _fill(dye)
+	_mark_round(10.0)
+	var body := radius * 0.62
+	var neck := Rect2(-radius * 0.16, -radius * 0.92, radius * 0.32, radius * 0.62)
+	draw_circle(Vector2(0, radius * 0.22), body + 1.6, INK)
+	draw_rect(neck.grow(1.6), INK)
+	draw_circle(Vector2(0, radius * 0.22), body, color)
+	draw_rect(neck, color)
+	draw_rect(Rect2(-radius * 0.24, -radius * 0.98, radius * 0.48, radius * 0.16), color.darkened(0.2))
+	draw_line(Vector2(-body * 0.28, radius * 0.02), Vector2(-body * 0.12, radius * 0.42), Color(1, 1, 1, 0.55), 2.0)
+
+
+func _draw_jar() -> void:
+	var color := _fill(dye)
+	_mark_round(8.0)
+	draw_circle(Vector2.ZERO, radius + 7.0, Color(1.0, 0.84, 0.42, 0.16))
+	draw_circle(Vector2.ZERO, radius + 2.0, INK)
+	draw_circle(Vector2.ZERO, radius, color)
+	draw_circle(Vector2(-radius * 0.22, -radius * 0.18), radius * 0.28, Color(1, 1, 1, 0.38))
+	draw_rect(Rect2(-radius * 0.48, -radius - 1.0, radius * 0.96, radius * 0.26), Color(0.42, 0.36, 0.28))
+	draw_circle(Vector2(0, radius * 0.15), radius * 0.28, Color(1.0, 0.9, 0.5, 0.45))
+
+
+func _draw_crate() -> void:
 	var rect := Rect2(-box_size * 0.5, box_size)
-	if highlighted:
-		draw_rect(rect.grow(12.0), GOLD_GLOW)
-		draw_rect(rect.grow(8.0), GOLD)
+	var color := _body_color(dye)
+	_mark_rect(rect)
 	draw_rect(rect.grow(2.0), INK)
-	draw_rect(rect, _body_color(Color(0.52, 0.74, 0.82)))
-	var bar := Color(0.93, 0.98, 1.0)
-	for i in 3:
-		var x := rect.position.x + rect.size.x * float(i + 1) / 4.0
-		draw_line(Vector2(x, rect.position.y + 3.0), Vector2(x, rect.position.y + rect.size.y - 3.0), bar, 2.0)
-	var y := rect.position.y + rect.size.y * 0.42
-	draw_line(Vector2(rect.position.x + 3.0, y), Vector2(rect.position.x + rect.size.x - 3.0, y), bar, 2.0)
+	draw_rect(rect, color)
+	var slat := color.darkened(0.28)
+	draw_rect(Rect2(rect.position.x + 3.0, rect.position.y + 3.0, 3.0, rect.size.y - 6.0), slat)
+	draw_rect(Rect2(rect.end.x - 6.0, rect.position.y + 3.0, 3.0, rect.size.y - 6.0), slat)
+	draw_rect(Rect2(rect.position.x, rect.position.y + 5.0, rect.size.x, 3.0), slat)
+	draw_rect(Rect2(rect.position.x, rect.position.y + rect.size.y * 0.5 - 1.5, rect.size.x, 3.0), slat)
+	draw_rect(Rect2(rect.position.x, rect.end.y - 8.0, rect.size.x, 3.0), slat)
+
+
+func _draw_box() -> void:
+	var rect := Rect2(-box_size * 0.5, box_size)
+	var color := _body_color(dye)
+	_mark_rect(rect)
+	draw_rect(rect.grow(2.0), INK)
+	draw_rect(rect, color)
+	var tape := Color(0.46, 0.32, 0.16, 0.9)
+	var mid_x := rect.position.x + rect.size.x * 0.5
+	var mid_y := rect.position.y + rect.size.y * 0.5
+	draw_line(Vector2(rect.position.x + 2.0, mid_y), Vector2(rect.end.x - 2.0, mid_y), tape, 3.0)
+	draw_line(Vector2(mid_x, rect.position.y + 2.0), Vector2(mid_x, rect.end.y - 2.0), tape, 3.0)
 
 
 func _draw_shelf() -> void:
@@ -619,8 +739,9 @@ func _draw_shelf() -> void:
 		draw_rect(rect.grow(10.0), GOLD_GLOW)
 		draw_rect(rect.grow(6.0), GOLD)
 	draw_rect(rect.grow(2.0), INK)
-	draw_rect(rect, _fill(Color(0.84, 0.62, 0.30)))
-	draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, 4.0), Color(1.0, 0.90, 0.62, 0.75))
+	draw_rect(rect, _fill(wood))
+	draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, 4.0), lip)
+	draw_rect(Rect2(rect.position.x, rect.end.y - 3.0, rect.size.x, 3.0), wood.darkened(0.22))
 
 
 func _draw_lamp() -> void:
@@ -703,34 +824,54 @@ func _moving(body: Node) -> bool:
 class Burst extends Node2D:
 	var _bits: Array = []
 	var _age := 0.0
-	var _life := 0.4
+	var _life := 0.42
 
-	func setup(color: Color, count: int, power: float) -> void:
+	func setup(color: Color, count: int, power: float, shards: bool = false) -> void:
+		_life = 0.62 if shards else 0.42
 		for _i in count:
 			var dir := Vector2.from_angle(randf() * TAU)
+			var shard := shards and randf() < 0.7
 			_bits.append({
 				"p": Vector2.ZERO,
-				"v": dir * randf_range(power * 0.35, power),
-				"r": randf_range(1.8, 4.2),
-				"c": color.lerp(Color.WHITE, randf() * 0.45),
+				"v": dir * randf_range(power * 0.28, power),
+				"r": randf_range(2.4, 6.2) if shard else randf_range(1.6, 3.6),
+				"c": color.lerp(Color.WHITE, randf() * 0.4),
+				"s": shard,
+				"a": randf() * TAU,
+				"spin": randf_range(-9.0, 9.0),
 			})
 
 	func _process(delta: float) -> void:
 		_age += delta
 		for bit in _bits:
-			bit["p"] = bit["p"] + bit["v"] * delta
-			bit["v"] = bit["v"] + Vector2(0, 380.0) * delta
+			var pos: Vector2 = bit["p"]
+			var vel: Vector2 = bit["v"]
+			pos += vel * delta
+			vel += Vector2(0, 420.0) * delta
+			bit["p"] = pos
+			bit["v"] = vel
+			bit["a"] = float(bit["a"]) + float(bit["spin"]) * delta
 		if _age >= _life:
 			queue_free()
 		else:
 			queue_redraw()
 
 	func _draw() -> void:
-		var fade := 1.0 - _age / _life
+		var fade := clampf(1.0 - _age / _life, 0.0, 1.0)
 		for bit in _bits:
 			var color: Color = bit["c"]
 			color.a = fade
-			draw_circle(bit["p"], bit["r"], color)
+			var pos: Vector2 = bit["p"]
+			var rad: float = bit["r"]
+			if bit["s"] == true:
+				var ang: float = bit["a"]
+				var tip := Vector2(cos(ang), sin(ang)) * rad
+				var side := Vector2(-tip.y, tip.x) * 0.45
+				draw_colored_polygon(PackedVector2Array([
+					pos + tip, pos - tip * 0.45 + side, pos - tip * 0.45 - side,
+				]), color)
+			else:
+				draw_circle(pos, rad, color)
 
 
 ## Glass from the bottle. Counts as already in the chain so it can knock

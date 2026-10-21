@@ -54,6 +54,7 @@ var _menu_close: Button
 var _room_label: Label
 var _equipped: Label
 var _money: Label
+var _excellent: ColorRect
 var layout_name := ""
 
 @onready var thrower: Node2D = $Thrower
@@ -76,6 +77,7 @@ func _ready() -> void:
 	_build_corner_menu()
 	_build_equipped()
 	_build_money()
+	_build_flash()
 	apply_language()
 	if Loadout.start_in_menu:
 		_enter_main_menu()
@@ -203,6 +205,45 @@ func add_shake(amount: float, chain_count: int = 0) -> void:
 	_shake = minf(_shake + amount, _shake_cap)
 	_shake_time = _shake_duration
 	_shaking = true
+
+
+func add_hit_shake(speed: float) -> void:
+	if speed < 780.0:
+		return
+	if _shake > 5.0 and _shake_time > 0.1:
+		return
+	var amount := clampf((speed - 780.0) / 200.0, 1.6, 5.5)
+	if speed >= 1000.0:
+		_shake_cap = maxf(_shake_cap, 12.0)
+		_shake_duration = maxf(_shake_duration, 0.22)
+	add_shake(amount, 0)
+
+
+func add_sweet_shake() -> void:
+	_shake_cap = maxf(_shake_cap, 13.0)
+	_shake_duration = maxf(_shake_duration, 0.3)
+	add_shake(8.0, 0)
+
+
+func flash_excellent() -> void:
+	if _excellent == null:
+		return
+	_excellent.color = Color(1.0, 0.72, 0.22, 0.28)
+	var tween := create_tween()
+	tween.tween_property(_excellent, "color:a", 0.0, 0.2)
+
+
+func _build_flash() -> void:
+	var layer := CanvasLayer.new()
+	layer.name = "ExcellentFlash"
+	layer.layer = 30
+	add_child(layer)
+	var rect := ColorRect.new()
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rect.color = Color(1.0, 0.72, 0.22, 0.0)
+	layer.add_child(rect)
+	_excellent = rect
 
 
 func _update_shake(delta: float) -> void:
@@ -488,17 +529,34 @@ func _build_corner_menu() -> void:
 	_menu_close = _add_menu_button(panel, "Close", Vector2(40, 368), _on_menu_close)
 	_sync_menu_copy()
 
+	var hud := chain.get_node("UI/Root")
+	var plate := Panel.new()
+	plate.name = "RoomPlate"
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	plate.offset_left = 48.0
+	plate.offset_top = 32.0
+	plate.offset_right = 430.0
+	plate.offset_bottom = 64.0
+	var plate_style := StyleBoxFlat.new()
+	plate_style.bg_color = Color(0.05, 0.03, 0.04, 0.78)
+	plate_style.set_corner_radius_all(8)
+	plate.add_theme_stylebox_override("panel", plate_style)
+	hud.add_child(plate)
 	var room := Label.new()
 	room.name = "RoomName"
 	room.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	room.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	room.offset_left = 52.0
-	room.offset_top = 32.0
-	room.offset_right = 360.0
-	room.offset_bottom = 54.0
-	room.add_theme_font_size_override("font_size", 14)
-	room.add_theme_color_override("font_color", Color(0.95, 0.9, 0.82, 0.85))
-	chain.get_node("UI/Root").add_child(room)
+	room.offset_left = 60.0
+	room.offset_top = 34.0
+	room.offset_right = 418.0
+	room.offset_bottom = 62.0
+	room.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	room.add_theme_font_size_override("font_size", 18)
+	room.add_theme_color_override("font_color", Color(0.98, 0.94, 0.86))
+	room.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.04, 0.9))
+	room.add_theme_constant_override("outline_size", 4)
+	hud.add_child(room)
 	_room_label = room
 
 
@@ -784,6 +842,7 @@ func _randomize_room() -> void:
 	if extra != null:
 		extra.park_shelf()
 	var active: Array = _roll_layout(wide, high, extra)
+	_dress_room(loose, active)
 	_separate_overlapping(active)
 	active.sort_custom(func(a, b): return a.global_position.y < b.global_position.y)
 	var hook := Vector2(640, 140)
@@ -809,6 +868,101 @@ func _randomize_room() -> void:
 		backdrop.queue_redraw()
 	if _room_label != null:
 		_room_label.text = Locale.room_name(layout_name)
+
+
+func _dress_room(loose: Array, shelves: Array) -> void:
+	var style: Dictionary = _room_style(layout_name)
+	var mix: Array = style["mix"]
+	var wood: Color = style["wood"]
+	var lip: Color = style["lip"]
+	var bag: Array = []
+	while bag.size() < loose.size():
+		var copy: Array = mix.duplicate()
+		copy.shuffle()
+		for item in copy:
+			bag.append(item)
+	var index := 0
+	for prop in loose:
+		if prop == null or not is_instance_valid(prop):
+			continue
+		if not prop.has_method("apply_look"):
+			continue
+		prop.apply_look(int(bag[index]))
+		index += 1
+	for shelf in shelves:
+		if shelf != null and is_instance_valid(shelf) and shelf.has_method("set_wood"):
+			shelf.set_wood(wood, lip)
+
+
+func _room_style(id: String) -> Dictionary:
+	# mix: 0 pot, 1 bottle, 2 crate, 3 box, 4 glass jar.
+	match id:
+		"narrow", "alcove":
+			return {
+				"mix": [1, 1, 1, 1, 1, 4, 0, 0, 2, 3],
+				"wood": Color(0.38, 0.22, 0.14),
+				"lip": Color(0.66, 0.44, 0.26, 0.9),
+			}
+		"window_heavy":
+			return {
+				"mix": [4, 4, 4, 1, 1, 1, 0, 2, 3, 0],
+				"wood": Color(0.78, 0.8, 0.74),
+				"lip": Color(0.94, 0.95, 0.9, 0.95),
+			}
+		"balcony":
+			return {
+				"mix": [4, 4, 4, 1, 1, 0, 0, 2, 3, 1],
+				"wood": Color(0.78, 0.52, 0.22),
+				"lip": Color(1.0, 0.82, 0.46, 0.95),
+			}
+		"market":
+			return {
+				"mix": [3, 3, 3, 3, 3, 2, 2, 0, 1, 2],
+				"wood": Color(0.62, 0.34, 0.14),
+				"lip": Color(0.9, 0.62, 0.26, 0.95),
+			}
+		"floor_clutter":
+			return {
+				"mix": [3, 3, 3, 2, 2, 2, 2, 0, 1, 3],
+				"wood": Color(0.46, 0.3, 0.16),
+				"lip": Color(0.7, 0.48, 0.26, 0.9),
+			}
+		"split_bay":
+			return {
+				"mix": [2, 2, 2, 2, 2, 3, 3, 0, 1, 2],
+				"wood": Color(0.58, 0.62, 0.66),
+				"lip": Color(0.86, 0.88, 0.9, 0.95),
+			}
+		"stack_l", "stack_r":
+			return {
+				"mix": [2, 2, 2, 2, 2, 3, 3, 0, 1, 2],
+				"wood": Color(0.55, 0.32, 0.16),
+				"lip": Color(0.78, 0.52, 0.28, 0.9),
+			}
+		"low_loft", "long":
+			return {
+				"mix": [0, 0, 0, 0, 0, 0, 1, 2, 3, 1],
+				"wood": Color(0.72, 0.46, 0.22) if id == "low_loft" else Color(0.84, 0.58, 0.28),
+				"lip": Color(0.95, 0.78, 0.48, 0.9),
+			}
+		"stairs":
+			return {
+				"mix": [1, 1, 1, 1, 1, 2, 3, 0, 4, 0],
+				"wood": Color(0.56, 0.46, 0.34),
+				"lip": Color(0.82, 0.74, 0.6, 0.9),
+			}
+		"sides":
+			return {
+				"mix": [0, 1, 2, 3, 4, 0, 2, 3, 1, 0],
+				"wood": Color(0.7, 0.5, 0.28),
+				"lip": Color(0.92, 0.78, 0.5, 0.9),
+			}
+		_:
+			return {
+				"mix": [0, 0, 1, 1, 2, 2, 3, 4, 0, 1],
+				"wood": Color(0.84, 0.62, 0.3),
+				"lip": Color(1.0, 0.9, 0.62, 0.75),
+			}
 
 
 func _fill_loose(loose: Array) -> Array:

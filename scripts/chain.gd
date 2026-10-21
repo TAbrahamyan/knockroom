@@ -53,14 +53,21 @@ func add_link(prop: Node2D) -> void:
 		AudioKit.play_good()
 	elif count == 10:
 		AudioKit.play_excellent()
+		if round and round.has_method("flash_excellent"):
+			round.flash_excellent()
 
 
 func show_result(earned: int = 0) -> void:
 	_earned = earned
 	_write_result()
 	result.modulate = Color(1, 1, 1, 0)
+	result.scale = Vector2(0.86, 0.86)
+	result.pivot_offset = result.size * 0.5
 	var tween := create_tween()
-	tween.tween_property(result, "modulate:a", 1.0, 0.18)
+	tween.tween_property(result, "modulate:a", 1.0, 0.16)
+	tween.parallel().tween_property(result, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if earned > 0:
+		_coin_popup(earned)
 
 
 func _write_result() -> void:
@@ -73,17 +80,27 @@ func _write_result() -> void:
 
 func _punch() -> void:
 	number.pivot_offset = number.size * 0.5
-	number.scale = Vector2(1.42, 1.42)
+	var peak := 1.62 if count >= 10 else 1.36
+	number.scale = Vector2(peak, peak)
 	var tween := create_tween()
-	tween.tween_property(number, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(number, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _floater(at: Vector2, chain_count: int) -> void:
 	var floater := Floater.new()
 	floater.z_index = 20
 	floater.tint = _pop_color(chain_count)
+	floater.big = chain_count >= 10
 	add_child(floater)
-	floater.global_position = at + Vector2(randf_range(-10.0, 10.0), -34.0)
+	floater.global_position = at + Vector2(randf_range(-10.0, 10.0), -36.0)
+
+
+func _coin_popup(earned: int) -> void:
+	var pop := CoinPop.new()
+	pop.z_index = 24
+	pop.amount = earned
+	add_child(pop)
+	pop.global_position = Vector2(640, 168)
 
 
 func _shake_for(chain_count: int) -> float:
@@ -121,14 +138,15 @@ func _color_for(n: int) -> Color:
 
 
 class Floater extends Node2D:
-	const LIFE := 1.35
-	const HOLD := 0.55
+	const LIFE := 1.2
+	const HOLD := 0.42
 	var age := 0.0
 	var tint := Color(1, 1, 1)
+	var big := false
 
 	func _process(delta: float) -> void:
 		age += delta
-		position.y -= 26.0 * delta
+		position.y -= (52.0 if big else 40.0) * delta
 		scale = Vector2.ONE * _bounce()
 		if age < HOLD:
 			modulate.a = 1.0
@@ -140,16 +158,51 @@ class Floater extends Node2D:
 			queue_redraw()
 
 	func _bounce() -> float:
-		if age < 0.16:
-			var t := age / 0.16
-			return lerpf(0.35, 1.28, 1.0 - pow(1.0 - t, 3.0))
-		var settle := clampf((age - 0.16) / 0.18, 0.0, 1.0)
-		return lerpf(1.28, 1.0, settle)
+		var peak := 1.48 if big else 1.32
+		if age < 0.14:
+			var t := age / 0.14
+			return lerpf(0.4, peak, 1.0 - pow(1.0 - t, 3.0))
+		var settle := clampf((age - 0.14) / 0.16, 0.0, 1.0)
+		return lerpf(peak, 1.0, settle)
 
 	func _draw() -> void:
 		var font := ThemeDB.fallback_font
 		if font == null:
 			return
-		var at := Vector2(-32, 0)
-		draw_string(font, at + Vector2(3, 4), "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, 54, Color(0.08, 0.04, 0.02, 0.92))
-		draw_string(font, at, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, 54, tint)
+		var size := 64 if big else 52
+		draw_circle(Vector2(0, -8), 22.0 if big else 18.0, Color(tint.r, tint.g, tint.b, 0.22))
+		var at := Vector2(-30, 0)
+		draw_string(font, at + Vector2(2, 3), "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0.08, 0.04, 0.02, 0.92))
+		draw_string(font, at, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, size, tint)
+
+
+class CoinPop extends Node2D:
+	const LIFE := 1.05
+	var age := 0.0
+	var amount := 0
+
+	func _process(delta: float) -> void:
+		age += delta
+		position.y -= 46.0 * delta
+		position.x += 28.0 * delta
+		var pop := 1.0
+		if age < 0.16:
+			pop = lerpf(0.45, 1.28, age / 0.16)
+		elif age < 0.3:
+			pop = lerpf(1.28, 1.0, (age - 0.16) / 0.14)
+		scale = Vector2.ONE * pop
+		modulate.a = 1.0 if age < 0.5 else clampf(1.0 - (age - 0.5) / (LIFE - 0.5), 0.0, 1.0)
+		if age >= LIFE:
+			queue_free()
+		else:
+			queue_redraw()
+
+	func _draw() -> void:
+		draw_circle(Vector2(-26, -8), 16.0, Color(0.92, 0.68, 0.16, 0.95))
+		draw_circle(Vector2(-26, -8), 10.0, Color(1.0, 0.9, 0.48))
+		var font := ThemeDB.fallback_font
+		if font == null:
+			return
+		var text := "+%d" % amount
+		draw_string(font, Vector2(-6, 8) + Vector2(2, 3), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color(0.08, 0.04, 0.02, 0.92))
+		draw_string(font, Vector2(-6, 8), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color(1.0, 0.88, 0.38))
