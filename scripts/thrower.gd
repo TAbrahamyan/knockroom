@@ -9,6 +9,7 @@ signal stone_launched(body: RigidBody2D)
 
 const PROJECTILE := preload("res://scenes/projectile.tscn")
 const Loadout := preload("res://scripts/loadout.gd")
+const ItemIcon := preload("res://scripts/item_icon.gd")
 
 @export var max_pull := 180.0
 @export var min_pull := 48.0
@@ -90,9 +91,8 @@ func _draw() -> void:
 		draw_circle(Vector2(-4, -3), 4.0, Color(1, 1, 1, alpha * 0.85))
 		if Loadout.item_id != "":
 			draw_arc(Vector2.ZERO, stone_r + 5.0, 0.0, TAU, 28, Color(Loadout.item_tint.r, Loadout.item_tint.g, Loadout.item_tint.b, alpha), 3.0)
-			var mark := Vector2(stone_r + 3.0, stone_r - 1.0)
-			draw_circle(mark, 7.4, Color(0.08, 0.04, 0.03, alpha))
-			draw_circle(mark, 5.4, Loadout.item_tint)
+			var mark := Vector2(stone_r * 0.55, -stone_r * 0.62)
+			ItemIcon.draw(self, mark, 9.0, Loadout.shape(), Loadout.item_tint)
 	if can_aim and not aiming:
 		draw_arc(Vector2.ZERO, stone_r + 12.0, 0.0, TAU, 28, Color(1.0, 0.86, 0.42, 0.38), 2.0)
 		var font := ThemeDB.fallback_font

@@ -1,5 +1,7 @@
 extends Node2D
 
+const Loadout := preload("res://scripts/loadout.gd")
+
 var count := 0
 
 @onready var number: Label = $UI/Root/Number
@@ -30,7 +32,7 @@ func add_link(prop: Node2D) -> void:
 func show_result(earned: int = 0) -> void:
 	var line := _phrase(count)
 	if earned > 0:
-		line += "    +$%d" % earned
+		line += "    +%s" % Loadout.shards(earned)
 	result.text = line
 	result.add_theme_color_override("font_color", _color_for(count))
 	result.modulate = Color(1, 1, 1, 0)

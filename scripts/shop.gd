@@ -32,9 +32,9 @@ func show_offers() -> void:
 		_fill_card(_cards[i], pool[i])
 	var sub := get_node("Root/Panel/Sub") as Label
 	if Loadout.last_earn > 0:
-		sub.text = "Earned $%d.  You have $%d." % [Loadout.last_earn, Loadout.money]
+		sub.text = "Earned %s.  You have %s." % [Loadout.shards(Loadout.last_earn), Loadout.shards(Loadout.money)]
 	else:
-		sub.text = "You have $%d. Buy one, or skip." % Loadout.money
+		sub.text = "You have %s. Buy one, or skip." % Loadout.shards(Loadout.money)
 	var root := get_node("Root") as Control
 	root.modulate = Color(1, 1, 1, 0)
 	visible = true
@@ -56,14 +56,14 @@ func _fill_card(card: Button, offer: Dictionary) -> void:
 	card.get_node("Line").text = str(offer["line"])
 	var take := card.get_node("Take") as Label
 	if afford:
-		take.text = "Buy  $%d" % price
+		take.text = "Buy  %s" % Loadout.shards(price)
 		take.add_theme_color_override("font_color", GOLD)
 	else:
-		take.text = "Need $%d" % price
+		take.text = "Need %s" % Loadout.shards(price)
 		take.add_theme_color_override("font_color", MUTED)
 	var glyph = card.get_node("Glyph")
 	glyph.tint = offer["tint"]
-	glyph.mark = int(offer["mark"])
+	glyph.shape = str(offer["shape"])
 	glyph.queue_redraw()
 
 
@@ -120,7 +120,7 @@ func _build_ui() -> void:
 	var title := _label("For the next throw", 32, GOLD, Vector2(24, 22), Vector2(772, 42))
 	panel.add_child(title)
 
-	var sub := _label("You have $0. Buy one, or skip.", 16, MUTED, Vector2(24, 68), Vector2(772, 26))
+	var sub := _label("You have 0 shards. Buy one, or skip.", 16, MUTED, Vector2(24, 68), Vector2(772, 26))
 	sub.name = "Sub"
 	panel.add_child(sub)
 
@@ -232,25 +232,11 @@ func _clear_button(button: Button) -> void:
 
 
 class Glyph extends Control:
+	const ItemIcon := preload("res://scripts/item_icon.gd")
 	var tint := Color(0.8, 0.8, 0.8)
-	var mark := 0
+	var shape := "stone"
 
 	func _draw() -> void:
 		var center := size * 0.5
-		var radius := minf(size.x, size.y) * 0.42
-		draw_circle(center, radius + 4.0, Color(0.05, 0.03, 0.04))
-		if mark == 1:
-			var points := PackedVector2Array([
-				center + Vector2(0, -radius),
-				center + Vector2(radius, 0),
-				center + Vector2(0, radius),
-				center + Vector2(-radius, 0),
-			])
-			draw_colored_polygon(points, tint)
-		elif mark == 2:
-			draw_rect(Rect2(center - Vector2(radius * 0.78, radius * 0.78), Vector2(radius * 1.56, radius * 1.56)), tint)
-		elif mark == 3:
-			draw_rect(Rect2(center.x - radius * 0.22, center.y - radius * 1.05, radius * 0.44, radius * 0.36), tint.lightened(0.15))
-			draw_circle(center + Vector2(0, radius * 0.12), radius * 0.72, tint)
-		else:
-			draw_circle(center, radius, tint)
+		var radius := minf(size.x, size.y) * 0.46
+		ItemIcon.draw(self, center, radius, shape, tint)

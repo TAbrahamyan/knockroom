@@ -237,7 +237,7 @@ func _build_money() -> void:
 	label.name = "Money"
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	label.offset_left = -220.0
+	label.offset_left = -280.0
 	label.offset_top = 6.0
 	label.offset_right = -16.0
 	label.offset_bottom = 32.0
@@ -253,7 +253,7 @@ func _build_money() -> void:
 
 
 func _refresh_money(punch: bool) -> void:
-	_money.text = "$%d" % Loadout.money
+	_money.text = Loadout.shards(Loadout.money)
 	if not punch or Loadout.last_earn <= 0:
 		return
 	_money.pivot_offset = Vector2(180.0, 13.0)

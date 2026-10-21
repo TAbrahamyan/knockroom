@@ -3,6 +3,7 @@ extends RigidBody2D
 const RADIUS := 15.0
 const Loadout := preload("res://scripts/loadout.gd")
 const PropScript := preload("res://scripts/prop.gd")
+const ItemIcon := preload("res://scripts/item_icon.gd")
 
 var item_id := ""
 var _approach_speed := 0.0
@@ -19,6 +20,7 @@ var _magnet_duration := 0.0
 var _magnet_left := 0.0
 var _magnet_radius := 0.0
 var _magnet_pull := 0.0
+var _shape := ""
 var _tint := Color(0.76, 0.78, 0.83)
 var _marked := false
 var _bonus_used := false
@@ -36,8 +38,8 @@ func _ready() -> void:
 	continuous_cd = CCD_MODE_CAST_SHAPE
 	mass = 2.5
 	gravity_scale = 1.0
-	linear_damp = 0.04
-	angular_damp = 0.06
+	linear_damp = 0.1
+	angular_damp = 0.28
 	z_index = 5
 	_apply_loadout()
 	var mat := PhysicsMaterial.new()
@@ -66,6 +68,7 @@ func _apply_loadout() -> void:
 		return
 	item_id = Loadout.item_id
 	_marked = true
+	_shape = str(item.get("shape", ""))
 	_tint = item["tint"]
 	mass = 2.5 * float(item.get("mass", 1.0))
 	_radius = float(item.get("radius", RADIUS))
@@ -83,15 +86,15 @@ func _apply_loadout() -> void:
 func _bounce() -> float:
 	var item := Loadout.effect()
 	if item.is_empty():
-		return 0.1
-	return float(item.get("bounce", 0.1))
+		return 0.05
+	return float(item.get("bounce", 0.05))
 
 
 func _friction() -> float:
 	var item := Loadout.effect()
 	if item.is_empty():
-		return 0.35
-	return float(item.get("friction", 0.35))
+		return 0.62
+	return float(item.get("friction", 0.62))
 
 
 func _process(delta: float) -> void:
@@ -163,11 +166,11 @@ func _bonus_impact(body: RigidBody2D) -> void:
 func _release_effect() -> void:
 	var origin := global_position
 	if _blast_r > 0.0:
-		_shove_nearby(origin, _blast_r, _blast_force, 170.0, false, true)
+		_shove_nearby(origin, _blast_r, _blast_force, 90.0, false, true)
 		_flash = 0.32
 		_flash_r = _blast_r
 	elif _pop_r > 0.0:
-		_shove_nearby(origin, _pop_r, 80.0, _pop_lift, false, false)
+		_shove_nearby(origin, _pop_r, 50.0, _pop_lift, false, false)
 		_flash = 0.28
 		_flash_r = _pop_r
 	elif _glass_r > 0.0:
@@ -242,9 +245,8 @@ func _draw() -> void:
 	draw_circle(Vector2(-_radius * 0.27, -_radius * 0.2), 4.2, Color(0.94, 0.95, 0.97))
 	draw_circle(Vector2(_radius * 0.33, _radius * 0.27), 2.8, Color(0.42, 0.45, 0.50))
 	if _marked:
-		var mark := Vector2(_radius + 3.0, _radius - 1.0)
-		draw_circle(mark, 7.4, Color(0.08, 0.04, 0.03))
-		draw_circle(mark, 5.4, _tint)
+		var mark := Vector2(_radius * 0.55, -_radius * 0.62)
+		ItemIcon.draw(self, mark, 9.0, _shape, _tint)
 	if _flash > 0.0 and _flash_r > 0.0:
 		var t := clampf(_flash / 0.32, 0.0, 1.0)
 		var ring := Color(_tint.r, _tint.g, _tint.b, 0.38 * t)

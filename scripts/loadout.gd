@@ -16,52 +16,54 @@ const CATALOG: Array = [
 		"id": "heavy_stone",
 		"name": "Heavy Stone",
 		"line": "Hits harder. Flies shorter.",
-		"mark": 0,
+		"shape": "heavy",
 		"tint": Color(0.38, 0.34, 0.32),
-		"price": 16,
+		"price": 15,
 		"speed": 0.68,
 		"mass": 2.2,
-		"bounce": 0.04,
-		"impact": 170.0,
+		"bounce": 0.03,
+		"friction": 0.78,
+		"impact": 95.0,
 	},
 	{
 		"id": "light_stone",
 		"name": "Light Stone",
 		"line": "Flies farther off the sling.",
-		"mark": 0,
+		"shape": "light",
 		"tint": Color(0.92, 0.88, 0.78),
-		"price": 6,
+		"price": 8,
 		"speed": 1.16,
 		"mass": 0.46,
-		"bounce": 0.2,
+		"bounce": 0.12,
+		"friction": 0.42,
 	},
 	{
 		"id": "spring_stone",
 		"name": "Spring Stone",
 		"line": "Bounces hard off everything.",
-		"mark": 1,
+		"shape": "spring",
 		"tint": Color(0.42, 0.82, 0.38),
-		"price": 10,
-		"bounce": 0.88,
-		"friction": 0.08,
+		"price": 9,
+		"bounce": 0.8,
+		"friction": 0.16,
 	},
 	{
 		"id": "blast_stone",
 		"name": "Blast Stone",
 		"line": "Pops nearby props on impact.",
-		"mark": 1,
+		"shape": "blast",
 		"tint": Color(0.95, 0.32, 0.16),
-		"price": 24,
-		"blast": 124.0,
-		"blast_force": 360.0,
+		"price": 22,
+		"blast": 118.0,
+		"blast_force": 250.0,
 	},
 	{
 		"id": "magnet_stone",
 		"name": "Magnet Stone",
 		"line": "Tugs nearby props after a hit.",
-		"mark": 2,
+		"shape": "magnet",
 		"tint": Color(0.38, 0.58, 0.96),
-		"price": 20,
+		"price": 18,
 		"magnet": 0.75,
 		"magnet_radius": 148.0,
 		"magnet_pull": 1100.0,
@@ -70,29 +72,29 @@ const CATALOG: Array = [
 		"id": "wide_stone",
 		"name": "Wide Stone",
 		"line": "A fatter stone. Easier to clip.",
-		"mark": 2,
+		"shape": "wide",
 		"tint": Color(0.96, 0.74, 0.22),
-		"price": 12,
+		"price": 10,
 		"radius": 26.0,
 	},
 	{
 		"id": "glass_charm",
 		"name": "Glass Charm",
 		"line": "Shatters bottles near the hit.",
-		"mark": 3,
+		"shape": "glass",
 		"tint": Color(0.55, 0.86, 0.94),
-		"price": 12,
+		"price": 11,
 		"glass": 110.0,
 	},
 	{
 		"id": "high_pop",
 		"name": "High Pop",
 		"line": "The hit throws props upward.",
-		"mark": 1,
+		"shape": "pop",
 		"tint": Color(0.98, 0.48, 0.18),
-		"price": 14,
-		"pop": 116.0,
-		"pop_lift": 440.0,
+		"price": 13,
+		"pop": 108.0,
+		"pop_lift": 260.0,
 	},
 ]
 
@@ -135,6 +137,19 @@ static func speed_scale() -> float:
 	return float(item.get("speed", 1.0))
 
 
+static func shape() -> String:
+	var item := effect()
+	if item.is_empty():
+		return ""
+	return str(item.get("shape", ""))
+
+
+static func shards(amount: int) -> String:
+	if amount == 1:
+		return "1 shard"
+	return "%d shards" % amount
+
+
 static func stone_radius() -> float:
 	var item := effect()
 	if item.is_empty():
@@ -143,21 +158,16 @@ static func stone_radius() -> float:
 
 
 static func payout_for(chain_count: int) -> int:
-	# A single knock still buys the cheapest stone. Misses pay nothing.
-	if chain_count <= 0:
+	# A miss or a single knock pays nothing. A good chain banks a little.
+	# A long chain buys one cheap or medium stone, then stops climbing.
+	if chain_count <= 1:
 		return 0
-	if chain_count == 1:
-		return 6
-	if chain_count == 2:
-		return 9
-	if chain_count == 3:
-		return 12
-	var pay := chain_count * 3
-	if chain_count >= 10:
-		pay += 8
-	elif chain_count >= 4:
-		pay += 4
-	return pay
+	if chain_count < 4:
+		return chain_count - 1
+	if chain_count < 10:
+		return chain_count
+	var extra := (chain_count - 10) / 2
+	return mini(11 + extra, 16)
 
 
 static func earn(chain_count: int) -> int:

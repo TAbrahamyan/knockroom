@@ -99,17 +99,17 @@ func resize_shelf(width: float) -> void:
 		rect.size = Vector2(box_size.x, box_size.y)
 		shape_node.shape = rect
 	if box_size.x >= 360.0:
-		linear_damp = 0.5
-		angular_damp = 2.1
-		gravity_scale = 1.15
+		linear_damp = 0.4
+		angular_damp = 1.35
+		gravity_scale = 1.0
 		if physics_material_override:
-			physics_material_override.friction = 0.78
+			physics_material_override.friction = 0.72
 	else:
-		linear_damp = 0.3
-		angular_damp = 1.4
-		gravity_scale = 1.3
+		linear_damp = 0.28
+		angular_damp = 0.95
+		gravity_scale = 1.0
 		if physics_material_override:
-			physics_material_override.friction = 0.58
+			physics_material_override.friction = 0.6
 	queue_redraw()
 
 
@@ -148,27 +148,27 @@ func wake_from(source: Node2D) -> void:
 			dir = rel.normalized()
 		if source is RigidBody2D:
 			speed = clampf(source.linear_velocity.length(), 280.0, 860.0)
-	var coeff := 0.45
+	var coeff := 0.28
 	if kind == Kind.SHELF:
-		# Tip and drop, with some wobble, instead of slamming the whole pile.
+		# Tip and drop. Gravity finishes the fall.
 		dir = Vector2(dir.x * 0.22, 1.0).normalized()
 		if _heavy and _is_support_shelf():
 			var bias := -1.0 if _hit_x < global_position.x else 1.0
 			dir = Vector2(bias * 0.55, 1.0).normalized()
-			coeff = 0.5
+			coeff = 0.32
 		elif _heavy:
 			var bias := -1.0 if _hit_x < global_position.x else 1.0
 			dir = Vector2(bias * 0.42, 1.0).normalized()
-			coeff = 0.62
+			coeff = 0.4
 		elif _is_support_shelf():
-			coeff = 0.26 * randf_range(0.7, 1.0)
+			coeff = 0.16 * randf_range(0.75, 1.0)
 		else:
-			coeff = 0.4 * randf_range(0.78, 1.0)
+			coeff = 0.24 * randf_range(0.8, 1.0)
 	elif kind == Kind.LAMP:
 		var horiz := dir.x if absf(dir.x) > 0.2 else 1.0
 		dir = Vector2(signf(horiz), 0.08).normalized()
-		speed = clampf(speed, 580.0, 820.0)
-		coeff = 0.95
+		speed = clampf(speed, 420.0, 640.0)
+		coeff = 0.55
 	apply_central_impulse(dir * speed * mass * coeff)
 	if kind == Kind.SHELF and is_instance_valid(source):
 		var side := source.global_position.x - global_position.x
@@ -177,15 +177,15 @@ func wake_from(source: Node2D) -> void:
 			spin = signf(side)
 		elif randf() < 0.5:
 			spin = -1.0
-		var torque := 5.0 if _is_support_shelf() else 6.5
+		var torque := 3.2 if _is_support_shelf() else 4.0
 		if _heavy:
-			torque *= 1.8
+			torque *= 1.35
 		apply_torque_impulse(spin * mass * box_size.x * torque * randf_range(0.75 if _heavy else 0.45, 1.0))
 		_wake_riders()
 		if _heavy and not _is_support_shelf():
 			# Aim plank first. Each shelf below, then the floor, follows on a timer.
 			_queue_shelves_below()
-			_lower_wait = 0.22
+			_lower_wait = 0.28
 			set_process(true)
 		elif not _heavy:
 			_shove_below()
@@ -228,10 +228,10 @@ func _wake_riders() -> void:
 		var side := signf(delta.x)
 		if absf(delta.x) < 6.0:
 			side = -1.0 if randf() < 0.5 else 1.0
-		var kick := Vector2(side * randf_range(60.0, 130.0), randf_range(28.0, 80.0))
+		var kick := Vector2(side * randf_range(40.0, 90.0), randf_range(8.0, 24.0))
 		if _heavy:
-			# Tumble the cargo off. Hard enough to read, not a shot into the floor.
-			kick = Vector2(side * randf_range(70.0, 140.0), randf_range(90.0, 160.0))
+			# Slide the cargo off the tipping plank.
+			kick = Vector2(side * randf_range(55.0, 110.0), randf_range(16.0, 40.0))
 			node.apply_central_impulse(kick * node.mass)
 		else:
 			node.apply_central_impulse(kick * node.mass * randf_range(0.5, 0.9))
@@ -329,7 +329,7 @@ func _arm_heavy_if_idle() -> void:
 	if _lower_wait >= 0.0 or not _below.is_empty() or not _stagger.is_empty():
 		return
 	_queue_shelves_below()
-	_lower_wait = 0.22
+	_lower_wait = 0.28
 	set_process(true)
 
 
@@ -381,7 +381,7 @@ func _queue_floor_wave() -> void:
 	var hit_x := _hit_x
 	batch.sort_custom(func(a, b): return absf(a.global_position.x - hit_x) < absf(b.global_position.x - hit_x))
 	_stagger = batch
-	_stagger_gap = 0.14
+	_stagger_gap = 0.18
 	set_process(true)
 
 
@@ -397,11 +397,11 @@ func _kick_next_stagger() -> void:
 			node._force_wake = true
 			node.wake_from(self)
 			if node.kind == Kind.LAMP:
-				node.apply_central_impulse(Vector2(away * 480.0, 50.0) * node.mass)
+				node.apply_central_impulse(Vector2(away * 240.0, 30.0) * node.mass)
 			return
 		node.mark_chain()
-		# Pop them up off the floor. A downward kick just presses them into the ground.
-		var kick := Vector2(away * randf_range(160.0, 320.0), randf_range(-280.0, -140.0))
+		# A short hop and a sideways shove. Enough to roll, not a jump.
+		var kick := Vector2(away * randf_range(100.0, 180.0), randf_range(-150.0, -80.0))
 		node.apply_central_impulse(kick * node.mass)
 		return
 
@@ -513,8 +513,8 @@ func _shatter() -> void:
 		var dir := Vector2.from_angle(float(i) / 5.0 * TAU + randf_range(-0.25, 0.25))
 		parent.add_child(bit)
 		bit.global_position = origin + dir * 18.0
-		bit.linear_velocity = carry * 0.22 + dir * randf_range(200.0, 380.0) + Vector2(0, randf_range(-20.0, 90.0))
-		bit.angular_velocity = randf_range(-14.0, 14.0)
+		bit.linear_velocity = carry * 0.16 + dir * randf_range(110.0, 210.0) + Vector2(0, randf_range(10.0, 70.0))
+		bit.angular_velocity = randf_range(-8.0, 8.0)
 
 
 func _process(delta: float) -> void:
@@ -525,7 +525,7 @@ func _process(delta: float) -> void:
 			if not _below.is_empty():
 				_release_lower_shelf()
 				if not _below.is_empty():
-					_lower_wait = 0.20
+					_lower_wait = 0.24
 				else:
 					_queue_floor_wave()
 			else:
@@ -534,7 +534,7 @@ func _process(delta: float) -> void:
 		_stagger_gap -= delta
 		while _stagger_gap <= 0.0 and not _stagger.is_empty():
 			_kick_next_stagger()
-			_stagger_gap += 0.08
+			_stagger_gap += 0.11
 	var redraw := kind == Kind.LAMP
 	if flash > 0.0:
 		flash = maxf(0.0, flash - delta / POP_TIME)
@@ -648,39 +648,39 @@ func _apply_material() -> void:
 	var mat := PhysicsMaterial.new()
 	match kind:
 		Kind.BARREL:
-			mass = 1.3
-			linear_damp = 0.16
-			angular_damp = 0.22
+			mass = 1.7
+			linear_damp = 0.32
+			angular_damp = 0.5
 			gravity_scale = 1.0
-			mat.friction = 0.5 if mass_scale < 0.9 else 0.66
-			mat.bounce = 0.03
+			mat.friction = 0.62 if mass_scale < 0.9 else 0.74
+			mat.bounce = 0.02
 		Kind.CAGE:
-			mass = 1.5
-			linear_damp = 0.34
-			angular_damp = 0.55
+			mass = 2.1
+			linear_damp = 0.42
+			angular_damp = 0.8
 			gravity_scale = 1.0
-			mat.friction = 0.74
-			mat.bounce = 0.01
+			mat.friction = 0.84
+			mat.bounce = 0.0
 		Kind.SHELF:
-			mass = 5.5
-			mat.bounce = 0.01
+			mass = 6.8
+			mat.bounce = 0.0
 			if box_size.x >= 360.0:
-				linear_damp = 0.5
-				angular_damp = 2.1
-				gravity_scale = 1.15
-				mat.friction = 0.78
+				linear_damp = 0.4
+				angular_damp = 1.35
+				gravity_scale = 1.0
+				mat.friction = 0.72
 			else:
-				linear_damp = 0.3
-				angular_damp = 1.4
-				gravity_scale = 1.3
-				mat.friction = 0.58
+				linear_damp = 0.28
+				angular_damp = 0.95
+				gravity_scale = 1.0
+				mat.friction = 0.6
 		Kind.LAMP:
-			mass = 3.2
-			linear_damp = 0.16
-			angular_damp = 0.7
+			mass = 2.6
+			linear_damp = 0.24
+			angular_damp = 0.9
 			gravity_scale = 1.0
-			mat.friction = 0.3
-			mat.bounce = 0.12
+			mat.friction = 0.45
+			mat.bounce = 0.05
 	mass *= mass_scale
 	physics_material_override = mat
 
@@ -738,10 +738,10 @@ class GlassBit extends RigidBody2D:
 		add_to_group("prop")
 		collision_layer = 2
 		collision_mask = 7
-		mass = 0.26
+		mass = 0.35
 		gravity_scale = 1.0
-		linear_damp = 0.45
-		angular_damp = 0.6
+		linear_damp = 0.62
+		angular_damp = 0.85
 		can_sleep = true
 		continuous_cd = CCD_MODE_CAST_RAY
 		contact_monitor = true
@@ -752,8 +752,8 @@ class GlassBit extends RigidBody2D:
 		shape_node.shape = circle
 		add_child(shape_node)
 		var mat := PhysicsMaterial.new()
-		mat.friction = 0.22
-		mat.bounce = 0.42
+		mat.friction = 0.4
+		mat.bounce = 0.18
 		physics_material_override = mat
 		body_entered.connect(_on_glass_hit)
 		queue_redraw()
