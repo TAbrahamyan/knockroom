@@ -10,6 +10,7 @@ signal stone_launched(body: RigidBody2D)
 const PROJECTILE := preload("res://scenes/projectile.tscn")
 const Loadout := preload("res://scripts/loadout.gd")
 const ItemIcon := preload("res://scripts/item_icon.gd")
+const AudioKit := preload("res://scripts/audio_kit.gd")
 
 @export var max_pull := 180.0
 @export var min_pull := 48.0
@@ -48,6 +49,7 @@ func launch_velocity(velocity: Vector2) -> void:
 	get_parent().add_child(stone)
 	stone.launch(velocity * Loadout.speed_scale())
 	stone_launched.emit(stone)
+	AudioKit.play_throw()
 	queue_redraw()
 
 

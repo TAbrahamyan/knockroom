@@ -1,8 +1,11 @@
 extends Node2D
 
 const Loadout := preload("res://scripts/loadout.gd")
+const Locale := preload("res://scripts/locale.gd")
+const AudioKit := preload("res://scripts/audio_kit.gd")
 
 var count := 0
+var _earned := -1
 
 @onready var number: Label = $UI/Root/Number
 @onready var result: Label = $UI/Root/Result
@@ -12,6 +15,25 @@ var count := 0
 func _ready() -> void:
 	add_to_group("chain")
 	result.text = ""
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	apply_language()
+
+
+func apply_language() -> void:
+	var word := get_node_or_null("UI/Root/Word") as Label
+	if word:
+		word.text = Locale.text("chain.word")
+	if _earned >= 0:
+		_write_result()
+
+
+func reset_round() -> void:
+	count = 0
+	_earned = -1
+	number.text = "0"
+	number.add_theme_color_override("font_color", _color_for(0))
+	result.text = ""
+	apply_language()
 
 
 func set_hint(text: String) -> void:
@@ -27,17 +49,26 @@ func add_link(prop: Node2D) -> void:
 	var round := get_tree().get_first_node_in_group("round")
 	if round and round.has_method("add_shake"):
 		round.add_shake(_shake_for(count), count)
+	if count == 4:
+		AudioKit.play_good()
+	elif count == 10:
+		AudioKit.play_excellent()
 
 
 func show_result(earned: int = 0) -> void:
-	var line := _phrase(count)
-	if earned > 0:
-		line += "    +%s" % Loadout.coins(earned)
-	result.text = line
-	result.add_theme_color_override("font_color", _color_for(count))
+	_earned = earned
+	_write_result()
 	result.modulate = Color(1, 1, 1, 0)
 	var tween := create_tween()
 	tween.tween_property(result, "modulate:a", 1.0, 0.18)
+
+
+func _write_result() -> void:
+	var line := _phrase(count)
+	if _earned > 0:
+		line += "    +%s" % Loadout.coins(_earned)
+	result.text = line
+	result.add_theme_color_override("font_color", _color_for(count))
 
 
 func _punch() -> void:
@@ -73,12 +104,12 @@ func _pop_color(chain_count: int) -> Color:
 
 func _phrase(n: int) -> String:
 	if n <= 0:
-		return "Miss"
+		return Locale.text("chain.miss")
 	if n < 4:
-		return "Short chain"
+		return Locale.text("chain.short")
 	if n < 10:
-		return "Good chain"
-	return "Excellent chain"
+		return Locale.text("chain.good")
+	return Locale.text("chain.excellent")
 
 
 func _color_for(n: int) -> Color:

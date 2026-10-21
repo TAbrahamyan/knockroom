@@ -2,17 +2,21 @@
 
 One room, one throw. Pull the stone back and it flies the other way. Whatever it knocks down joins the chain. The chain pays, and the shop sells a stone for the next throw.
 
-Open the project in Godot 4.7 and run `scenes/main.tscn`.
+Open the project in Godot 4.7 and run `scenes/main.tscn`. The game opens on the main menu. Start Game enters the room.
 
 ## Loop
 
-Hold the left mouse button, pull back from the slingshot, and release. The stone flies the opposite way. When the room settles, the result shows the chain and the coins just earned. The shop then offers three stones. Buy one you can afford, or skip. The room is rebuilt, and the stone you bought changes the next throw.
+Hold the left mouse button, pull back from the slingshot, and release. The stone flies the opposite way. When the room settles, the result shows the chain and the coins just earned. The shop then offers three stones. Buy one you can afford, or equip a stone you already unlocked, or skip. The room is rebuilt, and the stone you chose changes the next throw.
 
-R restarts the room. Coins, the equipped stone, and meta unlocks are saved.
+A quiet loop plays in the background. The throw, hits, breaks, and chain milestones have their own sounds.
+
+R restarts the room. Coins, the equipped stone, unlocks, language, and volume are saved. The corner icon opens a menu for the meta shop, a restart, settings, and the main menu. Settings has English, Russian, and Chinese, plus music and effects volume.
 
 ## Room
 
-Every launch and every restart builds a new shelf layout. A room has 18–23 loose objects and exactly 1 sweet spot on the highest shelf. Hitting that spot drops the shelves one after another, then the floor. A miss uses a softer cascade. The floor beside the slingshot stays clear.
+Every new room builds a new shelf layout. The name of that layout sits under the title. A room has 18–23 loose objects and exactly 1 sweet spot on the highest shelf. Hitting that spot drops the shelves one after another, then the floor. A miss uses a softer cascade. The floor beside the slingshot stays clear.
+
+Default layouts are the long shelf, side shelves, a stack against one wall, stairs, a balcony, and an alcove. Unlocked rooms join that roll. Narrow shelves are a short column with a tall drop. Floor clutter keeps almost everything on the ground. Split bay leaves a wide empty middle, including on the floor. Window heavy crowds the shelves under a large window. Market row is one long low counter. Low loft keeps both boards near the floor.
 
 ## Coins
 
@@ -40,20 +44,21 @@ The equipped stone is tinted, carries an icon for what it does, and is named in 
 
 ## Meta shop
 
-The menu icon in the top-left opens Meta shop, Restart room, and a Settings placeholder. Meta shop is also on the throw shop. Coins spent there stay spent. Unlocks stay after you close the game. The list is cheapest first, and each row says Stone or Room.
+The corner icon opens a centered menu: Meta Shop, Restart Room, Settings, and Main Menu. Meta Shop is also on the main menu and on the throw shop. Stones and rooms are listed apart, each cheapest first. Coins spent there stay spent. Unlocks stay after you close the game.
 
 | Unlock | Kind | Cost | What it does |
 | --- | --- | --- | --- |
-| Cork Stone | Stone | 28 coins | Joins the throw shop |
+| Cork Stone | Stone | 28 coins | Joins the throw shop. Equipping it there is free |
 | Narrow Shelves | Room | 36 coins | Short planks with a tall drop between them |
 | Low Loft | Room | 46 coins | Shelves sit close to the floor |
-| Needle Stone | Stone | 56 coins | Joins the throw shop |
+| Needle Stone | Stone | 56 coins | Joins the throw shop. Equipping it there is free |
 | Floor Clutter | Room | 66 coins | One small shelf. Most props sit on the floor |
+| Market Row | Room | 72 coins | One long low counter |
 | Split Bay | Room | 78 coins | Two shelves far apart, at different heights |
 | Window Heavy | Room | 88 coins | A large window with the shelves crowded under it |
-| Thud Stone | Stone | 98 coins | Joins the throw shop |
+| Thud Stone | Stone | 98 coins | Joins the throw shop. Equipping it there is free |
 
-A full clear pays 11. Two clears are 22, so the first unlock takes a third strong throw. Later unlocks cost more. Owned rows stay marked Owned. Back returns to the room. New room rolls the layout again from the default shelves plus anything you just unlocked. The throw shop only offers base stones and stones you already own.
+A full clear pays 11. Two clears are 22, so the first unlock takes a third strong throw. Later unlocks cost more. Owned rows stay marked Owned. Back returns to where you were. New room rolls the layout again from the default shelves plus anything you just unlocked. The throw shop mixes the eight base stones with stones you already own, and never shows a locked stone. An owned stone is marked Owned and equipped for the next throw without another coin cost.
 
 ## Still one room
 

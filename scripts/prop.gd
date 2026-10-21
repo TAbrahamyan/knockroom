@@ -12,6 +12,7 @@ const CHAIN_SPEED := 32.0
 const POP_TIME := 0.48
 ## A fast stone on one of this shelf's spots (set per room) starts the long cascade.
 const SWEET_SPEED := 660.0
+const AudioKit := preload("res://scripts/audio_kit.gd")
 
 @export var kind: Kind = Kind.BARREL
 @export var radius: float = 30.0
@@ -92,7 +93,7 @@ func unpark_shelf() -> void:
 
 
 func resize_shelf(width: float) -> void:
-	box_size.x = clampf(width, 150.0, 680.0)
+	box_size.x = clampf(width, 118.0, 820.0)
 	var shape_node := get_node_or_null("Shape") as CollisionShape2D
 	if shape_node != null and shape_node.shape is RectangleShape2D:
 		var rect := shape_node.shape as RectangleShape2D
@@ -200,6 +201,8 @@ func _on_body_entered(body: Node) -> void:
 		body.call_deferred("wake_from", self)
 	if not counted:
 		call_deferred("_evaluate_hit", body)
+	if not body.is_in_group("projectile") and linear_velocity.length() > 120.0:
+		AudioKit.play_fall()
 
 
 func _evaluate_hit(body: Node) -> void:
@@ -498,6 +501,7 @@ func _shatter() -> void:
 	if _shattered:
 		return
 	_shattered = true
+	AudioKit.play_break()
 	var parent := get_parent()
 	if parent == null:
 		return

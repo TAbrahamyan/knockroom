@@ -70,6 +70,9 @@ static func draw(canvas: CanvasItem, center: Vector2, radius: float, shape: Stri
 			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.62, -inner * 0.72), Vector2(inner * 1.24, inner * 0.9)), Color(0.05, 0.03, 0.04))
 			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.5, -inner * 0.6), Vector2(inner * 1.0, inner * 0.66)), tint)
 			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.42, inner * 0.28), Vector2(inner * 0.84, inner * 0.14)), tint)
+		"market":
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.82, inner * 0.18), Vector2(inner * 1.64, inner * 0.16)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.7, inner * 0.42), Vector2(inner * 1.4, inner * 0.14)), tint.darkened(0.15))
 		_:
 			canvas.draw_circle(center, inner * 0.62, tint)
 

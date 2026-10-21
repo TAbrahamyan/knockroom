@@ -3,19 +3,18 @@ extends Node2D
 ## READY: pull back, the stone flies the other way.
 ## WATCHING: the chain counts itself. SETTLED: look, then the shop, then a new room.
 
-enum Phase { WARMUP, READY, AIMING, WATCHING, SETTLED }
+enum Phase { WARMUP, READY, AIMING, WATCHING, SETTLED, MENU }
 
 const Loadout := preload("res://scripts/loadout.gd")
+const Locale := preload("res://scripts/locale.gd")
+const AudioKit := preload("res://scripts/audio_kit.gd")
 const ShopScript := preload("res://scripts/shop.gd")
 const MetaScript := preload("res://scripts/meta_shop.gd")
+const MainMenuScript := preload("res://scripts/main_menu.gd")
+const SettingsScript := preload("res://scripts/settings_panel.gd")
 const PROP_SCENE := preload("res://scenes/prop.tscn")
 const PropScript := preload("res://scripts/prop.gd")
 
-const HINT_READY := "Hold LMB and pull back — stone flies backward.   R — restart"
-const HINT_AIM := "Release to throw"
-const HINT_WATCH := "Watch the chain"
-const HINT_LOOK := "Watch the result"
-const HINT_SHOP := "Buy one for the next throw, or skip"
 const WARM_FRAMES := 45
 const LOOK_TIME := 2.6
 const SHAKE_TIME := 0.2
@@ -25,7 +24,8 @@ const LANE_LEFT := 304.0
 const THROW_GAP := 128.0
 
 var live := false
-var phase := Phase.WARMUP
+var phase := Phase.MENU
+var _hint_key := "hint.ready"
 var projectile: RigidBody2D
 var _warm_frames := 0
 var _watch := 0.0
@@ -40,10 +40,17 @@ var _shake_cap := 8.0
 var _shaking := false
 var _shop
 var _meta
+var _main_menu
+var _settings
 var _menu_button: Button
 var _menu_panel: Control
-var _menu_note: Label
 var _menu_mark: Control
+var _menu_title: Label
+var _menu_meta: Button
+var _menu_restart: Button
+var _menu_settings: Button
+var _menu_main: Button
+var _menu_close: Button
 var _room_label: Label
 var _equipped: Label
 var _money: Label
@@ -56,26 +63,40 @@ var layout_name := ""
 
 func _ready() -> void:
 	Loadout.load_game()
+	_install_font()
 	$Camera2D.make_current()
 	thrower.stone_launched.connect(_on_stone_launched)
 	thrower.aim_started.connect(_on_aim_started)
 	thrower.aim_ended.connect(_on_aim_ended)
-	chain.set_hint(HINT_READY)
+	_build_audio()
 	_build_shop()
 	_build_meta()
+	_build_settings()
+	_build_main_menu()
 	_build_corner_menu()
 	_build_equipped()
 	_build_money()
-	_randomize_room()
+	apply_language()
+	if Loadout.start_in_menu:
+		_enter_main_menu()
+	else:
+		_begin_round()
 
 
 func _input(event: InputEvent) -> void:
+	if _settings != null and _settings.visible:
+		if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+			_settings.close_panel()
+			get_viewport().set_input_as_handled()
+		return
 	if _meta != null and _meta.visible:
 		return
 	if _menu_panel != null and _menu_panel.visible:
 		if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
 			_set_menu_open(false)
 			get_viewport().set_input_as_handled()
+		return
+	if _main_menu != null and _main_menu.visible:
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_R:
 		_reset()
@@ -88,8 +109,13 @@ func _input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	if _menu_button != null:
-		var busy := phase == Phase.WARMUP or phase == Phase.AIMING or phase == Phase.WATCHING
-		_menu_button.disabled = busy or (_meta != null and _meta.visible)
+		var busy: bool = phase == Phase.WARMUP or phase == Phase.AIMING or phase == Phase.WATCHING
+		var covered: bool = false
+		if _meta != null and _meta.visible:
+			covered = true
+		if _settings != null and _settings.visible:
+			covered = true
+		_menu_button.disabled = busy or covered
 		if _menu_mark != null:
 			_menu_mark.modulate = Color(0.55, 0.5, 0.46) if _menu_button.disabled else Color(1, 1, 1)
 	if _look > 0.0:
@@ -100,6 +126,8 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if phase == Phase.MENU:
+		return
 	if phase == Phase.WARMUP:
 		_warm_frames += 1
 		if _warm_frames >= WARM_FRAMES:
@@ -121,13 +149,13 @@ func _physics_process(delta: float) -> void:
 func _on_aim_started() -> void:
 	if phase == Phase.READY:
 		phase = Phase.AIMING
-		chain.set_hint(HINT_AIM)
+		_set_hint("hint.aim")
 
 
 func _on_aim_ended() -> void:
 	if phase == Phase.AIMING:
 		phase = Phase.READY
-		chain.set_hint(HINT_READY)
+		_set_hint("hint.ready")
 
 
 func _on_stone_launched(stone: RigidBody2D) -> void:
@@ -136,7 +164,7 @@ func _on_stone_launched(stone: RigidBody2D) -> void:
 	live = true
 	_watch = 0.0
 	_calm = 0.0
-	chain.set_hint(HINT_WATCH)
+	_set_hint("hint.watch")
 
 
 func _finish() -> void:
@@ -148,7 +176,7 @@ func _finish() -> void:
 	var earned := Loadout.earn(chain.count)
 	chain.show_result(earned)
 	_refresh_money(true)
-	chain.set_hint(HINT_LOOK)
+	_set_hint("hint.look")
 
 
 func _look_for(n: int) -> float:
@@ -241,8 +269,135 @@ func _build_meta() -> void:
 	_meta.name = "MetaShop"
 	add_child(_meta)
 	_meta.closed.connect(_on_meta_closed)
-	_meta.new_room.connect(_reset)
+	_meta.new_room.connect(_on_meta_new_room)
 	_meta.unlocked.connect(_on_meta_unlocked)
+
+
+func _build_audio() -> void:
+	var kit := AudioKit.new()
+	kit.name = "Audio"
+	add_child(kit)
+
+
+func _build_settings() -> void:
+	_settings = SettingsScript.new()
+	_settings.name = "Settings"
+	add_child(_settings)
+	_settings.closed.connect(_on_settings_closed)
+	_settings.language_changed.connect(apply_language)
+
+
+func _build_main_menu() -> void:
+	_main_menu = MainMenuScript.new()
+	_main_menu.name = "MainMenu"
+	add_child(_main_menu)
+	_main_menu.start_game.connect(_begin_round)
+	_main_menu.open_meta.connect(_open_meta)
+	_main_menu.open_settings.connect(_open_settings)
+	_main_menu.quit_game.connect(_quit_game)
+
+
+func _install_font() -> void:
+	var cjk := SystemFont.new()
+	cjk.font_names = PackedStringArray(["Microsoft YaHei", "Microsoft YaHei UI", "SimSun"])
+	var latin := SystemFont.new()
+	latin.font_names = PackedStringArray(["Segoe UI", "Arial"])
+	var faces: Array[Font] = [cjk]
+	latin.fallbacks = faces
+	ThemeDB.fallback_font = latin
+
+
+func _enter_main_menu() -> void:
+	phase = Phase.MENU
+	thrower.aiming = false
+	thrower.can_aim = false
+	_freeze_room()
+	if _menu_button:
+		_menu_button.visible = false
+	if _main_menu:
+		_main_menu.show_menu()
+	_hint_key = ""
+	chain.set_hint("")
+
+
+func _begin_round() -> void:
+	Loadout.start_in_menu = false
+	if _main_menu:
+		_main_menu.hide_menu()
+	if _settings and _settings.visible:
+		_settings.visible = false
+	if _meta and _meta.visible:
+		_meta.visible = false
+	if _shop:
+		_shop.visible = false
+	_shop_open = false
+	if _menu_button:
+		_menu_button.visible = true
+	phase = Phase.WARMUP
+	_warm_frames = 0
+	_watch = 0.0
+	_calm = 0.0
+	_look = 0.0
+	live = false
+	thrower.flying = false
+	thrower.aiming = false
+	thrower.can_aim = false
+	if _menu_panel:
+		_menu_panel.visible = false
+		var backdrop := _menu_panel.get_parent() as Control
+		if backdrop:
+			backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if chain.has_method("reset_round"):
+		chain.reset_round()
+	_randomize_room()
+	_set_hint("hint.ready")
+
+
+func _freeze_room() -> void:
+	for node in get_tree().get_nodes_in_group("prop"):
+		node.freeze = true
+
+
+func _quit_game() -> void:
+	get_tree().quit()
+
+
+func _open_settings() -> void:
+	if _settings == null:
+		return
+	thrower.aiming = false
+	thrower.can_aim = false
+	_settings.open_panel()
+
+
+func _on_settings_closed() -> void:
+	_restore_aim()
+
+
+func _set_hint(key: String) -> void:
+	_hint_key = key
+	chain.set_hint(Locale.text(key))
+
+
+func apply_language() -> void:
+	if _hint_key != "":
+		chain.set_hint(Locale.text(_hint_key))
+	if chain.has_method("apply_language"):
+		chain.apply_language()
+	if _room_label != null and layout_name != "":
+		_room_label.text = Locale.room_name(layout_name)
+	if _money != null:
+		_refresh_money(false)
+	_refresh_equipped()
+	_sync_menu_copy()
+	if _main_menu and _main_menu.has_method("apply_language"):
+		_main_menu.apply_language()
+	if _settings and _settings.has_method("apply_language"):
+		_settings.apply_language()
+	if _shop and _shop.has_method("apply_language"):
+		_shop.apply_language()
+	if _meta and _meta.has_method("apply_language"):
+		_meta.apply_language()
 
 
 func _build_corner_menu() -> void:
@@ -263,7 +418,7 @@ func _build_corner_menu() -> void:
 	button.focus_mode = Control.FOCUS_NONE
 	button.flat = true
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	button.tooltip_text = "Menu"
+	button.tooltip_text = Locale.text("menu.tooltip")
 	var empty := StyleBoxEmpty.new()
 	button.add_theme_stylebox_override("normal", empty)
 	button.add_theme_stylebox_override("hover", empty)
@@ -285,15 +440,28 @@ func _build_corner_menu() -> void:
 	_menu_button = button
 	_menu_mark = mark
 
+	var dim := ColorRect.new()
+	dim.name = "Dim"
+	dim.visible = false
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.03, 0.02, 0.03, 0.62)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(dim)
+
 	var panel := Control.new()
 	panel.name = "MenuPanel"
 	panel.visible = false
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	panel.offset_left = 12.0
-	panel.offset_top = 48.0
-	panel.offset_right = 268.0
-	panel.offset_bottom = 292.0
+	panel.anchor_left = 0.5
+	panel.anchor_top = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_bottom = 0.5
+	panel.offset_left = -230.0
+	panel.offset_top = -250.0
+	panel.offset_right = 230.0
+	panel.offset_bottom = 250.0
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	root.add_child(panel)
 	_menu_panel = panel
 
@@ -303,29 +471,22 @@ func _build_corner_menu() -> void:
 	wash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(wash)
 
-	var title := Label.new()
-	title.text = "Menu"
-	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	title.position = Vector2(16, 8)
-	title.size = Vector2(220, 28)
-	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
-	panel.add_child(title)
+	_menu_title = Label.new()
+	_menu_title.text = Locale.text("menu.title")
+	_menu_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_menu_title.position = Vector2(20, 28)
+	_menu_title.size = Vector2(420, 40)
+	_menu_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_menu_title.add_theme_font_size_override("font_size", 28)
+	_menu_title.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
+	panel.add_child(_menu_title)
 
-	_add_menu_button(panel, "Meta shop", Vector2(16, 44), _on_menu_meta)
-	_add_menu_button(panel, "Restart room", Vector2(16, 92), _on_menu_restart)
-	_add_menu_button(panel, "Settings", Vector2(16, 140), _on_menu_settings)
-	_add_menu_button(panel, "Close", Vector2(16, 188), _on_menu_close)
-
-	var note := Label.new()
-	note.name = "SettingsNote"
-	note.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	note.position = Vector2(16, 228)
-	note.size = Vector2(224, 22)
-	note.add_theme_font_size_override("font_size", 13)
-	note.add_theme_color_override("font_color", Color(0.72, 0.76, 0.82))
-	panel.add_child(note)
-	_menu_note = note
+	_menu_meta = _add_menu_button(panel, "MetaShop", Vector2(40, 96), _on_menu_meta)
+	_menu_restart = _add_menu_button(panel, "RestartRoom", Vector2(40, 164), _on_menu_restart)
+	_menu_settings = _add_menu_button(panel, "Settings", Vector2(40, 232), _on_menu_settings)
+	_menu_main = _add_menu_button(panel, "MainMenu", Vector2(40, 300), _on_menu_main)
+	_menu_close = _add_menu_button(panel, "Close", Vector2(40, 368), _on_menu_close)
+	_sync_menu_copy()
 
 	var room := Label.new()
 	room.name = "RoomName"
@@ -341,33 +502,51 @@ func _build_corner_menu() -> void:
 	_room_label = room
 
 
-func _add_menu_button(panel: Control, text: String, pos: Vector2, handler: Callable) -> void:
+func _add_menu_button(panel: Control, node_name: String, pos: Vector2, handler: Callable) -> Button:
 	var button := Button.new()
-	button.text = text
-	button.name = text.replace(" ", "")
+	button.name = node_name
 	button.focus_mode = Control.FOCUS_NONE
 	button.flat = true
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var empty := StyleBoxEmpty.new()
 	button.add_theme_stylebox_override("normal", empty)
 	button.add_theme_stylebox_override("hover", empty)
 	button.add_theme_stylebox_override("pressed", empty)
 	button.add_theme_stylebox_override("focus", empty)
 	button.position = pos
-	button.size = Vector2(224, 40)
-	button.add_theme_font_size_override("font_size", 18)
+	button.size = Vector2(380, 52)
+	button.add_theme_font_size_override("font_size", 22)
 	button.add_theme_color_override("font_color", Color(0.95, 0.9, 0.82))
 	button.add_theme_color_override("font_hover_color", Color(1.0, 0.86, 0.42))
 	button.add_theme_color_override("font_pressed_color", Color(1.0, 0.86, 0.42))
 	button.pressed.connect(handler)
 	panel.add_child(button)
+	return button
+
+
+func _sync_menu_copy() -> void:
+	if _menu_button:
+		_menu_button.tooltip_text = Locale.text("menu.tooltip")
+	if _menu_title:
+		_menu_title.text = Locale.text("menu.title")
+	if _menu_meta:
+		_menu_meta.text = Locale.text("menu.meta")
+	if _menu_restart:
+		_menu_restart.text = Locale.text("menu.restart")
+	if _menu_settings:
+		_menu_settings.text = Locale.text("menu.settings")
+	if _menu_main:
+		_menu_main.text = Locale.text("menu.main")
+	if _menu_close:
+		_menu_close.text = Locale.text("menu.close")
 
 
 func _toggle_menu() -> void:
 	var open := true
 	if _menu_panel != null and _menu_panel.visible:
 		open = false
+	AudioKit.play_click()
 	_set_menu_open(open)
 
 
@@ -378,39 +557,67 @@ func _set_menu_open(show_menu: bool) -> void:
 	var backdrop := _menu_panel.get_parent() as Control
 	if backdrop != null:
 		backdrop.mouse_filter = Control.MOUSE_FILTER_STOP if show_menu else Control.MOUSE_FILTER_IGNORE
+		var dim := backdrop.get_node_or_null("Dim") as CanvasItem
+		if dim:
+			dim.visible = show_menu
 	if show_menu:
 		thrower.aiming = false
 		thrower.can_aim = false
-		if _menu_note != null:
-			_menu_note.text = ""
-		chain.set_hint("Menu")
+		_set_hint("hint.menu")
 	else:
 		_restore_aim()
+		_restore_hint()
+
+
+func _restore_hint() -> void:
+	if phase == Phase.MENU:
+		return
+	if _shop_open:
+		_set_hint("hint.shop")
+	elif phase == Phase.SETTLED:
+		_set_hint("hint.look")
+	elif phase == Phase.WATCHING:
+		_set_hint("hint.watch")
+	elif phase == Phase.AIMING:
+		_set_hint("hint.aim")
+	elif phase == Phase.READY:
+		_set_hint("hint.ready")
 
 
 func _on_menu_backdrop(event: InputEvent) -> void:
 	if _menu_panel == null or not _menu_panel.visible:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		AudioKit.play_click()
 		_set_menu_open(false)
 
 
 func _on_menu_meta() -> void:
+	AudioKit.play_click()
 	_set_menu_open(false)
 	_open_meta()
 
 
 func _on_menu_restart() -> void:
+	AudioKit.play_click()
 	_set_menu_open(false)
 	_reset()
 
 
 func _on_menu_settings() -> void:
-	if _menu_note != null:
-		_menu_note.text = "Settings are not in yet."
+	AudioKit.play_click()
+	_open_settings()
+
+
+func _on_menu_main() -> void:
+	AudioKit.play_click()
+	_set_menu_open(false)
+	Loadout.start_in_menu = true
+	_reset()
 
 
 func _on_menu_close() -> void:
+	AudioKit.play_click()
 	_set_menu_open(false)
 
 
@@ -432,13 +639,34 @@ func _on_meta_unlocked(_id: String) -> void:
 	_refresh_money(true)
 
 
+func _on_meta_new_room() -> void:
+	if phase == Phase.MENU:
+		if _meta:
+			_meta.visible = false
+		_begin_round()
+		return
+	_reset()
+
+
 func _restore_aim() -> void:
-	if _shop_open or (_meta != null and _meta.visible) or (_menu_panel != null and _menu_panel.visible):
+	if _shop_open or _overlay_open():
 		thrower.can_aim = false
 		return
 	if phase == Phase.READY:
 		thrower.can_aim = true
-		chain.set_hint(HINT_READY)
+		_set_hint("hint.ready")
+
+
+func _overlay_open() -> bool:
+	if _meta != null and _meta.visible:
+		return true
+	if _menu_panel != null and _menu_panel.visible:
+		return true
+	if _settings != null and _settings.visible:
+		return true
+	if _main_menu != null and _main_menu.visible:
+		return true
+	return false
 
 
 func _build_equipped() -> void:
@@ -492,25 +720,30 @@ func _refresh_money(punch: bool) -> void:
 
 
 func _refresh_equipped() -> void:
-	if Loadout.item_name == "":
+	if _equipped == null:
+		return
+	if Loadout.item_id == "":
 		_equipped.visible = false
 		_equipped.text = ""
 		return
 	_equipped.visible = true
-	_equipped.text = "Equipped: %s" % Loadout.item_name
+	_equipped.text = Locale.format("equipped", [Locale.item_name(Loadout.item_id)])
 
 
 func _open_shop() -> void:
 	_shop_open = true
 	thrower.can_aim = false
-	chain.set_hint(HINT_SHOP)
+	_set_hint("hint.shop")
 	_shop.show_offers()
 
 
 func _on_shop_picked(item_id: String, item_name: String, item_tint: Color) -> void:
 	if not _shop_open or _reloading:
 		return
-	if not Loadout.spend(Loadout.price_of(item_id)):
+	var price := Loadout.price_of(item_id)
+	if Loadout.owns(item_id):
+		price = 0
+	if not Loadout.spend(price):
 		_shop.visible = true
 		return
 	Loadout.equip(item_id, item_name, item_tint)
@@ -538,7 +771,11 @@ func _randomize_room() -> void:
 			continue
 		if node.has_method("is_shelf") and node.is_shelf():
 			continue
-		if int(node.kind) == 3:
+		var kind = node.get("kind")
+		if kind == null:
+			node.queue_free()
+			continue
+		if int(kind) == 3:
 			continue
 		loose.append(node)
 	loose = _fill_loose(loose)
@@ -558,6 +795,8 @@ func _randomize_room() -> void:
 		_nudge_away_from_lamp(lamp)
 	_place_on_floor(rest, lamp)
 	_protect_throw_lane(loose)
+	_finish_floor(rest, lamp)
+	_tuck_outliers(loose)
 	for shelf in active:
 		shelf.set_sweet_spots([], [])
 	if not active.is_empty():
@@ -569,7 +808,7 @@ func _randomize_room() -> void:
 		backdrop.set_room_dressing(_pick_window(hook), hook)
 		backdrop.queue_redraw()
 	if _room_label != null:
-		_room_label.text = _layout_title(layout_name)
+		_room_label.text = Locale.room_name(layout_name)
 
 
 func _fill_loose(loose: Array) -> Array:
@@ -631,11 +870,17 @@ func _seat_pile(active: Array, loose: Array, lamp) -> Array:
 		if loose.size() >= 22:
 			goal += 1
 		goals.append(goal)
+	if layout_name == "market":
+		for i in goals.size():
+			goals[i] = 7
+	elif layout_name == "window_heavy":
+		for i in goals.size():
+			goals[i] = mini(int(goals[i]) + 2, 6)
 	var rest: Array = loose
 	if layout_name == "floor_clutter":
 		rest = ordered.duplicate()
 		for shelf_i in active.size():
-			rest = _seat_on_shelf(active[shelf_i], rest, 2, _rider_limit(active[shelf_i], active))
+			rest = _seat_on_shelf(active[shelf_i], rest, 1, _rider_limit(active[shelf_i], active))
 		return rest
 	var budget := _floor_budget(lamp)
 	for _attempt in 5:
@@ -691,6 +936,7 @@ func _retie_lamp() -> void:
 
 
 func _place_prop(body, pos: Vector2) -> void:
+	body.freeze = false
 	body.rotation = 0.0
 	body.global_position = pos
 	body.linear_velocity = Vector2.ZERO
@@ -776,6 +1022,162 @@ func _place_on_floor(props: Array, lamp) -> void:
 	_clear_lamp(props, lamp)
 	_separate_row(props)
 	_clear_lamp(props, lamp)
+
+
+func _finish_floor(props: Array, lamp) -> void:
+	var ground: Array = []
+	for prop in props:
+		if _is_floor_prop(prop):
+			ground.append(prop)
+	if layout_name == "split_bay":
+		_split_floor_clusters(ground, lamp)
+	elif layout_name == "window_heavy" or layout_name == "alcove":
+		_crowd_floor_right(ground, lamp)
+
+
+func _split_floor_clusters(props: Array, lamp) -> void:
+	if props.size() < 2:
+		return
+	var left_n := int(float(props.size()) * 0.5)
+	var left: Array = []
+	var right: Array = []
+	for i in props.size():
+		if i < left_n:
+			left.append(props[i])
+		else:
+			right.append(props[i])
+	# Keep a wide empty bay. Packing clamps to the band so the later
+	# overlap pass cannot walk props back into the middle.
+	_pack_band(left, LANE_LEFT, 660.0)
+	_pack_band(right, 980.0, 1234.0)
+	_clear_lamp(props, lamp)
+	_keep_in_band(left, LANE_LEFT, 700.0)
+	_keep_in_band(right, 900.0, 1234.0)
+
+
+func _pack_band(props: Array, min_x: float, max_x: float) -> void:
+	if props.is_empty():
+		return
+	var x := min_x
+	var lift := 0.0
+	var row_h := 0.0
+	var placed := 0
+	for prop in props:
+		var half: Vector2 = _prop_half(prop)
+		if placed > 0 and x + half.x * 2.0 > max_x:
+			x = min_x
+			lift += row_h + 6.0
+			row_h = 0.0
+			placed = 0
+		x += half.x
+		if x + half.x > max_x:
+			x = max_x - half.x
+		_place_prop(prop, Vector2(x, 640.0 - half.y - 1.0 - lift))
+		x += half.x + 6.0
+		row_h = maxf(row_h, half.y * 2.0)
+		placed += 1
+
+
+func _tuck_outliers(props: Array) -> void:
+	for prop in props:
+		if prop == null or not is_instance_valid(prop):
+			continue
+		if prop.has_method("is_shelf") and prop.is_shelf():
+			continue
+		var kind = prop.get("kind")
+		if kind == null or int(kind) == 3:
+			continue
+		var half: Vector2 = _prop_half(prop)
+		var pos: Vector2 = prop.global_position
+		var sticks_out := pos.x - half.x < LANE_LEFT - 2.0 or pos.x + half.x > 1236.0
+		if not sticks_out:
+			continue
+		var min_x := LANE_LEFT + half.x
+		var max_x := 1234.0 - half.x
+		if layout_name == "split_bay":
+			if pos.x < 820.0:
+				max_x = minf(max_x, 700.0 - half.x)
+			else:
+				min_x = maxf(min_x, 900.0 + half.x)
+		if min_x > max_x:
+			min_x = max_x
+		var x := clampf(pos.x, min_x, max_x)
+		var y := pos.y
+		if y > 500.0:
+			y = 640.0 - half.y - 1.0
+		_place_prop(prop, Vector2(x, y))
+	if layout_name != "split_bay":
+		return
+	for prop in props:
+		if prop == null or not is_instance_valid(prop):
+			continue
+		if prop.has_method("is_shelf") and prop.is_shelf():
+			continue
+		var kind = prop.get("kind")
+		if kind == null or int(kind) == 3:
+			continue
+		var half: Vector2 = _prop_half(prop)
+		var pos: Vector2 = prop.global_position
+		if pos.y < 500.0:
+			continue
+		if pos.x < 710.0 or pos.x > 950.0:
+			continue
+		if pos.x < 830.0:
+			pos.x = minf(690.0 - half.x, 690.0)
+			pos.x = maxf(pos.x, LANE_LEFT + half.x)
+		else:
+			pos.x = maxf(970.0 + half.x, 970.0)
+			pos.x = minf(pos.x, 1234.0 - half.x)
+		pos.y = 640.0 - half.y - 1.0
+		_place_prop(prop, pos)
+
+
+func _keep_in_band(props: Array, min_x: float, max_x: float) -> void:
+	for prop in props:
+		var half := _prop_half(prop).x
+		var pos: Vector2 = prop.global_position
+		var x := clampf(pos.x, min_x + half, max_x - half)
+		if absf(x - pos.x) > 0.5:
+			pos.x = x
+			_place_prop(prop, pos)
+
+
+func _crowd_floor_right(props: Array, lamp) -> void:
+	if props.is_empty():
+		return
+	var widths := 0.0
+	for prop in props:
+		widths += _prop_half(prop).x * 2.0
+	var gaps := maxi(props.size() - 1, 0)
+	var need := widths + 8.0 * float(gaps)
+	var start := 1234.0 - need
+	if start < 640.0:
+		start = maxf(LANE_LEFT, start)
+	_pack_row(props, start, 1234.0)
+	_separate_row(props)
+	_clear_lamp(props, lamp)
+
+
+func _pack_row(props: Array, min_x: float, max_x: float) -> void:
+	if props.is_empty():
+		return
+	var widths := 0.0
+	for prop in props:
+		widths += _prop_half(prop).x * 2.0
+	var gaps := maxi(props.size() - 1, 0)
+	var gap := 8.0
+	var need := widths + gap * float(gaps)
+	var room := max_x - min_x
+	if gaps > 0 and need > room:
+		gap = maxf(4.0, (room - widths) / float(gaps))
+	var x := min_x
+	for prop in props:
+		var half := _prop_half(prop)
+		x += half.x
+		if x + half.x > max_x:
+			x = max_x - half.x
+		_place_prop(prop, Vector2(x, 640.0 - half.y - 1.0))
+		x += half.x + gap
 
 
 func _separate_row(props: Array) -> void:
@@ -932,7 +1334,12 @@ func _pick_sweet_spots(upper) -> void:
 	var right: float = upper.global_position.x + half_w
 	var riders: Array = []
 	for node in get_tree().get_nodes_in_group("prop"):
-		if node == upper or node.is_shelf() or int(node.kind) == 3:
+		if node == upper:
+			continue
+		if node.has_method("is_shelf") and node.is_shelf():
+			continue
+		var kind = node.get("kind")
+		if kind == null or int(kind) == 3:
 			continue
 		var delta: Vector2 = node.global_position - upper.global_position
 		if absf(delta.x) > half_w - 36.0 or delta.y >= -4.0 or delta.y < -130.0:
@@ -950,7 +1357,7 @@ func _pick_sweet_spots(upper) -> void:
 
 
 func _roll_layout(wide, high, extra) -> Array:
-	var names: Array = ["long", "sides", "stack_l", "stack_r", "stairs", "balcony"]
+	var names: Array = ["long", "sides", "stack_l", "stack_r", "stairs", "balcony", "alcove"]
 	if Loadout.owns("low_loft"):
 		names.append("low_loft")
 	if Loadout.owns("split_bay"):
@@ -961,6 +1368,8 @@ func _roll_layout(wide, high, extra) -> Array:
 		names.append("floor_clutter")
 	if Loadout.owns("window_heavy"):
 		names.append("window_heavy")
+	if Loadout.owns("market"):
+		names.append("market")
 	var pick := str(names[randi() % names.size()])
 	if extra == null and (pick == "sides" or pick == "stairs"):
 		pick = "long"
@@ -986,109 +1395,118 @@ func _roll_layout(wide, high, extra) -> Array:
 			return _layout_floor_clutter(wide)
 		"window_heavy":
 			return _layout_window_heavy(high, wide)
+		"market":
+			return _layout_market(wide)
+		"alcove":
+			return _layout_alcove(high, wide)
 		_:
 			return _layout_long(wide)
 
 
 func _layout_low_loft(short, long_shelf) -> Array:
-	# Both planks stay in the lower half, so the drop is short and the floor is close.
-	var lw := randf_range(460.0, 580.0)
-	var sw := randf_range(180.0, 250.0)
-	var ly := randf_range(458.0, 492.0)
-	var hy := randf_range(348.0, 392.0)
+	# A long board almost on the floor, and a short step clearly above it.
+	var lw := randf_range(540.0, 660.0)
+	var sw := randf_range(150.0, 210.0)
+	var ly := randf_range(476.0, 498.0)
+	var hy := randf_range(292.0, 330.0)
 	var max_center := 1210.0 - lw * 0.5
 	var min_center := 430.0 + lw * 0.5
 	if min_center > max_center:
 		min_center = max_center
 	var lx := randf_range(min_center, max_center)
-	var sx := clampf(lx + randf_range(-90.0, 90.0), 340.0 + sw * 0.5, 1180.0 - sw * 0.5)
+	var sx := clampf(lx + randf_range(-160.0, 160.0), 340.0 + sw * 0.5, 1180.0 - sw * 0.5)
 	_use_shelf(short, sx, hy, sw)
 	_use_shelf(long_shelf, lx, ly, lw)
-	_keep_stacked(short, long_shelf, 64.0)
+	_keep_stacked(short, long_shelf, 140.0)
 	return [short, long_shelf]
 
 
 func _layout_split_bay(left_shelf, right_shelf) -> Array:
-	# A wide empty center. The right plank sits much lower, so the two piles fall apart.
-	var w_left := randf_range(160.0, 210.0)
-	var w_right := randf_range(170.0, 220.0)
-	var left_max := 500.0 - w_left * 0.5
+	# A wide empty center. The right plank sits much lower, and the floor splits with it.
+	var w_left := randf_range(150.0, 200.0)
+	var w_right := randf_range(160.0, 210.0)
+	var left_max := 470.0 - w_left * 0.5
 	var left_min := 300.0 + w_left * 0.5
 	if left_min > left_max:
 		left_min = left_max
-	var right_min := 980.0 + w_right * 0.5
+	var right_min := 1020.0 + w_right * 0.5
 	var right_max := 1210.0 - w_right * 0.5
 	if right_min > right_max:
 		right_min = right_max
 	var x_left := randf_range(left_min, left_max)
 	var x_right := randf_range(right_min, right_max)
-	var y_left := randf_range(228.0, 276.0)
-	var y_right := randf_range(400.0, 448.0)
+	var y_left := randf_range(222.0, 260.0)
+	var y_right := randf_range(420.0, 470.0)
 	_use_shelf(left_shelf, x_left, y_left, w_left)
 	_use_shelf(right_shelf, x_right, y_right, w_right)
-	_keep_x_apart([left_shelf, right_shelf], 400.0)
+	_keep_x_apart([left_shelf, right_shelf], 460.0)
 	return [left_shelf, right_shelf]
 
 
 func _layout_narrow(upper, lower) -> Array:
 	# Two short planks in one column, with a long fall between them.
-	var uw := randf_range(150.0, 190.0)
-	var lw := randf_range(156.0, 200.0)
-	var uy := randf_range(228.0, 260.0)
-	var ly := uy + randf_range(156.0, 196.0)
-	var cx := randf_range(560.0, 960.0)
-	_use_shelf(upper, cx + randf_range(-20.0, 20.0), uy, uw)
-	_use_shelf(lower, cx + randf_range(-20.0, 20.0), ly, lw)
-	_keep_stacked(upper, lower, 148.0)
+	var uw := randf_range(120.0, 148.0)
+	var lw := randf_range(124.0, 152.0)
+	var uy := randf_range(220.0, 236.0)
+	var ly := uy + randf_range(200.0, 246.0)
+	var cx := randf_range(640.0, 900.0)
+	_use_shelf(upper, cx + randf_range(-8.0, 8.0), uy, uw)
+	_use_shelf(lower, cx + randf_range(-8.0, 8.0), ly, lw)
+	_keep_stacked(upper, lower, 190.0)
 	return [upper, lower]
 
 
 func _layout_floor_clutter(wide) -> Array:
 	# One small shelf high up. The seating pass leaves almost every prop on the floor.
-	var w := randf_range(200.0, 280.0)
-	var y := randf_range(228.0, 270.0)
-	var x := randf_range(520.0, 980.0)
+	var w := randf_range(122.0, 160.0)
+	var y := randf_range(220.0, 242.0)
+	var x := randf_range(700.0, 1000.0)
 	_use_shelf(wide, x, y, w)
 	return [wide]
 
 
 func _layout_window_heavy(upper, lower) -> Array:
-	# Both planks sit on the right, under a large window.
-	var uw := randf_range(240.0, 320.0)
-	var lw := randf_range(220.0, 300.0)
-	var uy := randf_range(240.0, 286.0)
-	var ly := uy + randf_range(108.0, 150.0)
-	var cx := randf_range(900.0, 1040.0)
-	_use_shelf(upper, cx + randf_range(-24.0, 24.0), uy, uw)
-	_use_shelf(lower, cx + randf_range(-36.0, 36.0), ly, lw)
-	_keep_stacked(upper, lower, 100.0)
+	# Both planks sit on the right, crowded under a large window.
+	var uw := randf_range(190.0, 250.0)
+	var lw := randf_range(200.0, 260.0)
+	var uy := randf_range(232.0, 268.0)
+	var ly := uy + randf_range(130.0, 170.0)
+	var cx := randf_range(1040.0, 1140.0)
+	_use_shelf(upper, cx + randf_range(-12.0, 12.0), uy, uw)
+	_use_shelf(lower, cx + randf_range(-16.0, 16.0), ly, lw)
+	_keep_stacked(upper, lower, 120.0)
+	return [upper, lower]
+
+
+func _layout_market(counter) -> Array:
+	# One long low counter. The stock sits in a line across it.
+	var w := randf_range(700.0, 770.0)
+	var y := randf_range(462.0, 492.0)
+	var half := w * 0.5
+	var min_center := 430.0 + half
+	var max_center := 1220.0 - half
+	if min_center > max_center:
+		min_center = max_center
+	var x := randf_range(min_center, max_center)
+	_use_shelf(counter, x, y, w)
+	return [counter]
+
+
+func _layout_alcove(upper, lower) -> Array:
+	# A closet of shelves on the right. The left side stays open under a window.
+	var uw := randf_range(170.0, 230.0)
+	var lw := randf_range(210.0, 280.0)
+	var uy := randf_range(226.0, 258.0)
+	var ly := uy + randf_range(190.0, 230.0)
+	var cx := randf_range(1020.0, 1130.0)
+	_use_shelf(upper, cx + randf_range(-10.0, 10.0), uy, uw)
+	_use_shelf(lower, cx + randf_range(-14.0, 14.0), ly, lw)
+	_keep_stacked(upper, lower, 180.0)
 	return [upper, lower]
 
 
 func _layout_title(id: String) -> String:
-	match id:
-		"long":
-			return "Long shelf"
-		"sides":
-			return "Side shelves"
-		"stack_l", "stack_r":
-			return "Stack"
-		"stairs":
-			return "Stairs"
-		"balcony":
-			return "Balcony"
-		"low_loft":
-			return "Low loft"
-		"split_bay":
-			return "Split bay"
-		"narrow":
-			return "Narrow shelves"
-		"floor_clutter":
-			return "Floor clutter"
-		"window_heavy":
-			return "Window heavy"
-		_:
-			return "Room"
+	return Locale.room_name(id)
 
 
 func _layout_long(wide) -> Array:
@@ -1106,8 +1524,9 @@ func _layout_long(wide) -> Array:
 
 
 func _layout_sides(left_shelf, right_shelf) -> Array:
-	var w_left := randf_range(180.0, 270.0)
-	var w_right := randf_range(210.0, 340.0)
+	# One plank on the left wall, one on the right, at clearly different heights.
+	var w_left := randf_range(160.0, 230.0)
+	var w_right := randf_range(170.0, 250.0)
 	var node_left = left_shelf
 	var node_right = right_shelf
 	if randf() < 0.5:
@@ -1116,84 +1535,81 @@ func _layout_sides(left_shelf, right_shelf) -> Array:
 		w_right = swap_w
 		node_left = right_shelf
 		node_right = left_shelf
-	var gap := randf_range(56.0, 130.0)
-	var span := w_left + gap + w_right
-	var edge_max := 1200.0 - span
-	if edge_max < 290.0:
-		gap = 40.0
-		span = w_left + gap + w_right
-		edge_max = maxf(290.0, 1200.0 - span)
-	var edge := randf_range(290.0, edge_max)
-	var x_left := edge + w_left * 0.5
-	var x_right := x_left + w_left * 0.5 + gap + w_right * 0.5
-	var y_high := randf_range(232.0, 300.0)
-	var y_low := minf(y_high + randf_range(58.0, 124.0), 440.0)
+	var x_left := randf_range(380.0, 500.0)
+	var x_right := randf_range(1000.0, 1120.0)
+	var y_high := randf_range(224.0, 270.0)
+	var y_low := minf(y_high + randf_range(120.0, 170.0), 470.0)
 	if randf() < 0.5:
 		_use_shelf(node_left, x_left, y_high, w_left)
 		_use_shelf(node_right, x_right, y_low, w_right)
 	else:
 		_use_shelf(node_left, x_left, y_low, w_left)
 		_use_shelf(node_right, x_right, y_high, w_right)
-	_keep_x_apart([node_left, node_right], 36.0)
+	_keep_x_apart([node_left, node_right], 280.0)
 	return [node_left, node_right]
 
 
 func _layout_stack(upper, lower, on_left: bool) -> Array:
-	var uw := randf_range(190.0, 270.0)
-	var lw := randf_range(400.0, 530.0)
-	var uy := randf_range(232.0, 292.0)
-	var ly := uy + randf_range(158.0, 198.0)
+	# A short board over a long one, shoved against one wall, with a tall drop.
+	var uw := randf_range(150.0, 210.0)
+	var lw := randf_range(460.0, 560.0)
+	var uy := randf_range(222.0, 252.0)
+	var ly := uy + randf_range(200.0, 236.0)
 	if on_left:
-		ly = minf(ly, 446.0)
+		ly = minf(ly, 470.0)
 	else:
-		ly = minf(ly, 492.0)
+		ly = minf(ly, 498.0)
 	var lx := 0.0
 	if on_left:
-		var max_center := 900.0 - lw * 0.5
+		var max_center := 700.0 - lw * 0.5
 		var min_center := 280.0 + lw * 0.5
 		if min_center > max_center:
 			min_center = max_center
 		lx = randf_range(min_center, max_center)
 	else:
 		var max_center := 1220.0 - lw * 0.5
-		var min_center := maxf(700.0 + lw * 0.5, max_center - 90.0)
+		var min_center := maxf(860.0 + lw * 0.5, max_center - 40.0)
 		if min_center > max_center:
 			min_center = max_center
 		lx = randf_range(min_center, max_center)
 	var left := lx - lw * 0.5
 	var right := lx + lw * 0.5
-	var ux := clampf(lx + randf_range(-100.0, 70.0), left + uw * 0.5 + 6.0, right - uw * 0.5 - 6.0)
+	var ux := left + uw * 0.5 + 12.0
+	if not on_left:
+		ux = right - uw * 0.5 - 12.0
+	ux = clampf(ux, left + uw * 0.5 + 4.0, right - uw * 0.5 - 4.0)
 	_use_shelf(upper, ux, uy, uw)
 	_use_shelf(lower, lx, ly, lw)
-	_keep_stacked(upper, lower, 152.0)
+	_keep_stacked(upper, lower, 186.0)
 	return [upper, lower]
 
 
 func _layout_stairs(top, mid, bot) -> Array:
-	var w1 := randf_range(168.0, 230.0)
-	var w2 := randf_range(176.0, 246.0)
-	var w3 := randf_range(184.0, 260.0)
-	var g1 := randf_range(40.0, 88.0)
-	var g2 := randf_range(40.0, 88.0)
+	# Three treads stepping down to the right, with a real gap and a real drop.
+	var w1 := randf_range(150.0, 190.0)
+	var w2 := randf_range(154.0, 196.0)
+	var w3 := randf_range(158.0, 200.0)
+	var g1 := randf_range(96.0, 130.0)
+	var g2 := randf_range(96.0, 130.0)
 	var span := w1 + g1 + w2 + g2 + w3
 	var edge_max := 1210.0 - span
 	if edge_max < 280.0:
 		var overflow := 280.0 - edge_max
-		g1 = maxf(28.0, g1 - overflow * 0.5)
-		g2 = maxf(28.0, g2 - overflow * 0.5)
+		g1 = maxf(70.0, g1 - overflow * 0.5)
+		g2 = maxf(70.0, g2 - overflow * 0.5)
 		span = w1 + g1 + w2 + g2 + w3
 		edge_max = maxf(280.0, 1210.0 - span)
 	var edge := randf_range(280.0, edge_max)
 	var x1 := edge + w1 * 0.5
 	var x2 := x1 + w1 * 0.5 + g1 + w2 * 0.5
 	var x3 := x2 + w2 * 0.5 + g2 + w3 * 0.5
-	var y1 := randf_range(226.0, 268.0)
-	var y2 := y1 + randf_range(76.0, 112.0)
-	var y3 := minf(y2 + randf_range(76.0, 116.0), 488.0)
+	var y1 := randf_range(220.0, 248.0)
+	var y2 := y1 + randf_range(100.0, 132.0)
+	var y3 := minf(y2 + randf_range(100.0, 132.0), 496.0)
 	_use_shelf(top, x1, y1, w1)
 	_use_shelf(mid, x2, y2, w2)
 	_use_shelf(bot, x3, y3, w3)
-	_keep_x_apart([top, mid, bot], 26.0)
+	_keep_x_apart([top, mid, bot], 70.0)
 	return [top, mid, bot]
 
 
@@ -1355,8 +1771,11 @@ func _place_hanging_lamp(lamp, shelves: Array) -> Vector2:
 				sum_x += float(shelf.global_position.x)
 				count += 1
 		if count > 0:
-			hook_x = clampf(sum_x / float(count), 760.0, 1080.0)
-			hook_y = 96.0
+			hook_x = clampf(sum_x / float(count), 900.0, 1120.0)
+			hook_y = 88.0
+	elif layout_name == "alcove":
+		hook_x = randf_range(460.0, 620.0)
+		hook_y = 118.0
 	var solved := _solve_lamp(hook_x, hook_y, float(lamp.radius), shelves)
 	var hook := Vector2(solved.x, hook_y)
 	_move_hook(hook)
@@ -1498,10 +1917,14 @@ func _move_hook(hook: Vector2) -> void:
 
 func _pick_window(hook: Vector2) -> Rect2:
 	if layout_name == "window_heavy":
-		var wide := randf_range(440.0, 520.0)
-		var tall := randf_range(170.0, 200.0)
-		var left := clampf(hook.x - wide * 0.45, 620.0, 1224.0 - wide)
-		return Rect2(left, 72.0, wide, tall)
+		var wide := randf_range(520.0, 620.0)
+		var tall := randf_range(200.0, 240.0)
+		var left := clampf(hook.x - wide * 0.62, 480.0, 1224.0 - wide)
+		return Rect2(left, 58.0, wide, tall)
+	if layout_name == "alcove":
+		var wide := randf_range(300.0, 380.0)
+		var tall := randf_range(170.0, 220.0)
+		return Rect2(48.0, 64.0, wide, tall)
 	var win_w := randf_range(228.0, 340.0)
 	var win_h := randf_range(108.0, 146.0)
 	var win_x := randf_range(56.0, 1224.0 - win_w)

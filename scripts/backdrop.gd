@@ -38,7 +38,20 @@ func _draw() -> void:
 	draw_rect(Rect2(1248, 0, 32, 720), FRAME)
 	draw_rect(Rect2(0, 0, 1280, 36), FRAME)
 	if layout_id == "split_bay":
-		draw_rect(Rect2(590, 160, 100, 470), Color(0.0, 0.0, 0.0, 0.22))
+		draw_rect(Rect2(590, 160, 100, 470), Color(0.0, 0.0, 0.0, 0.28))
+	if layout_id == "alcove":
+		draw_rect(Rect2(32, 36, 520, 590), Color(0.0, 0.0, 0.0, 0.24))
+	if layout_id == "stack_l":
+		draw_rect(Rect2(32, 36, 560, 590), Color(0.0, 0.0, 0.0, 0.16))
+	if layout_id == "stack_r":
+		draw_rect(Rect2(720, 36, 528, 590), Color(0.0, 0.0, 0.0, 0.16))
+	if layout_id == "sides":
+		draw_rect(Rect2(32, 100, 240, 500), Color(0.0, 0.0, 0.0, 0.16))
+		draw_rect(Rect2(1008, 100, 240, 500), Color(0.0, 0.0, 0.0, 0.16))
+	if layout_id == "stairs":
+		draw_line(Vector2(280, 540), Vector2(1120, 230), Color(0.0, 0.0, 0.0, 0.2), 36.0)
+	if layout_id == "market":
+		draw_rect(Rect2(48, 548, 1184, 22), Color(0.55, 0.34, 0.16, 0.35))
 
 	var window := window_rect
 	var glass := GLASS
@@ -59,7 +72,10 @@ func _draw() -> void:
 		for node in get_parent().get_children():
 			kids.append(node)
 	for child in kids:
-		if not child.visible:
+		if not child is CanvasItem:
+			continue
+		var item := child as CanvasItem
+		if not item.visible:
 			continue
 		if not child.has_method("is_shelf") or not child.is_shelf():
 			continue
@@ -78,7 +94,9 @@ func _draw() -> void:
 	draw_rect(Rect2(32, 626, 1216, 14), BOARD)
 	var floor := FLOOR
 	if layout_id == "floor_clutter":
-		floor = Color(0.24, 0.15, 0.10)
+		floor = Color(0.22, 0.13, 0.09)
+	elif layout_id == "market":
+		floor = Color(0.38, 0.24, 0.14)
 	draw_rect(Rect2(0, 640, 1280, 80), floor)
 	draw_line(Vector2(32, 640), Vector2(1248, 640), Color(0.62, 0.44, 0.28), 2.0)
 	if layout_id == "floor_clutter":
@@ -98,5 +116,15 @@ func _wall_color() -> Color:
 			return Color(0.12, 0.14, 0.18)
 		"window_heavy":
 			return Color(0.17, 0.15, 0.12)
+		"market":
+			return Color(0.28, 0.17, 0.10)
+		"alcove":
+			return Color(0.12, 0.11, 0.15)
+		"stairs":
+			return Color(0.15, 0.12, 0.10)
+		"sides":
+			return Color(0.13, 0.12, 0.15)
+		"stack_l", "stack_r":
+			return Color(0.16, 0.11, 0.09)
 		_:
 			return WALL

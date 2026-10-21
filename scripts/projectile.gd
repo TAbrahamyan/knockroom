@@ -4,6 +4,7 @@ const RADIUS := 15.0
 const Loadout := preload("res://scripts/loadout.gd")
 const PropScript := preload("res://scripts/prop.gd")
 const ItemIcon := preload("res://scripts/item_icon.gd")
+const AudioKit := preload("res://scripts/audio_kit.gd")
 
 var item_id := ""
 var _approach_speed := 0.0
@@ -128,6 +129,7 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 
 
 func _on_body_entered(body: Node) -> void:
+	AudioKit.play_impact()
 	if body.has_method("wake_from"):
 		body.call_deferred("wake_from", self)
 	if body.is_in_group("back_wall"):

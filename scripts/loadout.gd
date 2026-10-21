@@ -3,12 +3,18 @@ extends RefCounted
 ## One equipped item and the purse. Statics live on the script, so a scene
 ## reload keeps both without writing a save.
 
+const Locale := preload("res://scripts/locale.gd")
+
 static var item_id := ""
 static var item_name := ""
 static var item_tint := Color(1.0, 0.86, 0.42)
 static var money := 0
 static var last_earn := 0
 static var owned: PackedStringArray = PackedStringArray()
+static var music_volume := 40
+static var sfx_volume := 70
+## Session only. A reload returns to the menu when this is still true.
+static var start_in_menu := true
 
 ## speed scales the launch. mass scales the stone's 2.5 base.
 ## impact is extra hit speed on the first body. The rest are on-hit effects.
@@ -194,6 +200,16 @@ const META: Array = [
 		"tint": Color(0.78, 0.58, 0.36),
 	},
 	{
+		"id": "market",
+		"kind": "room",
+		"name": "Market Row",
+		"line": "A long low counter with the stock lined up on it.",
+		"blurb": "Next rooms can roll this",
+		"cost": 72,
+		"shape": "market",
+		"tint": Color(0.84, 0.62, 0.28),
+	},
+	{
 		"id": "split_bay",
 		"kind": "room",
 		"name": "Split Bay",
@@ -276,9 +292,7 @@ static func shape() -> String:
 
 
 static func coins(amount: int) -> String:
-	if amount == 1:
-		return "1 coin"
-	return "%d coins" % amount
+	return Locale.coins(amount)
 
 
 static func stone_radius() -> float:
@@ -347,6 +361,45 @@ static func throw_pool() -> Array:
 	return pool
 
 
+## Three cards. Base stones are always eligible. Owned unlocks are mixed in
+## and cost nothing to equip. Locked stones stay out. With no unlocks, this
+## is three base stones.
+static func throw_offers(count: int) -> Array:
+	var base: Array = []
+	var extras: Array = []
+	for offer in CATALOG:
+		var item: Dictionary = offer
+		var gate := str(item.get("unlock", ""))
+		if gate == "":
+			var plain: Dictionary = item.duplicate()
+			base.append(plain)
+		elif owns(gate):
+			var copy: Dictionary = item.duplicate()
+			copy["owned_stone"] = true
+			copy["price"] = 0
+			extras.append(copy)
+	var picks: Array = []
+	if extras.is_empty():
+		base.shuffle()
+		var n := mini(count, base.size())
+		for i in n:
+			picks.append(base[i])
+		return picks
+	extras.shuffle()
+	base.shuffle()
+	picks.append(extras[0])
+	var room := count - 1
+	var bi := 0
+	while room > 0 and bi < base.size():
+		picks.append(base[bi])
+		bi += 1
+		room -= 1
+	if extras.size() > 1 and picks.size() >= 3 and randf() < 0.55:
+		picks[1] = extras[1]
+	picks.shuffle()
+	return picks
+
+
 static func meta_offer(id: String) -> Dictionary:
 	for offer in META:
 		var item: Dictionary = offer
@@ -377,6 +430,9 @@ static func save_game() -> void:
 	cfg.set_value("purse", "item_name", item_name)
 	cfg.set_value("purse", "tint", item_tint)
 	cfg.set_value("unlocks", "ids", owned)
+	cfg.set_value("settings", "language", Locale.code)
+	cfg.set_value("settings", "music", music_volume)
+	cfg.set_value("settings", "sfx", sfx_volume)
 	cfg.save(SAVE_PATH)
 
 
@@ -397,3 +453,6 @@ static func load_game() -> void:
 	elif ids is Array:
 		for entry in ids:
 			owned.append(str(entry))
+	Locale.set_code(str(cfg.get_value("settings", "language", "en")))
+	music_volume = int(cfg.get_value("settings", "music", 40))
+	sfx_volume = int(cfg.get_value("settings", "sfx", 70))

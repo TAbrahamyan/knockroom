@@ -8,6 +8,8 @@ signal skipped
 signal meta_requested
 
 const Loadout := preload("res://scripts/loadout.gd")
+const Locale := preload("res://scripts/locale.gd")
+const AudioKit := preload("res://scripts/audio_kit.gd")
 
 const INK := Color(0.05, 0.03, 0.04, 1)
 const PANEL := Color(0.12, 0.078, 0.085, 0.98)
@@ -18,6 +20,7 @@ const CREAM := Color(0.95, 0.9, 0.82)
 const MUTED := Color(0.78, 0.70, 0.62)
 
 var _cards: Array[Button] = []
+var _shown: Array = []
 
 
 func _ready() -> void:
@@ -27,15 +30,14 @@ func _ready() -> void:
 
 
 func show_offers() -> void:
-	var pool: Array = Loadout.throw_pool()
-	pool.shuffle()
+	_shown = Loadout.throw_offers(3)
+	apply_language()
 	for i in _cards.size():
-		_fill_card(_cards[i], pool[i])
-	var sub := get_node("Root/Panel/Sub") as Label
-	if Loadout.last_earn > 0:
-		sub.text = "Earned %s.  You have %s." % [Loadout.coins(Loadout.last_earn), Loadout.coins(Loadout.money)]
-	else:
-		sub.text = "You have %s. Buy one, or skip." % Loadout.coins(Loadout.money)
+		if i < _shown.size():
+			_fill_card(_cards[i], _shown[i])
+			_cards[i].visible = true
+		else:
+			_cards[i].visible = false
 	var root := get_node("Root") as Control
 	root.modulate = Color(1, 1, 1, 0)
 	visible = true
@@ -43,24 +45,61 @@ func show_offers() -> void:
 	tween.tween_property(root, "modulate:a", 1.0, 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
+func apply_language() -> void:
+	var title := get_node_or_null("Root/Panel/Title") as Label
+	if title:
+		title.text = Locale.text("shop.title")
+	var skip := get_node_or_null("Root/Panel/Skip") as Button
+	if skip:
+		skip.text = Locale.text("shop.skip")
+	var meta := get_node_or_null("Root/Panel/Meta") as Button
+	if meta:
+		meta.text = Locale.text("menu.meta")
+	_write_sub()
+	for i in _cards.size():
+		if i < _shown.size():
+			_fill_card(_cards[i], _shown[i])
+
+
+func _write_sub() -> void:
+	var sub := get_node_or_null("Root/Panel/Sub") as Label
+	if sub == null:
+		return
+	if Loadout.last_earn > 0:
+		sub.text = Locale.format("shop.earned", [Loadout.coins(Loadout.last_earn), Loadout.coins(Loadout.money)])
+	else:
+		sub.text = Locale.format("shop.have", [Loadout.coins(Loadout.money)])
+
+
 func _fill_card(card: Button, offer: Dictionary) -> void:
+	var owned_flag: bool = offer.get("owned_stone", false) == true
 	var price := int(offer["price"])
-	var afford := Loadout.can_afford(price)
-	card.set_meta("item_id", str(offer["id"]))
+	var afford := true if owned_flag else Loadout.can_afford(price)
+	var item_id := str(offer["id"])
+	card.set_meta("item_id", item_id)
 	card.set_meta("item_name", str(offer["name"]))
 	card.set_meta("item_tint", offer["tint"])
 	card.set_meta("price", price)
+	card.set_meta("owned_stone", owned_flag)
 	card.disabled = not afford
 	card.modulate = Color(1, 1, 1, 1) if afford else Color(1, 1, 1, 0.45)
 	card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if afford else Control.CURSOR_ARROW
-	card.get_node("Title").text = str(offer["name"])
-	card.get_node("Line").text = str(offer["line"])
+	card.get_node("Title").text = Locale.item_name(item_id)
+	card.get_node("Line").text = Locale.line_for(item_id)
+	var tag := card.get_node("Tag") as Label
+	tag.visible = owned_flag
+	tag.text = Locale.text("shop.owned")
+	var bg := card.get_node("Bg") as ColorRect
+	bg.color = _card_rest(card)
 	var take := card.get_node("Take") as Label
-	if afford:
-		take.text = "Buy  %s" % Loadout.coins(price)
+	if owned_flag:
+		take.text = Locale.text("shop.equip")
+		take.add_theme_color_override("font_color", GOLD)
+	elif afford:
+		take.text = Locale.format("shop.buy", [Loadout.coins(price)])
 		take.add_theme_color_override("font_color", GOLD)
 	else:
-		take.text = "Need %s" % Loadout.coins(price)
+		take.text = Locale.format("shop.need", [Loadout.coins(price)])
 		take.add_theme_color_override("font_color", MUTED)
 	var glyph = card.get_node("Glyph")
 	glyph.tint = offer["tint"]
@@ -68,9 +107,28 @@ func _fill_card(card: Button, offer: Dictionary) -> void:
 	glyph.queue_redraw()
 
 
+func _card_rest(card: Button) -> Color:
+	var owned_flag := false
+	if card.has_meta("owned_stone"):
+		owned_flag = card.get_meta("owned_stone") == true
+	if owned_flag:
+		return Color(0.34, 0.24, 0.12)
+	return CARD
+
+
+func _card_hover(card: Button) -> Color:
+	var owned_flag := false
+	if card.has_meta("owned_stone"):
+		owned_flag = card.get_meta("owned_stone") == true
+	if owned_flag:
+		return Color(0.44, 0.31, 0.16)
+	return CARD_HOVER
+
+
 func _on_take(card: Button) -> void:
 	if not visible or card.disabled:
 		return
+	AudioKit.play_click()
 	var price := int(card.get_meta("price"))
 	if not Loadout.can_afford(price):
 		return
@@ -81,6 +139,7 @@ func _on_take(card: Button) -> void:
 func _on_skip() -> void:
 	if not visible:
 		return
+	AudioKit.play_click()
 	visible = false
 	skipped.emit()
 
@@ -88,6 +147,7 @@ func _on_skip() -> void:
 func _on_meta() -> void:
 	if not visible:
 		return
+	AudioKit.play_click()
 	meta_requested.emit()
 
 
@@ -124,10 +184,11 @@ func _build_ui() -> void:
 	wash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(wash)
 
-	var title := _label("For the next throw", 32, GOLD, Vector2(24, 22), Vector2(772, 42))
+	var title := _label("", 32, GOLD, Vector2(24, 22), Vector2(772, 42))
+	title.name = "Title"
 	panel.add_child(title)
 
-	var sub := _label("You have 0 coins. Buy one, or skip.", 16, MUTED, Vector2(24, 68), Vector2(772, 26))
+	var sub := _label("", 16, MUTED, Vector2(24, 68), Vector2(772, 26))
 	sub.name = "Sub"
 	panel.add_child(sub)
 
@@ -138,7 +199,7 @@ func _build_ui() -> void:
 
 	var skip := Button.new()
 	skip.name = "Skip"
-	skip.text = "Skip"
+	skip.text = ""
 	skip.focus_mode = Control.FOCUS_NONE
 	skip.flat = true
 	skip.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -154,7 +215,7 @@ func _build_ui() -> void:
 
 	var meta := Button.new()
 	meta.name = "Meta"
-	meta.text = "Meta shop"
+	meta.text = ""
 	meta.focus_mode = Control.FOCUS_NONE
 	meta.flat = true
 	meta.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -167,6 +228,7 @@ func _build_ui() -> void:
 	meta.add_theme_color_override("font_pressed_color", GOLD)
 	meta.pressed.connect(_on_meta)
 	panel.add_child(meta)
+	apply_language()
 
 
 func _card(slot: int) -> Button:
@@ -195,7 +257,12 @@ func _card(slot: int) -> Button:
 	glyph.custom_minimum_size = glyph.size
 	button.add_child(glyph)
 
-	var title := _label("", 20, CREAM, Vector2(12, 96), Vector2(220, 52))
+	var tag := _label("", 13, GOLD, Vector2(12, 78), Vector2(220, 20))
+	tag.name = "Tag"
+	tag.visible = false
+	button.add_child(tag)
+
+	var title := _label("", 20, CREAM, Vector2(12, 100), Vector2(220, 48))
 	title.name = "Title"
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	button.add_child(title)
@@ -212,9 +279,9 @@ func _card(slot: int) -> Button:
 	button.mouse_entered.connect(func() -> void:
 		if button.disabled:
 			return
-		bg.color = CARD_HOVER
+		bg.color = _card_hover(button)
 	)
-	button.mouse_exited.connect(func() -> void: bg.color = CARD)
+	button.mouse_exited.connect(func() -> void: bg.color = _card_rest(button))
 	button.pressed.connect(_on_take.bind(button))
 	return button
 
