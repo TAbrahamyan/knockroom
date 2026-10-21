@@ -432,6 +432,15 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	_recent_speed = maxf(state.linear_velocity.length(), _recent_speed * 0.85)
 
 
+func crack_open() -> void:
+	if not shatters or _shattered:
+		return
+	if not counted:
+		_join_chain()
+	else:
+		call_deferred("_shatter")
+
+
 func _join_chain() -> void:
 	if counted:
 		return

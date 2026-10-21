@@ -45,7 +45,7 @@ func launch_velocity(velocity: Vector2) -> void:
 	var stone := PROJECTILE.instantiate() as RigidBody2D
 	stone.position = position
 	get_parent().add_child(stone)
-	stone.launch(velocity)
+	stone.launch(velocity * Loadout.speed_scale())
 	stone_launched.emit(stone)
 	queue_redraw()
 
@@ -79,15 +79,22 @@ func _draw() -> void:
 	var wood := Color(0.62, 0.40, 0.22, alpha)
 	draw_line(Vector2(-22, -28), Vector2.ZERO, wood, 5.0)
 	draw_line(Vector2(-22, 28), Vector2.ZERO, wood, 5.0)
+	var stone_r := 15.0
 	if can_aim or aiming:
-		draw_circle(Vector2.ZERO, 15.0, Color(0.82, 0.84, 0.88, alpha))
+		var fill := Color(0.82, 0.84, 0.88, alpha)
+		if Loadout.item_id != "":
+			stone_r = Loadout.stone_radius()
+			fill = Color(0.82, 0.84, 0.88).lerp(Loadout.item_tint, 0.62)
+			fill.a = alpha
+		draw_circle(Vector2.ZERO, stone_r, fill)
 		draw_circle(Vector2(-4, -3), 4.0, Color(1, 1, 1, alpha * 0.85))
 		if Loadout.item_id != "":
-			var mark := Vector2(18.0, 14.0)
+			draw_arc(Vector2.ZERO, stone_r + 5.0, 0.0, TAU, 28, Color(Loadout.item_tint.r, Loadout.item_tint.g, Loadout.item_tint.b, alpha), 3.0)
+			var mark := Vector2(stone_r + 3.0, stone_r - 1.0)
 			draw_circle(mark, 7.4, Color(0.08, 0.04, 0.03, alpha))
 			draw_circle(mark, 5.4, Loadout.item_tint)
 	if can_aim and not aiming:
-		draw_arc(Vector2.ZERO, 27.0, 0.0, TAU, 28, Color(1.0, 0.86, 0.42, 0.38), 2.0)
+		draw_arc(Vector2.ZERO, stone_r + 12.0, 0.0, TAU, 28, Color(1.0, 0.86, 0.42, 0.38), 2.0)
 		var font := ThemeDB.fallback_font
 		if font:
 			draw_string(font, Vector2(-30, 52), "pull", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 0.9, 0.55, alpha))
@@ -109,7 +116,7 @@ func _draw() -> void:
 	var width := lerpf(5.0, 16.0, hot)
 	draw_line(Vector2.ZERO, shown, band, width)
 	draw_circle(shown, lerpf(7.0, 13.0, hot), band)
-	var velocity := _velocity_from_mouse()
+	var velocity := _velocity_from_mouse() * Loadout.speed_scale()
 	if velocity == Vector2.ZERO:
 		return
 	_draw_arrow(-shown.normalized() * 36.0, -shown.normalized())

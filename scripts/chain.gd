@@ -27,8 +27,11 @@ func add_link(prop: Node2D) -> void:
 		round.add_shake(_shake_for(count), count)
 
 
-func show_result() -> void:
-	result.text = _phrase(count)
+func show_result(earned: int = 0) -> void:
+	var line := _phrase(count)
+	if earned > 0:
+		line += "    +$%d" % earned
+	result.text = line
 	result.add_theme_color_override("font_color", _color_for(count))
 	result.modulate = Color(1, 1, 1, 0)
 	var tween := create_tween()

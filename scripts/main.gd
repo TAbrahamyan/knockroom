@@ -14,7 +14,7 @@ const HINT_READY := "Hold LMB and pull back — stone flies backward.   R — re
 const HINT_AIM := "Release to throw"
 const HINT_WATCH := "Watch the chain"
 const HINT_LOOK := "Watch the result"
-const HINT_SHOP := "Pick one for the next throw, or skip"
+const HINT_SHOP := "Buy one for the next throw, or skip"
 const WARM_FRAMES := 45
 const LOOK_TIME := 2.6
 const SHAKE_TIME := 0.2
@@ -39,6 +39,7 @@ var _shake_cap := 8.0
 var _shaking := false
 var _shop
 var _equipped: Label
+var _money: Label
 
 @onready var thrower: Node2D = $Thrower
 @onready var chain: Node2D = $Chain
@@ -53,6 +54,7 @@ func _ready() -> void:
 	chain.set_hint(HINT_READY)
 	_build_shop()
 	_build_equipped()
+	_build_money()
 	_randomize_room()
 
 
@@ -120,7 +122,9 @@ func _finish() -> void:
 	phase = Phase.SETTLED
 	thrower.can_aim = false
 	_look = _look_for(chain.count)
-	chain.show_result()
+	var earned := Loadout.earn(chain.count)
+	chain.show_result(earned)
+	_refresh_money(true)
 	chain.set_hint(HINT_LOOK)
 
 
@@ -213,10 +217,10 @@ func _build_equipped() -> void:
 	label.name = "Equipped"
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	label.offset_left = -340.0
-	label.offset_top = 8.0
+	label.offset_left = -360.0
+	label.offset_top = 32.0
 	label.offset_right = -16.0
-	label.offset_bottom = 34.0
+	label.offset_bottom = 58.0
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.add_theme_font_size_override("font_size", 15)
@@ -226,6 +230,36 @@ func _build_equipped() -> void:
 	chain.get_node("UI/Root").add_child(label)
 	_equipped = label
 	_refresh_equipped()
+
+
+func _build_money() -> void:
+	var label := Label.new()
+	label.name = "Money"
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	label.offset_left = -220.0
+	label.offset_top = 6.0
+	label.offset_right = -16.0
+	label.offset_bottom = 32.0
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 18)
+	label.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
+	label.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.04, 0.9))
+	label.add_theme_constant_override("outline_size", 5)
+	chain.get_node("UI/Root").add_child(label)
+	_money = label
+	_refresh_money(false)
+
+
+func _refresh_money(punch: bool) -> void:
+	_money.text = "$%d" % Loadout.money
+	if not punch or Loadout.last_earn <= 0:
+		return
+	_money.pivot_offset = Vector2(180.0, 13.0)
+	_money.scale = Vector2(1.22, 1.22)
+	var tween := create_tween()
+	tween.tween_property(_money, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _refresh_equipped() -> void:
@@ -246,6 +280,9 @@ func _open_shop() -> void:
 
 func _on_shop_picked(item_id: String, item_name: String, item_tint: Color) -> void:
 	if not _shop_open or _reloading:
+		return
+	if not Loadout.spend(Loadout.price_of(item_id)):
+		_shop.visible = true
 		return
 	Loadout.equip(item_id, item_name, item_tint)
 	_reset()

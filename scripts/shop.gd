@@ -1,10 +1,12 @@
 extends CanvasLayer
 
-## Three offers after a throw settles. Picking equips one item. Skipping leaves
-## the previous choice alone. Nothing here spends money or applies an effect.
+## Three priced offers after a throw settles. Buying equips the item for the
+## next throw and spends money. Skipping leaves the purse and the item alone.
 
 signal picked(item_id: String, item_name: String, item_tint: Color)
 signal skipped
+
+const Loadout := preload("res://scripts/loadout.gd")
 
 const INK := Color(0.05, 0.03, 0.04, 1)
 const PANEL := Color(0.12, 0.078, 0.085, 0.98)
@@ -13,17 +15,6 @@ const CARD_HOVER := Color(0.28, 0.17, 0.17, 1)
 const GOLD := Color(1.0, 0.86, 0.42)
 const CREAM := Color(0.95, 0.9, 0.82)
 const MUTED := Color(0.78, 0.70, 0.62)
-
-const CATALOG := [
-	{"id": "heavy_stone", "name": "Heavy Stone", "line": "A denser throw.", "mark": 0, "tint": Color(0.38, 0.34, 0.32)},
-	{"id": "light_stone", "name": "Light Stone", "line": "Quicker off the sling.", "mark": 0, "tint": Color(0.86, 0.82, 0.74)},
-	{"id": "sticky_stone", "name": "Sticky Stone", "line": "Holds the first hit.", "mark": 1, "tint": Color(0.72, 0.46, 0.26)},
-	{"id": "glass_charm", "name": "Glass Charm", "line": "Bottles mind it.", "mark": 3, "tint": Color(0.62, 0.84, 0.90)},
-	{"id": "wide_sweet", "name": "Wide Sweet", "line": "A wider place to aim.", "mark": 2, "tint": Color(0.96, 0.78, 0.28)},
-	{"id": "high_pop", "name": "High Pop", "line": "Floor props jump more.", "mark": 1, "tint": Color(0.96, 0.46, 0.20)},
-	{"id": "lamp_oil", "name": "Lamp Oil", "line": "The lamp swings harder.", "mark": 0, "tint": Color(1.0, 0.82, 0.32)},
-	{"id": "chain_chip", "name": "Chain Chip", "line": "The count starts ahead.", "mark": 2, "tint": Color(0.95, 0.86, 0.42)},
-]
 
 var _cards: Array[Button] = []
 
@@ -35,10 +26,15 @@ func _ready() -> void:
 
 
 func show_offers() -> void:
-	var pool: Array = CATALOG.duplicate()
+	var pool: Array = Loadout.CATALOG.duplicate()
 	pool.shuffle()
 	for i in _cards.size():
 		_fill_card(_cards[i], pool[i])
+	var sub := get_node("Root/Panel/Sub") as Label
+	if Loadout.last_earn > 0:
+		sub.text = "Earned $%d.  You have $%d." % [Loadout.last_earn, Loadout.money]
+	else:
+		sub.text = "You have $%d. Buy one, or skip." % Loadout.money
 	var root := get_node("Root") as Control
 	root.modulate = Color(1, 1, 1, 0)
 	visible = true
@@ -47,11 +43,24 @@ func show_offers() -> void:
 
 
 func _fill_card(card: Button, offer: Dictionary) -> void:
+	var price := int(offer["price"])
+	var afford := Loadout.can_afford(price)
 	card.set_meta("item_id", str(offer["id"]))
 	card.set_meta("item_name", str(offer["name"]))
 	card.set_meta("item_tint", offer["tint"])
+	card.set_meta("price", price)
+	card.disabled = not afford
+	card.modulate = Color(1, 1, 1, 1) if afford else Color(1, 1, 1, 0.45)
+	card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if afford else Control.CURSOR_ARROW
 	card.get_node("Title").text = str(offer["name"])
 	card.get_node("Line").text = str(offer["line"])
+	var take := card.get_node("Take") as Label
+	if afford:
+		take.text = "Buy  $%d" % price
+		take.add_theme_color_override("font_color", GOLD)
+	else:
+		take.text = "Need $%d" % price
+		take.add_theme_color_override("font_color", MUTED)
 	var glyph = card.get_node("Glyph")
 	glyph.tint = offer["tint"]
 	glyph.mark = int(offer["mark"])
@@ -59,7 +68,10 @@ func _fill_card(card: Button, offer: Dictionary) -> void:
 
 
 func _on_take(card: Button) -> void:
-	if not visible:
+	if not visible or card.disabled:
+		return
+	var price := int(card.get_meta("price"))
+	if not Loadout.can_afford(price):
 		return
 	visible = false
 	picked.emit(str(card.get_meta("item_id")), str(card.get_meta("item_name")), card.get_meta("item_tint"))
@@ -108,7 +120,8 @@ func _build_ui() -> void:
 	var title := _label("For the next throw", 32, GOLD, Vector2(24, 22), Vector2(772, 42))
 	panel.add_child(title)
 
-	var sub := _label("Pick one. Effects come later.", 16, MUTED, Vector2(24, 68), Vector2(772, 26))
+	var sub := _label("You have $0. Buy one, or skip.", 16, MUTED, Vector2(24, 68), Vector2(772, 26))
+	sub.name = "Sub"
 	panel.add_child(sub)
 
 	for i in 3:
@@ -169,10 +182,15 @@ func _card(slot: int) -> Button:
 	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	button.add_child(line)
 
-	var take := _label("Take", 16, GOLD, Vector2(12, 216), Vector2(220, 28))
+	var take := _label("Buy", 16, GOLD, Vector2(12, 216), Vector2(220, 28))
+	take.name = "Take"
 	button.add_child(take)
 
-	button.mouse_entered.connect(func() -> void: bg.color = CARD_HOVER)
+	button.mouse_entered.connect(func() -> void:
+		if button.disabled:
+			return
+		bg.color = CARD_HOVER
+	)
 	button.mouse_exited.connect(func() -> void: bg.color = CARD)
 	button.pressed.connect(_on_take.bind(button))
 	return button
