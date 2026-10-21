@@ -7,6 +7,7 @@ enum Phase { WARMUP, READY, AIMING, WATCHING, SETTLED }
 
 const Loadout := preload("res://scripts/loadout.gd")
 const ShopScript := preload("res://scripts/shop.gd")
+const MetaScript := preload("res://scripts/meta_shop.gd")
 const PROP_SCENE := preload("res://scenes/prop.tscn")
 const PropScript := preload("res://scripts/prop.gd")
 
@@ -38,8 +39,11 @@ var _shake_duration := 0.2
 var _shake_cap := 8.0
 var _shaking := false
 var _shop
+var _meta
+var _meta_button: Button
 var _equipped: Label
 var _money: Label
+var layout_name := ""
 
 @onready var thrower: Node2D = $Thrower
 @onready var chain: Node2D = $Chain
@@ -47,18 +51,22 @@ var _money: Label
 
 
 func _ready() -> void:
+	Loadout.load_game()
 	$Camera2D.make_current()
 	thrower.stone_launched.connect(_on_stone_launched)
 	thrower.aim_started.connect(_on_aim_started)
 	thrower.aim_ended.connect(_on_aim_ended)
 	chain.set_hint(HINT_READY)
 	_build_shop()
+	_build_meta()
 	_build_equipped()
 	_build_money()
 	_randomize_room()
 
 
 func _input(event: InputEvent) -> void:
+	if _meta != null and _meta.visible:
+		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_R:
 		_reset()
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
@@ -69,6 +77,9 @@ func _input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	if _meta_button != null:
+		var busy := phase == Phase.WARMUP or phase == Phase.AIMING or phase == Phase.WATCHING
+		_meta_button.disabled = busy or (_meta != null and _meta.visible)
 	if _look > 0.0:
 		_look = maxf(0.0, _look - delta)
 		if _look == 0.0 and phase == Phase.SETTLED and not _shop_open:
@@ -210,6 +221,65 @@ func _build_shop() -> void:
 	add_child(_shop)
 	_shop.picked.connect(_on_shop_picked)
 	_shop.skipped.connect(_on_shop_skipped)
+	_shop.meta_requested.connect(_open_meta)
+
+
+func _build_meta() -> void:
+	_meta = MetaScript.new()
+	_meta.name = "MetaShop"
+	add_child(_meta)
+	_meta.closed.connect(_on_meta_closed)
+	_meta.new_room.connect(_reset)
+	_meta.unlocked.connect(_on_meta_unlocked)
+
+	var button := Button.new()
+	button.name = "MetaButton"
+	button.text = "Meta"
+	button.focus_mode = Control.FOCUS_NONE
+	button.flat = true
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var empty := StyleBoxEmpty.new()
+	button.add_theme_stylebox_override("normal", empty)
+	button.add_theme_stylebox_override("hover", empty)
+	button.add_theme_stylebox_override("pressed", empty)
+	button.add_theme_stylebox_override("focus", empty)
+	button.add_theme_stylebox_override("disabled", empty)
+	button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	button.offset_left = 16.0
+	button.offset_top = 40.0
+	button.offset_right = 132.0
+	button.offset_bottom = 74.0
+	button.add_theme_font_size_override("font_size", 18)
+	button.add_theme_color_override("font_color", Color(0.95, 0.9, 0.82))
+	button.add_theme_color_override("font_hover_color", Color(1.0, 0.86, 0.42))
+	button.add_theme_color_override("font_pressed_color", Color(1.0, 0.86, 0.42))
+	button.add_theme_color_override("font_disabled_color", Color(0.55, 0.5, 0.46))
+	button.pressed.connect(_open_meta)
+	chain.get_node("UI/Root").add_child(button)
+	_meta_button = button
+
+
+func _open_meta() -> void:
+	if _reloading or _meta == null:
+		return
+	if phase == Phase.WARMUP or phase == Phase.AIMING or phase == Phase.WATCHING:
+		return
+	thrower.aiming = false
+	thrower.can_aim = false
+	_meta.open_shop()
+
+
+func _on_meta_closed() -> void:
+	if _shop_open:
+		thrower.can_aim = false
+		return
+	if phase == Phase.READY:
+		thrower.can_aim = true
+		chain.set_hint(HINT_READY)
+
+
+func _on_meta_unlocked(_id: String) -> void:
+	_refresh_money(true)
 
 
 func _build_equipped() -> void:
@@ -317,23 +387,7 @@ func _randomize_room() -> void:
 	high.park_shelf()
 	if extra != null:
 		extra.park_shelf()
-	var roll := randi() % 6
-	if extra == null and (roll == 1 or roll == 4):
-		roll = 0
-	var active: Array = []
-	match roll:
-		0:
-			active = _layout_long(wide)
-		1:
-			active = _layout_sides(high, extra)
-		2:
-			active = _layout_stack(high, wide, true)
-		3:
-			active = _layout_stack(high, wide, false)
-		4:
-			active = _layout_stairs(high, extra, wide)
-		_:
-			active = _layout_balcony(high, wide)
+	var active: Array = _roll_layout(wide, high, extra)
 	_separate_overlapping(active)
 	active.sort_custom(func(a, b): return a.global_position.y < b.global_position.y)
 	var hook := Vector2(640, 140)
@@ -725,6 +779,74 @@ func _pick_sweet_spots(upper) -> void:
 	spot_x = clampf(spot_x, left + 36.0, right - 36.0)
 	# 18px is about one stone. A careful aim lands it. A guess along the plank does not.
 	upper.set_sweet_spots([spot_x], [18.0])
+
+
+func _roll_layout(wide, high, extra) -> Array:
+	var names: Array = ["long", "sides", "stack_l", "stack_r", "stairs", "balcony"]
+	if Loadout.owns("low_loft"):
+		names.append("low_loft")
+	if Loadout.owns("split_bay"):
+		names.append("split_bay")
+	var pick := str(names[randi() % names.size()])
+	if extra == null and (pick == "sides" or pick == "stairs"):
+		pick = "long"
+	layout_name = pick
+	match pick:
+		"sides":
+			return _layout_sides(high, extra)
+		"stack_l":
+			return _layout_stack(high, wide, true)
+		"stack_r":
+			return _layout_stack(high, wide, false)
+		"stairs":
+			return _layout_stairs(high, extra, wide)
+		"balcony":
+			return _layout_balcony(high, wide)
+		"low_loft":
+			return _layout_low_loft(high, wide)
+		"split_bay":
+			return _layout_split_bay(high, wide)
+		_:
+			return _layout_long(wide)
+
+
+func _layout_low_loft(short, long_shelf) -> Array:
+	# Both planks stay in the lower half, so the drop is short and the floor is close.
+	var lw := randf_range(460.0, 580.0)
+	var sw := randf_range(180.0, 250.0)
+	var ly := randf_range(458.0, 492.0)
+	var hy := randf_range(348.0, 392.0)
+	var max_center := 1210.0 - lw * 0.5
+	var min_center := 430.0 + lw * 0.5
+	if min_center > max_center:
+		min_center = max_center
+	var lx := randf_range(min_center, max_center)
+	var sx := clampf(lx + randf_range(-90.0, 90.0), 340.0 + sw * 0.5, 1180.0 - sw * 0.5)
+	_use_shelf(short, sx, hy, sw)
+	_use_shelf(long_shelf, lx, ly, lw)
+	_keep_stacked(short, long_shelf, 64.0)
+	return [short, long_shelf]
+
+
+func _layout_split_bay(left_shelf, right_shelf) -> Array:
+	# A clear vertical gap in the middle. Nothing bridges the two sides.
+	var w_left := randf_range(170.0, 230.0)
+	var w_right := randf_range(190.0, 270.0)
+	var left_max := 560.0 - w_left * 0.5
+	var left_min := 300.0 + w_left * 0.5
+	if left_min > left_max:
+		left_min = left_max
+	var right_min := 900.0 + w_right * 0.5
+	var right_max := 1200.0 - w_right * 0.5
+	if right_min > right_max:
+		right_min = right_max
+	var x_left := randf_range(left_min, left_max)
+	var x_right := randf_range(right_min, right_max)
+	var y_left := randf_range(240.0, 340.0)
+	var y_right := randf_range(300.0, 430.0)
+	_use_shelf(left_shelf, x_left, y_left, w_left)
+	_use_shelf(right_shelf, x_right, y_right, w_right)
+	return [left_shelf, right_shelf]
 
 
 func _layout_long(wide) -> Array:

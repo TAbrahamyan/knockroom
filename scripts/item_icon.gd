@@ -39,6 +39,25 @@ static func draw(canvas: CanvasItem, center: Vector2, radius: float, shape: Stri
 				center + Vector2(-inner * 0.52, -inner * 0.08),
 			]), tint)
 			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.16, -inner * 0.02), Vector2(inner * 0.32, inner * 0.64)), tint)
+		"cork":
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.46, -inner * 0.78), Vector2(inner * 0.92, inner * 0.28)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.26, -inner * 0.46), Vector2(inner * 0.52, inner * 1.05)), tint)
+		"needle":
+			canvas.draw_colored_polygon(PackedVector2Array([
+				center + Vector2(0.0, -inner * 0.9),
+				center + Vector2(inner * 0.16, inner * 0.15),
+				center + Vector2(0.0, inner * 0.72),
+				center + Vector2(-inner * 0.16, inner * 0.15),
+			]), tint)
+		"thud":
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.42, -inner * 0.42), Vector2(inner * 0.84, inner * 0.84)), tint)
+			canvas.draw_line(center + Vector2(-inner * 0.16, -inner * 0.2), center + Vector2(inner * 0.22, inner * 0.18), Color(0.05, 0.03, 0.04), weight)
+		"loft":
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.55, inner * 0.05), Vector2(inner * 0.7, inner * 0.16)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.2, inner * 0.42), Vector2(inner * 0.85, inner * 0.16)), tint)
+		"bay":
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.78, -inner * 0.08), Vector2(inner * 0.38, inner * 0.16)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(inner * 0.28, inner * 0.22), Vector2(inner * 0.46, inner * 0.16)), tint)
 		_:
 			canvas.draw_circle(center, inner * 0.62, tint)
 

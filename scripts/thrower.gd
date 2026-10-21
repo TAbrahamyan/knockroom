@@ -25,7 +25,7 @@ func _process(_delta: float) -> void:
 	queue_redraw()
 
 
-func _input(event: InputEvent) -> void:
+func _unhandled_input(event: InputEvent) -> void:
 	if flying:
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:

@@ -8,7 +8,7 @@ Open the project in Godot 4.7 and run `scenes/main.tscn`.
 
 Hold the left mouse button, pull back from the slingshot, and release. The stone flies the opposite way. When the room settles, the result shows the chain and the coins just earned. The shop then offers three stones. Buy one you can afford, or skip. The room is rebuilt, and the stone you bought changes the next throw.
 
-R restarts the room. Coins and the equipped stone stay for the session.
+R restarts the room. Coins, the equipped stone, and meta unlocks are saved.
 
 ## Room
 
@@ -34,7 +34,24 @@ The equipped stone is tinted, carries an icon for what it does, and is named in 
 | Heavy Stone | 13 coins | Heavier, shorter flight, harder hit |
 | Magnet Stone | 16 coins | Pulls nearby props in after a hit |
 | Blast Stone | 19 coins | Shoves nearby props on impact |
+| Cork Stone | 8 coins | Stops where it lands. Unlocked in the meta shop |
+| Needle Stone | 9 coins | Small and fast. Unlocked in the meta shop |
+| Thud Stone | 10 coins | A harder first hit. Unlocked in the meta shop |
+
+## Meta shop
+
+The Meta button, and Meta shop on the throw shop, open a separate list. Coins spent there stay spent. Unlocks stay after you close the game.
+
+| Unlock | Cost | What it does |
+| --- | --- | --- |
+| Cork Stone | 22 coins | Joins the throw shop |
+| Low Loft | 24 coins | Shelves sit close to the floor |
+| Needle Stone | 30 coins | Joins the throw shop |
+| Split Bay | 34 coins | Two shelves with a wide gap between them |
+| Thud Stone | 38 coins | Joins the throw shop |
+
+A full clear pays 11, so the cheapest unlock takes more than one strong throw. Back returns to the room. New room rolls the layout again, including anything you just unlocked.
 
 ## Still one room
 
-This is the single-room loop. There is no run of many rooms and no meta unlocks.
+This is still one room and one throw. The meta shop only adds stones and shelf layouts to that loop.

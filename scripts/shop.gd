@@ -5,6 +5,7 @@ extends CanvasLayer
 
 signal picked(item_id: String, item_name: String, item_tint: Color)
 signal skipped
+signal meta_requested
 
 const Loadout := preload("res://scripts/loadout.gd")
 
@@ -26,7 +27,7 @@ func _ready() -> void:
 
 
 func show_offers() -> void:
-	var pool: Array = Loadout.CATALOG.duplicate()
+	var pool: Array = Loadout.throw_pool()
 	pool.shuffle()
 	for i in _cards.size():
 		_fill_card(_cards[i], pool[i])
@@ -84,6 +85,12 @@ func _on_skip() -> void:
 	skipped.emit()
 
 
+func _on_meta() -> void:
+	if not visible:
+		return
+	meta_requested.emit()
+
+
 func _build_ui() -> void:
 	var root := Control.new()
 	root.name = "Root"
@@ -136,7 +143,7 @@ func _build_ui() -> void:
 	skip.flat = true
 	skip.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_clear_button(skip)
-	skip.position = Vector2(310, 392)
+	skip.position = Vector2(150, 392)
 	skip.size = Vector2(200, 40)
 	skip.add_theme_font_size_override("font_size", 18)
 	skip.add_theme_color_override("font_color", CREAM)
@@ -144,6 +151,22 @@ func _build_ui() -> void:
 	skip.add_theme_color_override("font_pressed_color", GOLD)
 	skip.pressed.connect(_on_skip)
 	panel.add_child(skip)
+
+	var meta := Button.new()
+	meta.name = "Meta"
+	meta.text = "Meta shop"
+	meta.focus_mode = Control.FOCUS_NONE
+	meta.flat = true
+	meta.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_clear_button(meta)
+	meta.position = Vector2(470, 392)
+	meta.size = Vector2(220, 40)
+	meta.add_theme_font_size_override("font_size", 18)
+	meta.add_theme_color_override("font_color", CREAM)
+	meta.add_theme_color_override("font_hover_color", GOLD)
+	meta.add_theme_color_override("font_pressed_color", GOLD)
+	meta.pressed.connect(_on_meta)
+	panel.add_child(meta)
 
 
 func _card(slot: int) -> Button:
