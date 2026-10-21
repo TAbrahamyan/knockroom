@@ -41,6 +41,9 @@ The equipped stone is tinted, carries an icon for what it does, and is named in 
 | Cork Stone | 8 coins | Stops where it lands. Unlocked in the meta shop |
 | Needle Stone | 9 coins | Small and fast. Unlocked in the meta shop |
 | Thud Stone | 10 coins | A harder first hit. Unlocked in the meta shop |
+| Split Stone | 11 coins | Splits into two smaller stones on the first hit. Unlocked in the meta shop |
+| Sticky Stone | 12 coins | Sticks to the first thing it hits, then they fall together. Unlocked in the meta shop |
+| Bounce Stone | 13 coins | Bounces hard and keeps rebounding. Unlocked in the meta shop |
 
 ## Meta shop
 
@@ -57,6 +60,9 @@ The corner icon opens a centered menu: Meta Shop, Restart Room, Settings, and Ma
 | Split Bay | Room | 78 coins | Two shelves far apart, at different heights |
 | Window Heavy | Room | 88 coins | A large window with the shelves crowded under it |
 | Thud Stone | Stone | 98 coins | Joins the throw shop. Equipping it there is free |
+| Split Stone | Stone | 112 coins | Joins the throw shop. Equipping it there is free |
+| Sticky Stone | Stone | 126 coins | Joins the throw shop. Equipping it there is free |
+| Bounce Stone | Stone | 140 coins | Joins the throw shop. Equipping it there is free |
 
 A full clear pays 11. Two clears are 22, so the first unlock takes a third strong throw. Later unlocks cost more. Owned rows stay marked Owned. Back returns to where you were. New room rolls the layout again from the default shelves plus anything you just unlocked. The throw shop mixes the eight base stones with stones you already own, and never shows a locked stone. An owned stone is marked Owned and equipped for the next throw without another coin cost.
 

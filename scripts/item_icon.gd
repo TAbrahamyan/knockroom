@@ -52,6 +52,20 @@ static func draw(canvas: CanvasItem, center: Vector2, radius: float, shape: Stri
 		"thud":
 			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.42, -inner * 0.42), Vector2(inner * 0.84, inner * 0.84)), tint)
 			canvas.draw_line(center + Vector2(-inner * 0.16, -inner * 0.2), center + Vector2(inner * 0.22, inner * 0.18), Color(0.05, 0.03, 0.04), weight)
+		"split":
+			canvas.draw_circle(center + Vector2(-inner * 0.28, -inner * 0.06), inner * 0.4, tint)
+			canvas.draw_circle(center + Vector2(inner * 0.3, inner * 0.1), inner * 0.3, tint.lightened(0.18))
+		"sticky":
+			canvas.draw_circle(center + Vector2(0.0, -inner * 0.1), inner * 0.46, tint)
+			canvas.draw_colored_polygon(PackedVector2Array([
+				center + Vector2(-inner * 0.16, inner * 0.26),
+				center + Vector2(inner * 0.16, inner * 0.26),
+				center + Vector2(0.0, inner * 0.74),
+			]), tint)
+		"bounce":
+			canvas.draw_circle(center + Vector2(0.0, -inner * 0.24), inner * 0.38, tint)
+			canvas.draw_arc(center + Vector2(0.0, inner * 0.22), inner * 0.42, PI * 1.15, PI * 1.85, 12, tint, weight)
+			canvas.draw_arc(center + Vector2(0.0, inner * 0.42), inner * 0.68, PI * 1.22, PI * 1.78, 12, tint.lightened(0.2), maxf(1.6, weight * 0.7))
 		"loft":
 			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.55, inner * 0.05), Vector2(inner * 0.7, inner * 0.16)), tint)
 			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.2, inner * 0.42), Vector2(inner * 0.85, inner * 0.16)), tint)

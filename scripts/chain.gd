@@ -146,7 +146,7 @@ class Floater extends Node2D:
 
 	func _process(delta: float) -> void:
 		age += delta
-		position.y -= (52.0 if big else 40.0) * delta
+		position.y -= (64.0 if big else 48.0) * delta
 		scale = Vector2.ONE * _bounce()
 		if age < HOLD:
 			modulate.a = 1.0
@@ -158,7 +158,7 @@ class Floater extends Node2D:
 			queue_redraw()
 
 	func _bounce() -> float:
-		var peak := 1.48 if big else 1.32
+		var peak := 1.58 if big else 1.4
 		if age < 0.14:
 			var t := age / 0.14
 			return lerpf(0.4, peak, 1.0 - pow(1.0 - t, 3.0))
@@ -169,27 +169,27 @@ class Floater extends Node2D:
 		var font := ThemeDB.fallback_font
 		if font == null:
 			return
-		var size := 64 if big else 52
-		draw_circle(Vector2(0, -8), 22.0 if big else 18.0, Color(tint.r, tint.g, tint.b, 0.22))
+		var size := 68 if big else 56
+		draw_circle(Vector2(0, -8), 26.0 if big else 21.0, Color(tint.r, tint.g, tint.b, 0.28))
 		var at := Vector2(-30, 0)
 		draw_string(font, at + Vector2(2, 3), "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0.08, 0.04, 0.02, 0.92))
 		draw_string(font, at, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, size, tint)
 
 
 class CoinPop extends Node2D:
-	const LIFE := 1.05
+	const LIFE := 1.15
 	var age := 0.0
 	var amount := 0
 
 	func _process(delta: float) -> void:
 		age += delta
-		position.y -= 46.0 * delta
-		position.x += 28.0 * delta
+		position.y -= 58.0 * delta
+		position.x += 18.0 * delta
 		var pop := 1.0
 		if age < 0.16:
-			pop = lerpf(0.45, 1.28, age / 0.16)
+			pop = lerpf(0.4, 1.4, age / 0.16)
 		elif age < 0.3:
-			pop = lerpf(1.28, 1.0, (age - 0.16) / 0.14)
+			pop = lerpf(1.4, 1.0, (age - 0.16) / 0.14)
 		scale = Vector2.ONE * pop
 		modulate.a = 1.0 if age < 0.5 else clampf(1.0 - (age - 0.5) / (LIFE - 0.5), 0.0, 1.0)
 		if age >= LIFE:
@@ -198,11 +198,11 @@ class CoinPop extends Node2D:
 			queue_redraw()
 
 	func _draw() -> void:
-		draw_circle(Vector2(-26, -8), 16.0, Color(0.92, 0.68, 0.16, 0.95))
-		draw_circle(Vector2(-26, -8), 10.0, Color(1.0, 0.9, 0.48))
+		draw_circle(Vector2(-30, -8), 20.0, Color(0.92, 0.68, 0.16, 0.95))
+		draw_circle(Vector2(-30, -8), 13.0, Color(1.0, 0.92, 0.52))
 		var font := ThemeDB.fallback_font
 		if font == null:
 			return
 		var text := "+%d" % amount
-		draw_string(font, Vector2(-6, 8) + Vector2(2, 3), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color(0.08, 0.04, 0.02, 0.92))
-		draw_string(font, Vector2(-6, 8), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color(1.0, 0.88, 0.38))
+		draw_string(font, Vector2(-4, 8) + Vector2(2, 3), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 40, Color(0.08, 0.04, 0.02, 0.92))
+		draw_string(font, Vector2(-4, 8), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 40, Color(1.0, 0.9, 0.42))

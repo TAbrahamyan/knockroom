@@ -220,17 +220,17 @@ func add_hit_shake(speed: float) -> void:
 
 
 func add_sweet_shake() -> void:
-	_shake_cap = maxf(_shake_cap, 13.0)
-	_shake_duration = maxf(_shake_duration, 0.3)
-	add_shake(8.0, 0)
+	_shake_cap = maxf(_shake_cap, 15.0)
+	_shake_duration = maxf(_shake_duration, 0.34)
+	add_shake(9.5, 0)
 
 
 func flash_excellent() -> void:
 	if _excellent == null:
 		return
-	_excellent.color = Color(1.0, 0.72, 0.22, 0.28)
+	_excellent.color = Color(1.0, 0.78, 0.28, 0.42)
 	var tween := create_tween()
-	tween.tween_property(_excellent, "color:a", 0.0, 0.2)
+	tween.tween_property(_excellent, "color:a", 0.0, 0.16)
 
 
 func _build_flash() -> void:
@@ -278,8 +278,11 @@ func _quiet_the_room() -> void:
 
 
 func _room_is_moving() -> bool:
-	if is_instance_valid(projectile):
-		if projectile.linear_velocity.length() > 40.0 or absf(projectile.angular_velocity) > 0.8:
+	for node in get_tree().get_nodes_in_group("projectile"):
+		var stone := node as RigidBody2D
+		if stone == null or stone.freeze:
+			continue
+		if stone.linear_velocity.length() > 40.0 or absf(stone.angular_velocity) > 0.8:
 			return true
 	for node in get_tree().get_nodes_in_group("prop"):
 		var body := node as RigidBody2D

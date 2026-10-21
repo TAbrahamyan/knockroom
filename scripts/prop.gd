@@ -544,11 +544,11 @@ func _play_hit() -> void:
 		_burst(Color(1.0, 0.95, 0.55), 14, 210.0)
 	elif kind == Kind.BARREL and (speed > 150.0 or shatters):
 		var chip := Color(0.88, 0.96, 0.94) if shatters else dye
-		_burst(chip, 14, 190.0, shatters)
+		_burst(chip, 18, 220.0, shatters)
 	elif kind == Kind.CAGE and speed > 160.0:
-		_burst(dye, 12, 160.0, true)
+		_burst(dye, 16, 190.0, true)
 	elif speed > 220.0:
-		_burst(Color(0.86, 0.78, 0.66), 8, 130.0)
+		_burst(Color(0.86, 0.78, 0.66), 11, 155.0)
 
 
 func _burst(color: Color, count: int, power: float, shards: bool = false) -> void:
@@ -571,7 +571,7 @@ func _shatter() -> void:
 	if parent == null:
 		return
 	var glass := Color(0.82, 0.98, 0.94) if look == 1 else Color(1.0, 0.94, 0.72)
-	_burst(glass, 24, 320.0, true)
+	_burst(glass, 32, 360.0, true)
 	var origin := global_position
 	var carry := linear_velocity
 	collision_layer = 0
@@ -827,14 +827,14 @@ class Burst extends Node2D:
 	var _life := 0.42
 
 	func setup(color: Color, count: int, power: float, shards: bool = false) -> void:
-		_life = 0.62 if shards else 0.42
+		_life = 0.75 if shards else 0.52
 		for _i in count:
 			var dir := Vector2.from_angle(randf() * TAU)
-			var shard := shards and randf() < 0.7
+			var shard := shards and randf() < 0.75
 			_bits.append({
 				"p": Vector2.ZERO,
 				"v": dir * randf_range(power * 0.28, power),
-				"r": randf_range(2.4, 6.2) if shard else randf_range(1.6, 3.6),
+				"r": randf_range(2.8, 7.4) if shard else randf_range(1.8, 4.2),
 				"c": color.lerp(Color.WHITE, randf() * 0.4),
 				"s": shard,
 				"a": randf() * TAU,
