@@ -3,7 +3,7 @@ extends CanvasLayer
 ## Three offers after a throw settles. Picking equips one item. Skipping leaves
 ## the previous choice alone. Nothing here spends money or applies an effect.
 
-signal picked(item_id: String, item_name: String)
+signal picked(item_id: String, item_name: String, item_tint: Color)
 signal skipped
 
 const INK := Color(0.05, 0.03, 0.04, 1)
@@ -39,12 +39,17 @@ func show_offers() -> void:
 	pool.shuffle()
 	for i in _cards.size():
 		_fill_card(_cards[i], pool[i])
+	var root := get_node("Root") as Control
+	root.modulate = Color(1, 1, 1, 0)
 	visible = true
+	var tween := create_tween()
+	tween.tween_property(root, "modulate:a", 1.0, 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 func _fill_card(card: Button, offer: Dictionary) -> void:
 	card.set_meta("item_id", str(offer["id"]))
 	card.set_meta("item_name", str(offer["name"]))
+	card.set_meta("item_tint", offer["tint"])
 	card.get_node("Title").text = str(offer["name"])
 	card.get_node("Line").text = str(offer["line"])
 	var glyph = card.get_node("Glyph")
@@ -57,7 +62,7 @@ func _on_take(card: Button) -> void:
 	if not visible:
 		return
 	visible = false
-	picked.emit(str(card.get_meta("item_id")), str(card.get_meta("item_name")))
+	picked.emit(str(card.get_meta("item_id")), str(card.get_meta("item_name")), card.get_meta("item_tint"))
 
 
 func _on_skip() -> void:
@@ -84,14 +89,14 @@ func _build_ui() -> void:
 	var frame := ColorRect.new()
 	frame.name = "Frame"
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_center(frame, 836, 468, 36.0)
+	_center(frame, 836, 468, 64.0)
 	frame.color = INK
 	root.add_child(frame)
 
 	var panel := Control.new()
 	panel.name = "Panel"
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_center(panel, 820, 452, 36.0)
+	_center(panel, 820, 452, 64.0)
 	root.add_child(panel)
 
 	var wash := ColorRect.new()

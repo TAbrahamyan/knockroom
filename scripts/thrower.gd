@@ -8,6 +8,7 @@ signal aim_ended
 signal stone_launched(body: RigidBody2D)
 
 const PROJECTILE := preload("res://scenes/projectile.tscn")
+const Loadout := preload("res://scripts/loadout.gd")
 
 @export var max_pull := 180.0
 @export var min_pull := 48.0
@@ -72,16 +73,21 @@ func _velocity_from_mouse() -> Vector2:
 func _draw() -> void:
 	var alpha := 0.32
 	if can_aim and not aiming:
-		alpha = 0.55 + 0.45 * sin(float(Time.get_ticks_msec()) * 0.006)
+		alpha = 0.82 + 0.18 * sin(float(Time.get_ticks_msec()) * 0.006)
 	elif aiming:
 		alpha = 1.0
 	var wood := Color(0.62, 0.40, 0.22, alpha)
 	draw_line(Vector2(-22, -28), Vector2.ZERO, wood, 5.0)
 	draw_line(Vector2(-22, 28), Vector2.ZERO, wood, 5.0)
 	if can_aim or aiming:
-		draw_circle(Vector2.ZERO, 15.0, Color(0.76, 0.78, 0.83, alpha))
-		draw_circle(Vector2(-4, -3), 4.0, Color(1, 1, 1, alpha * 0.75))
+		draw_circle(Vector2.ZERO, 15.0, Color(0.82, 0.84, 0.88, alpha))
+		draw_circle(Vector2(-4, -3), 4.0, Color(1, 1, 1, alpha * 0.85))
+		if Loadout.item_id != "":
+			var mark := Vector2(18.0, 14.0)
+			draw_circle(mark, 7.4, Color(0.08, 0.04, 0.03, alpha))
+			draw_circle(mark, 5.4, Loadout.item_tint)
 	if can_aim and not aiming:
+		draw_arc(Vector2.ZERO, 27.0, 0.0, TAU, 28, Color(1.0, 0.86, 0.42, 0.38), 2.0)
 		var font := ThemeDB.fallback_font
 		if font:
 			draw_string(font, Vector2(-30, 52), "pull", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 0.9, 0.55, alpha))

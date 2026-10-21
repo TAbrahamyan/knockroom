@@ -18,6 +18,10 @@ const HINT_SHOP := "Pick one for the next throw, or skip"
 const WARM_FRAMES := 45
 const LOOK_TIME := 2.6
 const SHAKE_TIME := 0.2
+## Floor props stay to the right of this edge so the slingshot has a clear lane.
+const LANE_LEFT := 304.0
+## Closest-point gap from the stone's center to a prop. The stone itself is 15px.
+const THROW_GAP := 128.0
 
 var live := false
 var phase := Phase.WARMUP
@@ -85,7 +89,7 @@ func _physics_process(delta: float) -> void:
 		_calm = 0.0
 	else:
 		_calm += delta
-	if _watch >= 6.8 or (_watch >= 0.45 and _calm >= 1.15):
+	if _watch >= 6.8 or (_watch >= 0.45 and _calm >= 0.9):
 		_finish()
 
 
@@ -115,9 +119,18 @@ func _finish() -> void:
 		return
 	phase = Phase.SETTLED
 	thrower.can_aim = false
-	_look = LOOK_TIME
+	_look = _look_for(chain.count)
 	chain.show_result()
 	chain.set_hint(HINT_LOOK)
+
+
+func _look_for(n: int) -> float:
+	# A miss has nothing left to watch. A long chain still gets the full look.
+	if n >= 10:
+		return LOOK_TIME
+	if n >= 4:
+		return 1.7
+	return 1.0
 
 
 func add_shake(amount: float, chain_count: int = 0) -> void:
@@ -231,10 +244,10 @@ func _open_shop() -> void:
 	_shop.show_offers()
 
 
-func _on_shop_picked(item_id: String, item_name: String) -> void:
+func _on_shop_picked(item_id: String, item_name: String, item_tint: Color) -> void:
 	if not _shop_open or _reloading:
 		return
-	Loadout.equip(item_id, item_name)
+	Loadout.equip(item_id, item_name, item_tint)
 	_reset()
 
 
@@ -294,6 +307,7 @@ func _randomize_room() -> void:
 	if lamp != null:
 		_nudge_away_from_lamp(lamp)
 	_place_on_floor(rest, lamp)
+	_protect_throw_lane(loose)
 	for shelf in active:
 		shelf.set_sweet_spots([], [])
 	if not active.is_empty():
@@ -358,7 +372,9 @@ func _seat_pile(active: Array, loose: Array, lamp) -> Array:
 	var goals: Array = []
 	for shelf in active:
 		var goal := _seat_goal(float(shelf.box_size.x))
-		if loose.size() >= 20:
+		if loose.size() >= 18:
+			goal += 1
+		if loose.size() >= 22:
 			goal += 1
 		goals.append(goal)
 	var rest: Array = loose
@@ -388,7 +404,8 @@ func _floor_budget(lamp) -> float:
 	var span := 0.0
 	if lamp != null:
 		span = float(lamp.radius) * 2.0 + 36.0
-	return 900.0 - span
+	# The slingshot lane is reserved, so the floor row is shorter than the old 900px budget.
+	return 740.0 - span
 
 
 func _row_span(props: Array) -> float:
@@ -474,7 +491,7 @@ func _place_on_floor(props: Array, lamp) -> void:
 	var widths := 0.0
 	for prop in props:
 		widths += _prop_half(prop).x * 2.0
-	var start := randf_range(220.0, 270.0)
+	var start := randf_range(LANE_LEFT, LANE_LEFT + 28.0)
 	var lamp_left := 9999.0
 	var lamp_right := -9999.0
 	var lamp_span := 0.0
@@ -514,20 +531,23 @@ func _separate_row(props: Array) -> void:
 			var pos: Vector2 = cur.global_position
 			pos.x = prev.global_position.x + need
 			_place_prop(cur, pos)
-	var last = props[props.size() - 1]
-	var overflow = last.global_position.x + _prop_half(last).x - 1234.0
-	if overflow > 0.0:
-		for prop in props:
-			var shifted: Vector2 = prop.global_position
-			shifted.x -= overflow
-			_place_prop(prop, shifted)
 	var first = props[0]
-	var left_overflow = 64.0 - (first.global_position.x - _prop_half(first).x)
-	if left_overflow > 0.0:
+	var last = props[props.size() - 1]
+	var left_edge: float = first.global_position.x - _prop_half(first).x
+	var right_edge: float = last.global_position.x + _prop_half(last).x
+	if left_edge < LANE_LEFT:
+		var push: float = LANE_LEFT - left_edge
 		for prop in props:
 			var pushed: Vector2 = prop.global_position
-			pushed.x += left_overflow
+			pushed.x += push
 			_place_prop(prop, pushed)
+	elif right_edge > 1234.0:
+		var pull := minf(right_edge - 1234.0, left_edge - LANE_LEFT)
+		if pull > 0.0:
+			for prop in props:
+				var shifted: Vector2 = prop.global_position
+				shifted.x -= pull
+				_place_prop(prop, shifted)
 
 
 func _clear_lamp(props: Array, lamp) -> void:
@@ -545,8 +565,104 @@ func _clear_lamp(props: Array, lamp) -> void:
 				pos.x = lpos.x + lrad + half.x + 8.0
 			else:
 				pos.x = lpos.x - lrad - half.x - 8.0
-			pos.x = clampf(pos.x, 210.0 + half.x, 1234.0 - half.x)
+			pos.x = clampf(pos.x, LANE_LEFT + half.x, 1234.0 - half.x)
 			_place_prop(prop, pos)
+
+
+func _protect_throw_lane(props: Array) -> void:
+	var stuck = null
+	for _step in 8:
+		var ground: Array = []
+		for prop in props:
+			if _is_floor_prop(prop):
+				ground.append(prop)
+		_separate_row(ground)
+		var mover = _lane_intruder(props)
+		if mover == null:
+			mover = _right_intruder(ground)
+		if mover == null:
+			return
+		if mover == stuck:
+			return
+		if _perch_mover(mover, props):
+			stuck = null
+		else:
+			var half := _prop_half(mover)
+			_place_prop(mover, Vector2(LANE_LEFT + half.x + 2.0, 640.0 - half.y - 1.0))
+			stuck = mover
+
+
+func _is_floor_prop(prop) -> bool:
+	var half_y := _prop_half(prop).y
+	return prop.global_position.y >= 640.0 - half_y - 18.0
+
+
+func _in_throw_lane(prop) -> bool:
+	var half := _prop_half(prop)
+	var pos: Vector2 = prop.global_position
+	var at: Vector2 = thrower.global_position
+	var dx := maxf(absf(pos.x - at.x) - half.x, 0.0)
+	var dy := maxf(absf(pos.y - at.y) - half.y, 0.0)
+	if Vector2(dx, dy).length() < THROW_GAP:
+		return true
+	return pos.x - half.x < LANE_LEFT and pos.y + half.y > at.y - 36.0
+
+
+func _lane_intruder(props: Array):
+	for prop in props:
+		if _in_throw_lane(prop):
+			return prop
+	return null
+
+
+func _right_intruder(ground: Array):
+	if ground.is_empty():
+		return null
+	var last = ground[0]
+	var smallest = ground[0]
+	for prop in ground:
+		if prop.global_position.x > last.global_position.x:
+			last = prop
+		if _prop_half(prop).x < _prop_half(smallest).x:
+			smallest = prop
+	if last.global_position.x + _prop_half(last).x <= 1234.0:
+		return null
+	return smallest
+
+
+func _perch_mover(mover, props: Array) -> bool:
+	var carrier = null
+	var best_x := -1.0
+	for prop in props:
+		if prop == mover or int(prop.kind) != 1 or not _is_floor_prop(prop):
+			continue
+		if prop.global_position.x < LANE_LEFT + 70.0:
+			continue
+		if _prop_half(prop).x + 4.0 < _prop_half(mover).x:
+			continue
+		if _has_rider(prop, props):
+			continue
+		if prop.global_position.x > best_x:
+			best_x = prop.global_position.x
+			carrier = prop
+	if carrier == null:
+		return false
+	var top: float = carrier.global_position.y - _prop_half(carrier).y
+	var half: Vector2 = _prop_half(mover)
+	_place_prop(mover, Vector2(carrier.global_position.x, top - half.y - 2.0))
+	return true
+
+
+func _has_rider(carrier, props: Array) -> bool:
+	var top: float = carrier.global_position.y - _prop_half(carrier).y
+	for prop in props:
+		if prop == carrier:
+			continue
+		if absf(prop.global_position.x - carrier.global_position.x) > _prop_half(carrier).x * 0.7:
+			continue
+		if prop.global_position.y < top - 4.0:
+			return true
+	return false
 
 
 func _pick_sweet_spots(upper) -> void:
@@ -942,9 +1058,9 @@ func _solve_lamp(hook_x: float, hook_y: float, radius: float, shelves: Array) ->
 				x = left
 			else:
 				x = right
-			x = clampf(x, 280.0, 1120.0)
+			x = clampf(x, 360.0, 1120.0)
 	x = _clear_rope_x(x, shelves)
-	return Vector2(clampf(x, 280.0, 1120.0), clampf(y, hook_y + 70.0, 592.0))
+	return Vector2(clampf(x, 360.0, 1120.0), clampf(y, hook_y + 70.0, 592.0))
 
 
 func _hook_beside(shelves: Array) -> float:
@@ -986,7 +1102,7 @@ func _clear_rope_x(x: float, shelves: Array) -> float:
 			break
 		if not blocked:
 			break
-	return clampf(x, 280.0, 1120.0)
+	return clampf(x, 360.0, 1120.0)
 
 
 func _lamp_hits_shelf(x: float, y: float, radius: float, shelves: Array):
