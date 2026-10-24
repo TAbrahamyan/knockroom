@@ -4,8 +4,19 @@ const Loadout := preload("res://scripts/loadout.gd")
 const Locale := preload("res://scripts/locale.gd")
 const AudioKit := preload("res://scripts/audio_kit.gd")
 
+const REST_SIZE := 72
+const GOLD_SIZE := 104
+const BIG_SIZE := 118
+const MASTER_SIZE := 136
+
 var count := 0
 var _earned := -1
+var _custom := ""
+var _detail := ""
+var _banner_kind := ""
+var _master_pop := false
+var _wash: ColorRect
+var _lip: ColorRect
 
 @onready var number: Label = $UI/Root/Number
 @onready var result: Label = $UI/Root/Result
@@ -14,9 +25,53 @@ var _earned := -1
 
 func _ready() -> void:
 	add_to_group("chain")
+	_place_banner()
 	result.text = ""
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	number.add_theme_font_size_override("font_size", REST_SIZE)
+	var word := get_node_or_null("UI/Root/Word") as Label
+	if word:
+		word.visible = false
 	apply_language()
+
+
+func _place_banner() -> void:
+	result.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	result.offset_left = -300.0
+	result.offset_top = 150.0
+	result.offset_right = 300.0
+	result.offset_bottom = 210.0
+	result.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	result.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	result.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	result.clip_text = false
+	result.z_index = 2
+	var parent := result.get_parent()
+	var wash := ColorRect.new()
+	wash.name = "ResultWash"
+	wash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wash.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	wash.offset_left = -320.0
+	wash.offset_top = 144.0
+	wash.offset_right = 320.0
+	wash.offset_bottom = 216.0
+	wash.color = Color(0.05, 0.03, 0.04, 0.0)
+	wash.visible = false
+	wash.z_index = 1
+	parent.add_child(wash)
+	parent.move_child(wash, result.get_index())
+	_wash = wash
+	var lip := ColorRect.new()
+	lip.name = "ResultLip"
+	lip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lip.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	lip.offset_left = 0.0
+	lip.offset_top = 0.0
+	lip.offset_right = 0.0
+	lip.offset_bottom = 4.0
+	lip.color = Color(1, 0.86, 0.35, 0)
+	wash.add_child(lip)
+	_lip = lip
 
 
 func apply_language() -> void:
@@ -30,10 +85,46 @@ func apply_language() -> void:
 func reset_round() -> void:
 	count = 0
 	_earned = -1
+	_custom = ""
+	_detail = ""
+	_banner_kind = ""
 	number.text = "0"
+	number.scale = Vector2.ONE
+	number.add_theme_font_size_override("font_size", REST_SIZE)
 	number.add_theme_color_override("font_color", _color_for(0))
+	number.modulate = Color.WHITE
+	_master_pop = false
 	result.text = ""
+	result.scale = Vector2.ONE
+	if _wash:
+		_wash.visible = false
 	apply_language()
+
+
+func phrase_for(n: int) -> String:
+	return _phrase(n)
+
+
+func show_banner(title: String, detail: String, kind: String, pay: int, pop: bool = true) -> void:
+	_custom = title
+	_detail = detail
+	_banner_kind = kind
+	_earned = pay
+	_write_result()
+	_play_result()
+	if pop and pay > 0:
+		_coin_popup(pay)
+
+
+func hide_banner() -> void:
+	_custom = ""
+	_detail = ""
+	_banner_kind = ""
+	_earned = -1
+	result.text = ""
+	result.scale = Vector2.ONE
+	if _wash:
+		_wash.visible = false
 
 
 func set_hint(text: String) -> void:
@@ -44,46 +135,136 @@ func add_link(prop: Node2D) -> void:
 	count += 1
 	number.text = str(count)
 	number.add_theme_color_override("font_color", _color_for(count))
+	var size := REST_SIZE
+	if count >= 10:
+		size = 128
+	elif count >= 6:
+		size = BIG_SIZE
+	elif count >= 4:
+		size = GOLD_SIZE
+	number.add_theme_font_size_override("font_size", size)
 	_punch()
 	_floater(prop.global_position, count)
 	var round := get_tree().get_first_node_in_group("round")
 	if round and round.has_method("add_shake"):
 		round.add_shake(_shake_for(count), count)
-	if count == 4:
+	if count == 8 or count == 12 or count == 16:
+		if round and round.has_method("add_shake"):
+			round.add_shake(3.2, count)
+	if count == 4 or count == 8:
 		AudioKit.play_good()
-	elif count == 10:
+	elif count == 10 or count == 16:
 		AudioKit.play_excellent()
 		if round and round.has_method("flash_excellent"):
 			round.flash_excellent()
 
 
 func show_result(earned: int = 0) -> void:
+	_custom = ""
 	_earned = earned
 	_write_result()
-	result.modulate = Color(1, 1, 1, 0)
-	result.scale = Vector2(0.86, 0.86)
-	result.pivot_offset = result.size * 0.5
-	var tween := create_tween()
-	tween.tween_property(result, "modulate:a", 1.0, 0.16)
-	tween.parallel().tween_property(result, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_play_result()
 	if earned > 0:
 		_coin_popup(earned)
 
 
+func show_custom(text: String) -> void:
+	_custom = text
+	_earned = 0
+	_write_result()
+	_play_result()
+
+
+func celebrate_master() -> void:
+	_master_pop = true
+	number.add_theme_font_size_override("font_size", MASTER_SIZE)
+	number.add_theme_color_override("font_color", Color(1.0, 0.92, 0.35))
+	number.modulate = Color(1.8, 1.45, 0.6)
+	_punch()
+
+
+func _play_result() -> void:
+	result.pivot_offset = result.size * 0.5
+	var peak := 1.06
+	if _banner_kind == "clean":
+		peak = 1.22
+	elif _banner_kind == "pass":
+		peak = 1.14
+	result.scale = Vector2(peak, peak)
+	result.modulate = Color(1, 1, 1, 0)
+	var tween := create_tween()
+	tween.tween_property(result, "modulate:a", 1.0, 0.12)
+	tween.parallel().tween_property(result, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
 func _write_result() -> void:
 	var line := _phrase(count)
-	if _earned > 0:
+	if _custom != "":
+		line = _custom
+		if _detail != "":
+			line += "\n" + _detail
+	elif _earned > 0:
 		line += "    +%s" % Loadout.coins(_earned)
 	result.text = line
-	result.add_theme_color_override("font_color", _color_for(count))
+	var failed := _banner_kind == "fail"
+	var clean := _banner_kind == "clean"
+	var passed := _banner_kind == "pass"
+	if failed:
+		result.add_theme_font_size_override("font_size", 42)
+		result.add_theme_color_override("font_color", Color(1.0, 0.46, 0.34))
+	elif clean:
+		result.add_theme_font_size_override("font_size", 46)
+		result.add_theme_color_override("font_color", Color(0.28, 0.1, 0.02))
+	elif passed:
+		result.add_theme_font_size_override("font_size", 42)
+		result.add_theme_color_override("font_color", Color(0.22, 0.08, 0.02))
+	elif _custom != "":
+		result.add_theme_font_size_override("font_size", 36)
+		result.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
+	else:
+		result.add_theme_font_size_override("font_size", 36)
+		result.add_theme_color_override("font_color", _color_for(count))
+	if _wash == null:
+		return
+	if result.text == "":
+		_wash.visible = false
+		return
+	_wash.visible = true
+	if failed:
+		_wash.color = Color(0.46, 0.08, 0.06, 0.94)
+	elif clean:
+		_wash.color = Color(1.0, 0.78, 0.18, 0.98)
+	elif passed:
+		_wash.color = Color(0.98, 0.62, 0.1, 0.98)
+	else:
+		_wash.color = Color(0.06, 0.04, 0.04, 0.9)
+	if _lip:
+		if clean:
+			_lip.color = Color(1.0, 0.98, 0.7, 1.0)
+		elif passed:
+			_lip.color = Color(1.0, 0.94, 0.6, 1.0)
+		else:
+			_lip.color = Color(1, 1, 1, 0)
 
 
 func _punch() -> void:
 	number.pivot_offset = number.size * 0.5
-	var peak := 1.62 if count >= 10 else 1.36
+	var peak := 1.18
+	if _master_pop:
+		peak = 1.58
+		_master_pop = false
+	elif count >= 16:
+		peak = 1.62
+	elif count >= 10:
+		peak = 1.48
+	elif count >= 4:
+		peak = 1.32
 	number.scale = Vector2(peak, peak)
 	var tween := create_tween()
-	tween.tween_property(number, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(number, "scale", Vector2.ONE, 0.24).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if count >= 4:
+		number.modulate = Color(1.7, 1.35, 0.55)
+		tween.parallel().tween_property(number, "modulate", Color.WHITE, 0.22)
 
 
 func _floater(at: Vector2, chain_count: int) -> void:
@@ -100,15 +281,19 @@ func _coin_popup(earned: int) -> void:
 	pop.z_index = 24
 	pop.amount = earned
 	add_child(pop)
-	pop.global_position = Vector2(640, 168)
+	pop.global_position = Vector2(640, 320)
 
 
 func _shake_for(chain_count: int) -> float:
+	if chain_count >= 16:
+		return 12.0
 	if chain_count >= 10:
-		return 4.6 + minf(float(chain_count - 10) * 0.28, 2.8)
+		return 10.0
+	if chain_count >= 6:
+		return 9.0
 	if chain_count >= 4:
-		return 2.3
-	return 1.15
+		return 3.2
+	return 1.4
 
 
 func _pop_color(chain_count: int) -> Color:
@@ -130,10 +315,10 @@ func _phrase(n: int) -> String:
 
 
 func _color_for(n: int) -> Color:
-	if n >= 10:
-		return Color(1.0, 0.78, 0.18)
+	if n >= 6:
+		return Color(1.0, 0.78, 0.05)
 	if n >= 4:
-		return Color(1.0, 0.94, 0.5)
+		return Color(1.0, 0.88, 0.22)
 	return Color(0.96, 0.94, 0.9)
 
 

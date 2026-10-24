@@ -15,8 +15,10 @@ static var music_volume := 40
 static var sfx_volume := 70
 ## Session only. A reload returns to the menu when this is still true.
 static var start_in_menu := true
-## A run is four rooms. These survive a scene reload. The save file does not store them.
+## A run is eight rooms. These survive a scene reload. The save file does not store them.
 const RUN_ROOMS := 8
+## Coins still in the run, after debt, that count as a won run on Run Complete.
+const RUN_GOAL := 24
 static var run_active := false
 static var run_index := 1
 static var run_earned := 0
@@ -24,6 +26,27 @@ static var run_best := 0
 static var run_show_complete := false
 ## True after Run Complete has moved run_earned into the purse. Abandon never sets this.
 static var run_banked := false
+## Failure state for the current run. Not written to the save.
+static var run_fails := 0
+static var run_streak := 0
+static var run_debt := 0
+static var run_debt_paid := 0
+static var run_strain := false
+static var run_gamble := false
+static var run_gamble_next := false
+## 0–5. Clears raise it. A miss lowers it by one. The next clear pays a little more.
+static var run_heat := 0
+const HEAT_MAX := 5
+static var run_double := false
+static var run_double_next := false
+## One faster throw, granted by a Chain Master clear. Consumed on launch.
+static var run_afterglow := false
+const AFTERGLOW_SCALE := 1.08
+static var last_lost := 0
+static var last_bonus := 0
+static var last_cleared := true
+## Set when the room timer expires. The next launch is softer.
+static var soft_throw := false
 
 ## speed scales the launch. mass scales the stone's 2.5 base.
 ## impact is extra hit speed on the first body. The rest are on-hit effects.
@@ -465,6 +488,16 @@ static func speed_scale() -> float:
 	return float(item.get("speed", 1.0))
 
 
+## Aim preview and the launch share this. Afterglow and a late throw both show up.
+static func throw_scale() -> float:
+	var scale := speed_scale()
+	if run_afterglow:
+		scale *= AFTERGLOW_SCALE
+	if soft_throw:
+		scale *= 0.75
+	return scale
+
+
 static func shape() -> String:
 	var item := effect()
 	if item.is_empty():
@@ -484,20 +517,31 @@ static func stone_radius() -> float:
 
 
 static func payout_for(chain_count: int) -> int:
-	# A miss or a couple of knocks pay nothing. A short chain pays pocket change.
+	# A miss or a couple of knocks pay nothing. Clearing a small need pays a little.
 	# Around 8 links the cheapest stone is exact. A full clear tops out at one
 	# medium stone, with too little left for a second buy.
 	if chain_count <= 2:
 		return 0
 	if chain_count <= 4:
-		return 1
+		return 2
 	if chain_count < 8:
-		return chain_count - 3
+		return chain_count - 2
 	# 8 pays 6, 10 pays 7, 12 pays 8, 14 pays 9, 15 pays 9.
 	if chain_count < 16:
 		return 6 + (chain_count - 8) / 2
 	# 16 pays 10. 18 and above pay 11, one medium stone and no second buy.
 	return mini(10 + (chain_count - 16) / 2, 11)
+
+
+## Coins added on the next clear for the heat already banked. Heat 0 pays nothing.
+static func heat_bonus() -> int:
+	if run_heat >= 5:
+		return 3
+	if run_heat >= 3:
+		return 2
+	if run_heat >= 1:
+		return 1
+	return 0
 
 
 static func earn(chain_count: int) -> int:
@@ -515,9 +559,84 @@ static func note_room(chain_count: int, pay: int) -> void:
 		run_best = chain_count
 
 
-## Moves this run's coins into the purse once. Later calls do not add them again.
+## Rooms 1–2 need 3. Rooms 3–5 need 5. Rooms 6–8 need 6.
+## A failed room strains the next one by 1, and the need never goes past 8.
+static func chain_need() -> int:
+	var need := 3
+	if run_index >= 6:
+		need = 6
+	elif run_index >= 3:
+		need = 5
+	if run_strain:
+		need = mini(need + 1, 8)
+	return need
+
+
+## Cuts this run's coins. At least 1 when the run has any. Returns how many were lost.
+static func take_run_cut(percent: int) -> int:
+	if run_earned <= 0:
+		last_lost = 0
+		return 0
+	var lost := (run_earned * percent) / 100
+	if lost < 1:
+		lost = 1
+	if lost > run_earned:
+		lost = run_earned
+	run_earned -= lost
+	last_lost = lost
+	return lost
+
+
+static func mark_pass() -> void:
+	run_streak = 0
+	run_strain = false
+	last_cleared = true
+	run_heat = mini(run_heat + 1, HEAT_MAX)
+
+
+static func mark_fail() -> void:
+	run_fails += 1
+	run_streak += 1
+	run_strain = true
+	last_cleared = false
+	run_heat = maxi(run_heat - 1, 0)
+	if run_streak >= 2:
+		run_debt = mini(run_debt + 1, 3)
+
+
+static func grant_afterglow() -> void:
+	run_afterglow = true
+
+
+static func arm_gamble() -> void:
+	run_gamble_next = true
+	run_double_next = false
+
+
+static func arm_double() -> void:
+	run_double_next = true
+	run_gamble_next = false
+
+
+static func clear_gamble_arm() -> void:
+	run_gamble_next = false
+	run_double_next = false
+
+
+## The shop's risk buttons apply to the room that is about to start.
+static func accept_gamble() -> void:
+	run_gamble = run_gamble_next
+	run_gamble_next = false
+	run_double = run_double_next
+	run_double_next = false
+
+
+## Moves this run's coins into the purse once. Debt is paid first. Later calls do not add them again.
 static func bank_run() -> void:
 	if not run_banked:
+		var debt := mini(run_debt, run_earned)
+		run_debt_paid = debt
+		run_earned -= debt
 		money += run_earned
 		run_banked = true
 	save_game()
@@ -530,6 +649,7 @@ static func begin_run() -> void:
 	run_best = 0
 	run_show_complete = false
 	run_banked = false
+	_clear_run_risk()
 
 
 ## Shop pick or skip. Room 8 ends the run. Earlier rooms move the index forward.
@@ -542,6 +662,24 @@ static func advance_run() -> void:
 	run_index += 1
 
 
+static func _clear_run_risk() -> void:
+	run_fails = 0
+	run_streak = 0
+	run_debt = 0
+	run_debt_paid = 0
+	run_strain = false
+	run_gamble = false
+	run_gamble_next = false
+	run_double = false
+	run_double_next = false
+	run_heat = 0
+	run_afterglow = false
+	last_lost = 0
+	last_bonus = 0
+	last_cleared = true
+	soft_throw = false
+
+
 ## Drops coins earned this run. The purse keeps only what was already saved.
 static func abandon_run() -> void:
 	run_active = false
@@ -550,6 +688,7 @@ static func abandon_run() -> void:
 	run_best = 0
 	run_show_complete = false
 	run_banked = false
+	_clear_run_risk()
 	save_game()
 
 

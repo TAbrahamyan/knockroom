@@ -2,7 +2,7 @@ extends Node2D
 
 ## READY: pull back, the stone flies the other way.
 ## WATCHING: the chain counts itself. SETTLED: look, then the shop, then the next room.
-## A run is four rooms. RUN_END is the screen after the fourth shop.
+## A run is eight rooms. RUN_END is the screen after the eighth shop.
 
 enum Phase { WARMUP, READY, AIMING, WATCHING, SETTLED, MENU, RUN_END }
 
@@ -19,6 +19,9 @@ const PropScript := preload("res://scripts/prop.gd")
 const WARM_FRAMES := 45
 const LOOK_TIME := 2.6
 const SHAKE_TIME := 0.2
+const ROOM_TIME := 52.0
+const SHAKY_TIME := 44.0
+const WARN_TIME := 12.0
 ## Floor props stay to the right of this edge so the slingshot has a clear lane.
 const LANE_LEFT := 304.0
 ## Closest-point gap from the stone's center to a prop. The stone itself is 15px.
@@ -39,6 +42,7 @@ var _shake_time := 0.0
 var _shake_duration := 0.2
 var _shake_cap := 8.0
 var _shaking := false
+var _punch := 0.0
 var _shop
 var _meta
 var _main_menu
@@ -53,11 +57,44 @@ var _menu_main: Button
 var _menu_close: Button
 var _room_label: Label
 var _run_label: Label
+var _rule_label: Label
+var _status_label: Label
+var _gap_label: Label
+var _timer_label: Label
+var _timer_pill: Panel
+var _timer_style: StyleBoxFlat
 var _room_plate: Panel
+var _edges: Array[ColorRect] = []
+var _timer_left := 52.0
+var _timer_on := false
+var _late := false
+var _warned := false
+var _sweet_hit := false
+var _pulse := 0.0
+var _result_mode := ""
+var _shown_bonus := 0
+var _shown_lost := 0
+var _shown_need := 0
+var _shown_goal_sweet := false
+var _shown_goal_ten := false
+var _shown_gamble := false
+var _shown_pay := 0
+var _shown_margin := 0
+var _shown_heat_pay := 0
+var _shown_double := false
+var _shown_master := false
+var _heat_row: Control
+var _heat_label: Label
+var _best_label: Label
+var _heat_pips: Array[ColorRect] = []
+var _run_goal: Label
+var _run_cleared: Label
+var _run_summary: Label
 var _run_end: CanvasLayer
 var _run_title: Label
 var _run_earned: Label
 var _run_best: Label
+var _run_fails: Label
 var _run_sub: Label
 var _run_back: Button
 var _equipped: Label
@@ -86,6 +123,7 @@ func _ready() -> void:
 	_build_equipped()
 	_build_money()
 	_build_flash()
+	_build_pressure()
 	_build_run_end()
 	apply_language()
 	if Loadout.start_in_menu:
@@ -130,7 +168,10 @@ func _process(delta: float) -> void:
 		_look = maxf(0.0, _look - delta)
 		if _look == 0.0 and phase == Phase.SETTLED and not _shop_open:
 			_open_shop()
+	_tick_timer(delta)
 	_update_shake(delta)
+	_refresh_gap()
+	_refresh_heat()
 
 
 func _physics_process(delta: float) -> void:
@@ -142,6 +183,7 @@ func _physics_process(delta: float) -> void:
 			_quiet_the_room()
 			phase = Phase.READY
 			thrower.can_aim = true
+			_arm_timer()
 		return
 	if phase != Phase.WATCHING:
 		return
@@ -157,13 +199,16 @@ func _physics_process(delta: float) -> void:
 func _on_aim_started() -> void:
 	if phase == Phase.READY:
 		phase = Phase.AIMING
-		_set_hint("hint.aim")
+		if _late:
+			_set_hint("hint.late")
+		else:
+			_set_hint("hint.aim")
 
 
 func _on_aim_ended() -> void:
 	if phase == Phase.AIMING:
 		phase = Phase.READY
-		_set_hint("hint.ready")
+		_set_ready_hint()
 
 
 func _on_stone_launched(stone: RigidBody2D) -> void:
@@ -180,13 +225,83 @@ func _finish() -> void:
 		return
 	phase = Phase.SETTLED
 	thrower.can_aim = false
+	_timer_on = false
 	_look = _look_for(chain.count)
-	var earned := Loadout.payout_for(chain.count)
+	var need := Loadout.chain_need()
+	var chain_count: int = chain.count
+	var earned := Loadout.payout_for(chain_count)
 	Loadout.last_earn = earned
-	Loadout.note_room(chain.count, earned)
-	chain.show_result(earned)
+	Loadout.note_room(chain_count, earned)
+	var passed: bool = chain_count >= need
+	var goal_sweet := _goal_is_sweet() and _sweet_hit
+	var goal_ten: bool = not _goal_is_sweet() and chain_count >= 10
+	var gambled := Loadout.run_gamble
+	var doubled := Loadout.run_double
+	var lost := 0
+	var bonus := 0
+	var heat_pay := 0
+	var master := false
+	if passed:
+		_look = maxf(_look, 3.2)
+		heat_pay = Loadout.heat_bonus()
+		if heat_pay > 0:
+			bonus += heat_pay
+			Loadout.run_earned += heat_pay
+		if gambled:
+			bonus += 3
+			Loadout.run_earned += 3
+		if doubled and earned > 0:
+			bonus += earned
+			Loadout.run_earned += earned
+		if chain_count - need >= 4:
+			bonus += 2
+			Loadout.run_earned += 2
+			Loadout.grant_afterglow()
+			master = true
+		Loadout.mark_pass()
+	else:
+		var percent := 30
+		if doubled:
+			percent = 50
+		elif gambled:
+			percent = 45
+		lost = Loadout.take_run_cut(percent)
+		Loadout.mark_fail()
+		_look = maxf(_look, 2.4)
+	if goal_sweet or goal_ten:
+		bonus += 2
+		Loadout.run_earned += 2
+	Loadout.run_gamble = false
+	Loadout.run_double = false
+	Loadout.last_bonus = bonus
+	Loadout.last_lost = lost
+	_shown_bonus = bonus
+	_shown_lost = lost
+	_shown_need = need
+	_shown_goal_sweet = goal_sweet
+	_shown_goal_ten = goal_ten
+	_shown_gamble = gambled and passed
+	_shown_double = doubled and passed and earned > 0
+	_shown_heat_pay = heat_pay
+	_shown_master = master
+	_shown_pay = earned
+	_shown_margin = chain_count - need if passed else 0
+	if passed:
+		_result_mode = "pass"
+	else:
+		_result_mode = "fail"
+	_present_result(true)
+	if passed and master:
+		flash_master()
+		add_shake(7.0, chain_count)
+		AudioKit.play_excellent()
+	elif not passed:
+		flash_fail()
+		add_shake(5.5, 0)
 	_refresh_money(false)
-	_set_hint("hint.look")
+	_refresh_rules()
+	_refresh_gap()
+	_sync_timer_label()
 
 
 func _look_for(n: int) -> float:
@@ -203,11 +318,18 @@ func add_shake(amount: float, chain_count: int = 0) -> void:
 		return
 	# Longer chains shake harder and a little longer. 10+ is the clip.
 	if chain_count >= 10:
-		_shake_cap = 16.0
-		_shake_duration = 0.38
+		_shake_cap = 32.0
+		_shake_duration = 0.45
+		_shake = maxf(_shake, 22.0)
+		_punch = maxf(_punch, 6.0)
+	elif chain_count >= 6:
+		_shake_cap = 24.0
+		_shake_duration = 0.4
+		_shake = maxf(_shake, 16.0)
+		_punch = maxf(_punch, 4.0)
 	elif chain_count >= 4:
-		_shake_cap = maxf(_shake_cap, 11.0)
-		_shake_duration = maxf(_shake_duration, 0.26)
+		_shake_cap = maxf(_shake_cap, 16.0)
+		_shake_duration = maxf(_shake_duration, 0.32)
 	elif chain_count > 0:
 		_shake_duration = maxf(_shake_duration, SHAKE_TIME)
 	_shake = minf(_shake + amount, _shake_cap)
@@ -216,29 +338,50 @@ func add_shake(amount: float, chain_count: int = 0) -> void:
 
 
 func add_hit_shake(speed: float) -> void:
-	if speed < 780.0:
+	if speed < 540.0:
 		return
-	if _shake > 5.0 and _shake_time > 0.1:
+	if _shake > 6.0 and _shake_time > 0.1:
 		return
-	var amount := clampf((speed - 780.0) / 200.0, 1.6, 5.5)
-	if speed >= 1000.0:
-		_shake_cap = maxf(_shake_cap, 12.0)
-		_shake_duration = maxf(_shake_duration, 0.22)
+	var amount := clampf((speed - 540.0) / 160.0, 1.5, 7.0)
+	if speed >= 900.0:
+		_shake_cap = maxf(_shake_cap, 18.0)
+		_shake_duration = maxf(_shake_duration, 0.28)
+		_punch = maxf(_punch, 12.0)
 	add_shake(amount, 0)
 
 
 func add_sweet_shake() -> void:
+	_sweet_hit = true
 	_shake_cap = maxf(_shake_cap, 15.0)
 	_shake_duration = maxf(_shake_duration, 0.34)
 	add_shake(9.5, 0)
+	_refresh_rules()
 
 
 func flash_excellent() -> void:
 	if _excellent == null:
 		return
-	_excellent.color = Color(1.0, 0.78, 0.28, 0.42)
+	_excellent.color = Color(1.0, 0.78, 0.28, 0.28)
 	var tween := create_tween()
-	tween.tween_property(_excellent, "color:a", 0.0, 0.16)
+	tween.tween_property(_excellent, "color:a", 0.0, 0.22)
+
+
+func flash_master() -> void:
+	if chain != null and chain.has_method("celebrate_master"):
+		chain.celebrate_master()
+	if _excellent == null:
+		return
+	_excellent.color = Color(1.0, 0.92, 0.45, 0.28)
+	var tween := create_tween()
+	tween.tween_property(_excellent, "color:a", 0.0, 0.35)
+
+
+func flash_fail() -> void:
+	if _excellent == null:
+		return
+	_excellent.color = Color(0.72, 0.08, 0.06, 0.55)
+	var tween := create_tween()
+	tween.tween_property(_excellent, "color:a", 0.0, 0.32)
 
 
 func _build_flash() -> void:
@@ -264,13 +407,17 @@ func _update_shake(delta: float) -> void:
 			_shaking = false
 		return
 	_shake_time = maxf(0.0, _shake_time - delta)
+	_punch = move_toward(_punch, 0.0, delta * 70.0)
 	var mag := _shake * clampf(_shake_time / _shake_duration, 0.0, 1.0)
-	camera.offset = Vector2(randf_range(-mag, mag), randf_range(-mag, mag))
+	var ang := _pulse * 46.0
+	# Punch adds to the kick. A sideways vector was cancelling it.
+	camera.offset = Vector2.from_angle(ang) * (mag + _punch)
 	if _shake_time == 0.0:
 		camera.offset = Vector2.ZERO
 		_shake = 0.0
 		_shake_cap = 8.0
 		_shake_duration = SHAKE_TIME
+		_punch = 0.0
 		_shaking = false
 
 
@@ -313,6 +460,8 @@ func _build_shop() -> void:
 	add_child(_shop)
 	_shop.picked.connect(_on_shop_picked)
 	_shop.skipped.connect(_on_shop_skipped)
+	_shop.gambled.connect(_on_shop_gambled)
+	_shop.doubled.connect(_on_shop_doubled)
 	_shop.meta_requested.connect(_open_meta)
 
 
@@ -410,8 +559,17 @@ func _begin_round() -> void:
 			backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if chain.has_method("reset_round"):
 		chain.reset_round()
+	_sweet_hit = false
+	_shown_need = 0
+	_result_mode = ""
+	_late = false
+	_warned = false
+	_timer_on = false
+	Loadout.soft_throw = false
+	Loadout.accept_gamble()
 	_randomize_room()
 	_set_hint("hint.ready")
+	_refresh_rules()
 
 
 func _freeze_room() -> void:
@@ -437,17 +595,331 @@ func _on_settings_closed() -> void:
 
 func _set_hint(key: String) -> void:
 	_hint_key = key
+	_result_mode = ""
 	chain.set_hint(Locale.text(key))
 
 
+func _set_ready_hint() -> void:
+	if _late:
+		_set_hint("hint.late")
+	elif _warned:
+		_set_hint("hint.warn")
+	elif Loadout.run_streak >= 2:
+		_set_hint("hint.shaky")
+	else:
+		_set_hint("hint.ready")
+
+
+func _goal_is_sweet() -> bool:
+	return Loadout.run_index % 2 == 1
+
+
+func _present_result(pop: bool) -> void:
+	var count: int = chain.count
+	var need := _shown_need
+	if _result_mode == "fail":
+		var title: String = Locale.format("result.miss", [count, need])
+		if _shown_lost > 0:
+			title = Locale.format("result.miss_lost", [count, need, _shown_lost])
+		chain.show_banner(title, "", "fail", 0, false)
+	elif _result_mode == "pass":
+		var total: int = _shown_pay + _shown_bonus
+		var title: String = Locale.format("result.pass_only", [count])
+		if _shown_master and total > 0:
+			title = Locale.format("result.master_pay", [count, total])
+		elif _shown_master:
+			title = Locale.format("result.master_only", [count])
+		elif total > 0:
+			title = Locale.format("result.pass_pay", [count, total])
+		var kind := "pass"
+		if _shown_margin >= 4:
+			kind = "clean"
+		var pay := 0
+		if pop:
+			pay = _shown_pay
+		chain.show_banner(title, "", kind, pay, pop)
+	_hint_key = ""
+	chain.set_hint("")
+
+
+func _arm_timer() -> void:
+	_timer_left = SHAKY_TIME if Loadout.run_streak >= 2 else ROOM_TIME
+	_timer_on = true
+	_late = false
+	_warned = false
+	Loadout.soft_throw = false
+	_set_ready_hint()
+	_sync_timer_label()
+	_paint_edges(0.0)
+
+
+func _tick_timer(delta: float) -> void:
+	_pulse += delta
+	var counting := _timer_on and (phase == Phase.READY or phase == Phase.AIMING) and not _overlay_open()
+	if counting:
+		_timer_left = maxf(0.0, _timer_left - delta)
+		if _timer_left <= WARN_TIME and not _warned and not _late:
+			_warned = true
+			if phase == Phase.READY:
+				_set_hint("hint.warn")
+		if _timer_left <= 0.0 and not _late:
+			_late = true
+			Loadout.soft_throw = true
+			_set_hint("hint.late")
+	_sync_timer_label()
+	var edge := 0.0
+	if _timer_on or _late:
+		if _late:
+			edge = 0.34 + 0.08 * absf(sin(_pulse * 5.0))
+		elif _timer_left <= WARN_TIME:
+			edge = 0.22 + 0.28 * absf(sin(_pulse * 4.0))
+	if phase == Phase.MENU or phase == Phase.RUN_END or _shop_open:
+		edge = 0.0
+	_paint_edges(edge)
+
+
+func _sync_timer_label() -> void:
+	if _timer_label == null:
+		return
+	var show := phase == Phase.READY or phase == Phase.AIMING or phase == Phase.WATCHING or phase == Phase.SETTLED
+	var visible_now := show and not _shop_open
+	_timer_label.visible = visible_now
+	if _timer_pill:
+		_timer_pill.visible = visible_now
+	var warn := _timer_left <= WARN_TIME
+	if _late:
+		_timer_label.text = Locale.format("rule.time", [0])
+		_timer_label.add_theme_color_override("font_color", Color(1.0, 0.55, 0.42))
+	else:
+		var seconds := int(ceil(_timer_left))
+		_timer_label.text = Locale.format("rule.time", [seconds])
+		if warn:
+			_timer_label.add_theme_color_override("font_color", Color(1.0, 0.82, 0.28))
+		else:
+			_timer_label.add_theme_color_override("font_color", Color(0.98, 0.94, 0.86))
+	if _timer_style:
+		if _late:
+			_timer_style.bg_color = Color(0.55, 0.1, 0.08, 0.96)
+		elif warn:
+			_timer_style.bg_color = Color(0.42, 0.12, 0.08, 0.94)
+		else:
+			_timer_style.bg_color = Color(0.08, 0.05, 0.05, 0.9)
+	var beat := 1.0
+	if _late or (_timer_on and warn):
+		beat = 1.0 + 0.1 * absf(sin(_pulse * 5.0))
+	if _timer_pill:
+		_timer_pill.scale = Vector2(beat, beat)
+	else:
+		_timer_label.scale = Vector2(beat, beat)
+
+
+func _paint_edges(alpha: float) -> void:
+	for edge in _edges:
+		var tint := edge.color
+		tint.a = alpha
+		edge.color = tint
+
+
+func _build_pressure() -> void:
+	var layer := CanvasLayer.new()
+	layer.name = "Pressure"
+	layer.layer = 8
+	add_child(layer)
+	var root := Control.new()
+	root.name = "Root"
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(root)
+	_edges.append(_edge_bar(root, Control.PRESET_TOP_WIDE, 0.0, 0.0, 0.0, 16.0))
+	_edges.append(_edge_bar(root, Control.PRESET_BOTTOM_WIDE, 0.0, -18.0, 0.0, 0.0))
+	_edges.append(_edge_bar(root, Control.PRESET_LEFT_WIDE, 0.0, 0.0, 16.0, 0.0))
+	_edges.append(_edge_bar(root, Control.PRESET_RIGHT_WIDE, -16.0, 0.0, 0.0, 0.0))
+
+
+func _edge_bar(root: Control, preset: int, left: float, top: float, right: float, bottom: float) -> ColorRect:
+	var bar := ColorRect.new()
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.set_anchors_preset(preset)
+	bar.offset_left = left
+	bar.offset_top = top
+	bar.offset_right = right
+	bar.offset_bottom = bottom
+	bar.color = Color(0.75, 0.14, 0.1, 0.0)
+	root.add_child(bar)
+	return bar
+
+
+func _build_heat(hud: Node) -> void:
+	var row := Control.new()
+	row.name = "HeatRow"
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.visible = false
+	row.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	row.offset_left = 200.0
+	row.offset_top = 48.0
+	row.offset_right = 450.0
+	row.offset_bottom = 72.0
+	hud.add_child(row)
+	_heat_row = row
+	var heat := Label.new()
+	heat.name = "Heat"
+	heat.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	heat.position = Vector2(0, 0)
+	heat.size = Vector2(48, 22)
+	heat.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	heat.add_theme_font_size_override("font_size", 12)
+	heat.add_theme_color_override("font_color", Color(0.95, 0.9, 0.82))
+	heat.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.04, 0.9))
+	heat.add_theme_constant_override("outline_size", 3)
+	row.add_child(heat)
+	_heat_label = heat
+	var track := ColorRect.new()
+	track.name = "Track"
+	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	track.position = Vector2(52, 10)
+	track.size = Vector2(66, 3)
+	track.color = Color(0.16, 0.1, 0.08, 0.9)
+	row.add_child(track)
+	for i in Loadout.HEAT_MAX:
+		var pip := ColorRect.new()
+		pip.name = "Pip%d" % i
+		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pip.position = Vector2(52 + i * 14, 6)
+		pip.size = Vector2(10, 10)
+		pip.color = Color(0.28, 0.2, 0.18, 0.9)
+		row.add_child(pip)
+		_heat_pips.append(pip)
+	var best := Label.new()
+	best.name = "Best"
+	best.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	best.position = Vector2(128, 0)
+	best.size = Vector2(124, 22)
+	best.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	best.add_theme_font_size_override("font_size", 12)
+	best.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
+	best.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.04, 0.9))
+	best.add_theme_constant_override("outline_size", 3)
+	row.add_child(best)
+	_best_label = best
+
+
+func _refresh_heat() -> void:
+	if _heat_row == null:
+		return
+	var show := Loadout.run_active and phase != Phase.MENU and phase != Phase.RUN_END
+	_heat_row.visible = show
+	if not show:
+		return
+	if _heat_label:
+		_heat_label.text = Locale.text("rule.heat")
+		var warm := Loadout.run_heat >= 3
+		var heat_ink := Color(1.0, 0.82, 0.32) if warm else Color(0.95, 0.9, 0.82)
+		_heat_label.add_theme_color_override("font_color", heat_ink)
+	var n := Loadout.run_heat
+	for i in _heat_pips.size():
+		if i < n and n >= 3:
+			_heat_pips[i].color = Color(1.0, 0.78, 0.22, 1)
+		elif i < n:
+			_heat_pips[i].color = Color(0.92, 0.48, 0.24, 1)
+		else:
+			_heat_pips[i].color = Color(0.32, 0.24, 0.22, 0.9)
+	if _best_label:
+		if Loadout.run_best > 0:
+			_best_label.text = Locale.format("rule.best", [Loadout.run_best])
+			var gold := Loadout.run_best >= 10
+			var best_ink := Color(1.0, 0.86, 0.42) if gold else Color(0.95, 0.9, 0.82)
+			_best_label.add_theme_color_override("font_color", best_ink)
+		else:
+			_best_label.text = ""
+
+
+func _refresh_gap() -> void:
+	if _gap_label == null:
+		return
+	var live := Loadout.run_active and phase == Phase.WATCHING and not _shop_open
+	if not live:
+		_gap_label.visible = false
+		return
+	var count: int = chain.count
+	var need := Loadout.chain_need()
+	if phase == Phase.SETTLED and _shown_need > 0:
+		need = _shown_need
+	var short := need - count
+	if count > 0 and (short == 1 or short == 2):
+		_gap_label.visible = true
+		_gap_label.text = Locale.format("rule.close", [short])
+		_gap_label.add_theme_color_override("font_color", Color(1.0, 0.78, 0.28))
+	elif count >= need and count > 0:
+		_gap_label.visible = true
+		_gap_label.text = Locale.text("rule.clear")
+		_gap_label.add_theme_color_override("font_color", Color(0.55, 0.95, 0.62))
+	else:
+		_gap_label.visible = false
+
+
+func _refresh_rules() -> void:
+	if _rule_label == null:
+		return
+	if not Loadout.run_active or phase == Phase.MENU or phase == Phase.RUN_END:
+		_rule_label.text = ""
+		if _status_label:
+			_status_label.text = ""
+		return
+	var need := Loadout.chain_need()
+	var strained := Loadout.run_strain
+	if phase == Phase.SETTLED and _shown_need > 0:
+		need = _shown_need
+		strained = false
+	_rule_label.text = Locale.format("rule.need", [need])
+	if _status_label == null:
+		return
+	var bits: PackedStringArray = PackedStringArray()
+	bits.append(Locale.format("rule.run_goal", [Loadout.run_earned, Loadout.RUN_GOAL]))
+	if strained:
+		bits.append(Locale.text("rule.strain"))
+	if Loadout.run_debt > 0:
+		bits.append(Locale.format("rule.debt", [Loadout.run_debt]))
+	if Loadout.run_gamble:
+		bits.append(Locale.text("rule.gamble"))
+	if Loadout.run_double:
+		bits.append(Locale.text("rule.double"))
+	if Loadout.run_afterglow:
+		bits.append(Locale.text("rule.hot"))
+	_status_label.text = "  ".join(bits)
+	var tips: PackedStringArray = PackedStringArray()
+	if layout_name != "":
+		tips.append(Locale.room_name(layout_name))
+	if _goal_is_sweet():
+		tips.append(Locale.text("rule.tip_sweet"))
+	else:
+		tips.append(Locale.text("rule.tip_ten"))
+	if strained:
+		tips.append(Locale.text("rule.tip_strain"))
+	if Loadout.run_debt > 0:
+		tips.append(Locale.text("rule.tip_debt"))
+	if Loadout.run_gamble:
+		tips.append(Locale.text("rule.tip_gamble"))
+	if Loadout.run_double:
+		tips.append(Locale.text("rule.tip_double"))
+	if Loadout.run_afterglow:
+		tips.append(Locale.text("rule.tip_hot"))
+	if _room_plate:
+		_room_plate.tooltip_text = "\n".join(tips)
+	_refresh_heat()
+
+
 func apply_language() -> void:
-	if _hint_key != "":
+	if _result_mode == "fail" or _result_mode == "pass":
+		_present_result(false)
+	elif _hint_key != "":
 		chain.set_hint(Locale.text(_hint_key))
 	if chain.has_method("apply_language"):
 		chain.apply_language()
 	if _room_label != null and layout_name != "":
 		_room_label.text = Locale.room_name(layout_name)
 	_refresh_run_label()
+	_refresh_rules()
+	_sync_timer_label()
 	_sync_run_end()
 	if _money != null:
 		_refresh_money(false)
@@ -556,9 +1028,10 @@ func _build_corner_menu() -> void:
 	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	plate.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	plate.offset_left = 48.0
-	plate.offset_top = 32.0
-	plate.offset_right = 460.0
-	plate.offset_bottom = 96.0
+	plate.offset_top = 28.0
+	plate.offset_right = 400.0
+	plate.offset_bottom = 118.0
+	plate.mouse_filter = Control.MOUSE_FILTER_STOP
 	var plate_style := StyleBoxFlat.new()
 	plate_style.bg_color = Color(0.05, 0.03, 0.04, 0.78)
 	plate_style.set_corner_radius_all(8)
@@ -569,9 +1042,10 @@ func _build_corner_menu() -> void:
 	room.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	room.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	room.offset_left = 60.0
-	room.offset_top = 34.0
-	room.offset_right = 448.0
-	room.offset_bottom = 62.0
+	room.offset_top = 30.0
+	room.offset_right = 388.0
+	room.offset_bottom = 48.0
+	room.visible = false
 	room.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	room.add_theme_font_size_override("font_size", 18)
 	room.add_theme_color_override("font_color", Color(0.98, 0.94, 0.86))
@@ -585,9 +1059,9 @@ func _build_corner_menu() -> void:
 	progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	progress.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	progress.offset_left = 60.0
-	progress.offset_top = 60.0
-	progress.offset_right = 448.0
-	progress.offset_bottom = 90.0
+	progress.offset_top = 32.0
+	progress.offset_right = 388.0
+	progress.offset_bottom = 54.0
 	progress.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	progress.add_theme_font_size_override("font_size", 15)
 	progress.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
@@ -595,7 +1069,86 @@ func _build_corner_menu() -> void:
 	progress.add_theme_constant_override("outline_size", 4)
 	hud.add_child(progress)
 	_run_label = progress
+	var rule := Label.new()
+	rule.name = "RoomRule"
+	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rule.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	rule.offset_left = 60.0
+	rule.offset_top = 52.0
+	rule.offset_right = 388.0
+	rule.offset_bottom = 82.0
+	rule.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	rule.add_theme_font_size_override("font_size", 22)
+	rule.add_theme_color_override("font_color", Color(1.0, 0.9, 0.55))
+	rule.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.04, 0.9))
+	rule.add_theme_constant_override("outline_size", 5)
+	hud.add_child(rule)
+	_rule_label = rule
+	var status := Label.new()
+	status.name = "RoomStatus"
+	status.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	status.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	status.offset_left = 60.0
+	status.offset_top = 82.0
+	status.offset_right = 388.0
+	status.offset_bottom = 112.0
+	status.autowrap_mode = TextServer.AUTOWRAP_OFF
+	status.add_theme_font_size_override("font_size", 13)
+	status.add_theme_color_override("font_color", Color(0.95, 0.88, 0.74))
+	status.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.04, 0.9))
+	status.add_theme_constant_override("outline_size", 4)
+	hud.add_child(status)
+	_status_label = status
+	var gap := Label.new()
+	gap.name = "ChainGap"
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	gap.visible = false
+	gap.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	gap.offset_left = -90.0
+	gap.offset_top = 104.0
+	gap.offset_right = 90.0
+	gap.offset_bottom = 136.0
+	gap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	gap.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	gap.add_theme_font_size_override("font_size", 18)
+	gap.add_theme_color_override("font_color", Color(1.0, 0.78, 0.28))
+	gap.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.04, 0.95))
+	gap.add_theme_constant_override("outline_size", 5)
+	hud.add_child(gap)
+	_gap_label = gap
+	var pill := Panel.new()
+	pill.name = "TimerPill"
+	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pill.visible = false
+	pill.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	pill.offset_left = -148.0
+	pill.offset_top = 64.0
+	pill.offset_right = -12.0
+	pill.offset_bottom = 108.0
+	pill.pivot_offset = Vector2(68.0, 22.0)
+	var timer_style := StyleBoxFlat.new()
+	timer_style.bg_color = Color(0.08, 0.05, 0.05, 0.9)
+	timer_style.set_corner_radius_all(8)
+	pill.add_theme_stylebox_override("panel", timer_style)
+	hud.add_child(pill)
+	_timer_pill = pill
+	_timer_style = timer_style
+	var timer := Label.new()
+	timer.name = "RoomTimer"
+	timer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	timer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	timer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	timer.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	timer.add_theme_font_size_override("font_size", 22)
+	timer.add_theme_color_override("font_color", Color(0.98, 0.94, 0.86))
+	timer.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.04, 0.9))
+	timer.add_theme_constant_override("outline_size", 4)
+	pill.add_child(timer)
+	_timer_label = timer
+	_build_heat(hud)
 	_refresh_run_label()
+	_refresh_rules()
 
 
 func _add_menu_button(panel: Control, node_name: String, pos: Vector2, handler: Callable) -> Button:
@@ -673,9 +1226,12 @@ func _restore_hint() -> void:
 	elif phase == Phase.WATCHING:
 		_set_hint("hint.watch")
 	elif phase == Phase.AIMING:
-		_set_hint("hint.aim")
+		if _late:
+			_set_hint("hint.late")
+		else:
+			_set_hint("hint.aim")
 	elif phase == Phase.READY:
-		_set_hint("hint.ready")
+		_set_ready_hint()
 
 
 func _on_menu_backdrop(event: InputEvent) -> void:
@@ -743,7 +1299,7 @@ func _restore_aim() -> void:
 		return
 	if phase == Phase.READY:
 		thrower.can_aim = true
-		_set_hint("hint.ready")
+		_set_ready_hint()
 
 
 func _overlay_open() -> bool:
@@ -823,12 +1379,15 @@ func _open_shop() -> void:
 	_shop_open = true
 	thrower.can_aim = false
 	_set_hint("hint.shop")
+	chain.hide_banner()
+	_refresh_gap()
 	_shop.show_offers()
 
 
 func _on_shop_picked(item_id: String, item_name: String, item_tint: Color) -> void:
 	if not _shop_open or _reloading:
 		return
+	Loadout.clear_gamble_arm()
 	var price := Loadout.price_of(item_id)
 	if Loadout.owns(item_id):
 		price = 0
@@ -842,6 +1401,25 @@ func _on_shop_picked(item_id: String, item_name: String, item_tint: Color) -> vo
 func _on_shop_skipped() -> void:
 	if not _shop_open or _reloading:
 		return
+	Loadout.clear_gamble_arm()
+	_leave_room()
+
+
+func _on_shop_gambled() -> void:
+	if not _shop_open or _reloading:
+		return
+	if Loadout.run_index >= Loadout.RUN_ROOMS:
+		return
+	Loadout.arm_gamble()
+	_leave_room()
+
+
+func _on_shop_doubled() -> void:
+	if not _shop_open or _reloading:
+		return
+	if Loadout.run_index >= Loadout.RUN_ROOMS:
+		return
+	Loadout.arm_double()
 	_leave_room()
 
 
@@ -854,9 +1432,15 @@ func _set_room_plate(show_plate: bool) -> void:
 	if _room_plate:
 		_room_plate.visible = show_plate
 	if _room_label:
-		_room_label.visible = show_plate
+		_room_label.visible = false
 	if _run_label:
 		_run_label.visible = show_plate
+	if _rule_label:
+		_rule_label.visible = show_plate
+	if _status_label:
+		_status_label.visible = show_plate
+	if _heat_row:
+		_heat_row.visible = show_plate
 
 
 func _refresh_run_label() -> void:
@@ -869,7 +1453,7 @@ func _refresh_run_label() -> void:
 
 
 func _show_chain_readout(show_readout: bool) -> void:
-	for node_name in ["Number", "Word", "Result"]:
+	for node_name in ["Number", "Result"]:
 		var node := chain.get_node_or_null("UI/Root/" + str(node_name)) as CanvasItem
 		if node:
 			node.visible = show_readout
@@ -898,20 +1482,25 @@ func _build_run_end() -> void:
 	panel.anchor_top = 0.5
 	panel.anchor_right = 0.5
 	panel.anchor_bottom = 0.5
-	panel.offset_left = -260.0
-	panel.offset_top = -180.0
-	panel.offset_right = 260.0
-	panel.offset_bottom = 180.0
+	panel.offset_left = -300.0
+	panel.offset_top = -280.0
+	panel.offset_right = 300.0
+	panel.offset_bottom = 280.0
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.10, 0.08, 0.09, 0.98)
 	style.set_corner_radius_all(12)
 	panel.add_theme_stylebox_override("panel", style)
 	root.add_child(panel)
-	_run_title = _run_line(panel, "Title", Vector2(24, 28), 32, Color(1.0, 0.86, 0.42))
-	_run_earned = _run_line(panel, "Earned", Vector2(24, 96), 22, Color(0.98, 0.94, 0.86))
-	_run_best = _run_line(panel, "Best", Vector2(24, 140), 22, Color(0.98, 0.94, 0.86))
-	_run_sub = _run_line(panel, "Sub", Vector2(24, 184), 16, Color(0.78, 0.7, 0.62))
+	_run_title = _run_line(panel, "Title", Vector2(24, 22), 32, Color(1.0, 0.86, 0.42))
+	_run_earned = _run_line(panel, "Earned", Vector2(24, 84), 22, Color(0.98, 0.94, 0.86))
+	_run_goal = _run_line(panel, "Goal", Vector2(24, 124), 18, Color(1.0, 0.86, 0.42))
+	_run_cleared = _run_line(panel, "Cleared", Vector2(24, 164), 20, Color(0.98, 0.94, 0.86))
+	_run_best = _run_line(panel, "Best", Vector2(24, 204), 22, Color(0.98, 0.94, 0.86))
+	_run_fails = _run_line(panel, "Fails", Vector2(24, 248), 18, Color(0.96, 0.55, 0.38))
+	_run_summary = _run_line(panel, "Summary", Vector2(24, 288), 16, Color(0.9, 0.84, 0.74))
+	_run_summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_run_sub = _run_line(panel, "Sub", Vector2(24, 292), 16, Color(0.78, 0.7, 0.62))
 	_run_back = Button.new()
 	_run_back.name = "BackToMenu"
 	_run_back.focus_mode = Control.FOCUS_NONE
@@ -923,8 +1512,8 @@ func _build_run_end() -> void:
 	_run_back.add_theme_stylebox_override("hover", empty)
 	_run_back.add_theme_stylebox_override("pressed", empty)
 	_run_back.add_theme_stylebox_override("focus", empty)
-	_run_back.position = Vector2(40, 248)
-	_run_back.size = Vector2(440, 52)
+	_run_back.position = Vector2(40, 400)
+	_run_back.size = Vector2(520, 52)
 	_run_back.add_theme_font_size_override("font_size", 22)
 	_run_back.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
 	_run_back.add_theme_color_override("font_hover_color", Color(1.0, 0.94, 0.7))
@@ -938,7 +1527,7 @@ func _run_line(panel: Control, node_name: String, pos: Vector2, font_size: int, 
 	label.name = node_name
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.position = pos
-	label.size = Vector2(472, 40)
+	label.size = Vector2(552, 40)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)
@@ -949,10 +1538,43 @@ func _run_line(panel: Control, node_name: String, pos: Vector2, font_size: int, 
 func _sync_run_end() -> void:
 	if _run_title == null:
 		return
-	_run_title.text = Locale.text("run.title")
-	_run_earned.text = Locale.format("run.earned", [Loadout.coins(Loadout.run_earned)])
+	var banked := Loadout.run_earned
+	var won := banked >= Loadout.RUN_GOAL
+	if won:
+		_run_title.text = Locale.text("run.won")
+		_run_title.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
+	else:
+		_run_title.text = Locale.text("run.short")
+		_run_title.add_theme_color_override("font_color", Color(0.96, 0.62, 0.42))
+	_run_earned.text = Locale.format("run.earned", [banked])
+	if _run_goal:
+		_run_goal.text = Locale.format("run.goal", [Loadout.RUN_GOAL, banked])
+	var cleared := Loadout.RUN_ROOMS - Loadout.run_fails
+	if cleared < 0:
+		cleared = 0
+	if _run_cleared:
+		_run_cleared.text = Locale.format("run.cleared", [cleared, Loadout.RUN_ROOMS])
 	_run_best.text = Locale.format("run.best", [Loadout.run_best])
-	_run_sub.text = Locale.text("run.sub")
+	if Loadout.run_best >= 10:
+		_run_best.add_theme_font_size_override("font_size", 26)
+		_run_best.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
+	else:
+		_run_best.add_theme_font_size_override("font_size", 22)
+		_run_best.add_theme_color_override("font_color", Color(0.98, 0.94, 0.86))
+	if _run_fails:
+		if Loadout.run_fails > 0:
+			_run_fails.visible = true
+			_run_fails.text = Locale.format("run.fails", [Loadout.run_fails])
+		else:
+			_run_fails.visible = false
+			_run_fails.text = ""
+	if _run_summary:
+		_run_summary.text = ""
+		_run_summary.visible = false
+	if Loadout.run_debt_paid > 0:
+		_run_sub.text = Locale.format("run.sub_debt", [Loadout.run_debt_paid])
+	else:
+		_run_sub.text = Locale.text("run.sub")
 	if _run_back:
 		_run_back.text = Locale.text("run.menu")
 
@@ -974,6 +1596,7 @@ func _show_run_end() -> void:
 	_set_room_plate(false)
 	_show_chain_readout(false)
 	_hint_key = ""
+	chain.hide_banner()
 	chain.set_hint("")
 	_randomize_room()
 	_freeze_room()

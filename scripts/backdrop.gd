@@ -34,18 +34,27 @@ func _ready() -> void:
 
 func _draw() -> void:
 	draw_rect(Rect2(0, 0, 1280, 720), _wall_color())
+	draw_rect(Rect2(186, 36, 2, 590), Color(0, 0, 0, 0.07))
+	draw_rect(Rect2(640, 36, 2, 590), Color(0, 0, 0, 0.05))
+	draw_rect(Rect2(1048, 36, 2, 590), Color(0, 0, 0, 0.07))
 	draw_rect(Rect2(0, 0, 32, 720), FRAME)
 	draw_rect(Rect2(1248, 0, 32, 720), FRAME)
 	draw_rect(Rect2(0, 0, 1280, 36), FRAME)
+	_paint_trim()
 	_paint_mood()
+	_paint_structure()
 
 	var window := window_rect
 	var glass := _glass_color()
-	draw_rect(window.grow(8), WOOD_DARK)
+	draw_rect(window.grow(22), Color(0.05, 0.03, 0.02, 0.95))
+	draw_rect(window.grow(12), WOOD_DARK)
+	draw_rect(window.grow(5), WOOD)
 	draw_rect(window, glass)
-	draw_line(Vector2(window.position.x + window.size.x * 0.5, window.position.y), Vector2(window.position.x + window.size.x * 0.5, window.end.y), WOOD, 4.0)
-	draw_line(Vector2(window.position.x, window.position.y + window.size.y * 0.55), Vector2(window.end.x, window.position.y + window.size.y * 0.55), WOOD, 4.0)
-	draw_rect(Rect2(window.position + Vector2(10, 8), Vector2(36, 18)), GLASS_LITE)
+	var mullion_x := window.position.x + window.size.x * 0.5 - 6.0
+	var mullion_y := window.position.y + window.size.y * 0.55 - 6.0
+	draw_rect(Rect2(mullion_x, window.position.y, 12.0, window.size.y), WOOD_DARK)
+	draw_rect(Rect2(window.position.x, mullion_y, window.size.x, 12.0), WOOD_DARK)
+	draw_rect(Rect2(window.position + Vector2(14, 12), Vector2(48, 22)), GLASS_LITE)
 
 	# Hook the lamp hangs from. It moves with the rope anchor.
 	draw_rect(Rect2(hook_pos.x - 10.0, hook_pos.y - 12.0, 20, 18), WOOD)
@@ -76,9 +85,65 @@ func _draw() -> void:
 		draw_rect(Rect2(origin.x - half_w + inset, top, peg_w, peg_h), peg)
 		draw_rect(Rect2(origin.x + half_w - inset - peg_w, top, peg_w, peg_h), peg)
 
+	draw_rect(Rect2(32, 590, 1216, 50), Color(0, 0, 0, 0.08))
+	draw_rect(Rect2(32, 596, 1216, 16), Color(0.22, 0.12, 0.07, 0.62))
 	draw_rect(Rect2(32, 626, 1216, 14), _board_color())
-	draw_rect(Rect2(0, 640, 1280, 80), _floor_color())
-	draw_line(Vector2(32, 640), Vector2(1248, 640), _floor_line(), 2.0)
+	_paint_floor()
+
+
+func _paint_trim() -> void:
+	# Edge-to-edge boards. Paint only. Room color stays in the board tint.
+	var wall := _wall_color()
+	var x := 32.0
+	var i := 0
+	while x < 1248.0:
+		var w := minf(62.0, 1248.0 - x)
+		var board := wall.darkened(0.06)
+		if i % 2 == 1:
+			board = wall.lightened(0.04)
+		draw_rect(Rect2(x, 36.0, w, 604.0), board)
+		draw_rect(Rect2(x + w - 2.0, 36.0, 2.0, 604.0), Color(0, 0, 0, 0.22))
+		x += 62.0
+		i += 1
+	draw_rect(Rect2(32, 36, 1216, 10), Color(0.16, 0.09, 0.06, 0.55))
+	draw_rect(Rect2(32, 508, 1216, 8), Color(0.12, 0.07, 0.04, 0.4))
+	draw_rect(Rect2(32, 36, 10, 604), Color(0.08, 0.04, 0.03, 0.45))
+	draw_rect(Rect2(1238, 36, 10, 604), Color(0.08, 0.04, 0.03, 0.45))
+
+
+func _paint_structure() -> void:
+	# Light seams over theme paint. No extra furniture.
+	for i in 19:
+		var x := 40.0 + float(i) * 64.0
+		draw_rect(Rect2(x, 46.0, 2.0, 500.0), Color(0, 0, 0, 0.16))
+
+
+func _paint_floor() -> void:
+	var floor := _floor_color()
+	var tiled := layout_id == "stairs" or layout_id == "workshop" or layout_id == "split_bay" or layout_id == "window_heavy" or layout_id == "balcony" or layout_id == "narrow"
+	draw_rect(Rect2(0, 640, 1280, 80), floor.darkened(0.12))
+	draw_rect(Rect2(0, 640, 1280, 4), Color(0, 0, 0, 0.28))
+	if tiled:
+		for row in 4:
+			for col in 22:
+				var y := 650.0 + float(row) * 18.0
+				var shift := 32.0 if row % 2 == 1 else 0.0
+				var x := float(col) * 64.0 + shift - 32.0
+				var tile := floor.lightened(0.05) if (col + row) % 2 == 0 else floor.darkened(0.1)
+				draw_rect(Rect2(x, y, 62.0, 16.0), tile)
+	else:
+		for row in 5:
+			var y := 650.0 + float(row) * 14.0
+			var shift := 78.0 if row % 2 == 1 else 0.0
+			var x := -90.0 + shift
+			var n := 0
+			while x < 1320.0:
+				var plank := floor.lightened(0.05) if n % 2 == 0 else floor.darkened(0.1)
+				draw_rect(Rect2(x, y, 150.0, 13.0), plank)
+				draw_rect(Rect2(x + 150.0, y, 2.0, 13.0), Color(0, 0, 0, 0.28))
+				x += 152.0
+				n += 1
+	draw_line(Vector2(32, 640), Vector2(1248, 640), _floor_line(), 4.0)
 	if layout_id == "floor_clutter":
 		draw_line(Vector2(32, 656), Vector2(1248, 656), Color(0.46, 0.30, 0.18), 2.0)
 		draw_line(Vector2(32, 674), Vector2(1248, 674), Color(0.36, 0.22, 0.14), 2.0)

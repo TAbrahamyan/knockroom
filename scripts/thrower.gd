@@ -47,7 +47,9 @@ func launch_velocity(velocity: Vector2) -> void:
 	var stone := PROJECTILE.instantiate() as RigidBody2D
 	stone.position = position
 	get_parent().add_child(stone)
-	stone.launch(velocity * Loadout.speed_scale())
+	var scale := Loadout.throw_scale()
+	Loadout.run_afterglow = false
+	stone.launch(velocity * scale)
 	stone_launched.emit(stone)
 	AudioKit.play_throw()
 	queue_redraw()
@@ -97,9 +99,6 @@ func _draw() -> void:
 			ItemIcon.draw(self, mark, 9.0, Loadout.shape(), Loadout.item_tint)
 	if can_aim and not aiming:
 		draw_arc(Vector2.ZERO, stone_r + 12.0, 0.0, TAU, 28, Color(1.0, 0.86, 0.42, 0.38), 2.0)
-		var font := ThemeDB.fallback_font
-		if font:
-			draw_string(font, Vector2(-30, 52), "pull", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 0.9, 0.55, alpha))
 	if not aiming:
 		return
 	var pull := to_local(get_global_mouse_position())
@@ -118,7 +117,7 @@ func _draw() -> void:
 	var width := lerpf(5.0, 16.0, hot)
 	draw_line(Vector2.ZERO, shown, band, width)
 	draw_circle(shown, lerpf(7.0, 13.0, hot), band)
-	var velocity := _velocity_from_mouse() * Loadout.speed_scale()
+	var velocity := _velocity_from_mouse() * Loadout.throw_scale()
 	if velocity == Vector2.ZERO:
 		return
 	_draw_arrow(-shown.normalized() * 36.0, -shown.normalized())

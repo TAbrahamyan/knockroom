@@ -8,9 +8,13 @@ Open the project in Godot 4.7 and run `scenes/main.tscn`. The game opens on the 
 
 A run is 8 rooms. The plate under the title shows the room name and `Room X / 8`.
 
-Hold the left mouse button, pull back from the slingshot, and release. The stone flies the opposite way. When the room settles, the result shows the chain and the coins that room earned. The shop then offers three stones. Buy one you can afford from the safe purse, or equip a stone you already unlocked, or skip. The next room loads on its own.
+Hold the left mouse button, pull back from the slingshot, and release. The stone flies the opposite way. When the room settles, the result shows the chain and the coins that room earned. The shop then offers three stones. Buy one you can afford from the safe purse, or equip a stone you already unlocked, or skip. Gamble is one optional risk: the next room pays 3 extra coins if you clear it, and a miss takes a larger cut. Double or nothing is the other: that room’s coins are doubled on a clear, and a miss takes about half. The last room has no next room, so both are hidden there. The next room loads on its own.
 
-Coins earned during the run are not safe yet. The per-throw shop and the meta shop spend only what was already in the purse. After room 8’s shop, Run Complete adds the run’s coins to the purse once. It shows that total, the best chain, and Back to Main Menu.
+Each room asks for a minimum chain. The plate says it in one line, `Need 5 chain`. Rooms 1–2 need 3, rooms 3–5 need 5, and rooms 6–8 need 6. While the chain is one or two short, the counter says so. A miss shows a full-width Room failed banner with the chain, the need, and the coins lost. The run still continues. A miss cuts about 30% of the coins earned so far in the run. Gamble raises that cut to 45%. Double or nothing, the other optional risk, doubles that room’s coins on a clear and takes about half on a miss. A miss also marks the next room Strained +1, up to a need of 8. Two misses in a row add 1 debt, up to 3, taken when the run ends, and the next clock starts a little shorter. A clear drops the strain and the miss streak. Beating the need by 4 or more is a Chain Master clear: a gold banner, 2 extra coins, and a slightly faster throw next room.
+
+A room also has a small bonus that does not fail you. Odd rooms pay 2 coins for hitting the sweet spot. Even rooms pay 2 coins for a chain of 10. The clock sits in a box as `48s`. It is about 52 seconds, and it pauses in the shop and the menus. Under 12 seconds the box and the edge of the screen turn red. If it hits zero before the throw, that throw is softer. You can still throw.
+
+Heat sits under the counter. Clears fill it, up to 5, and a miss cools it by one. Heat pays a small bonus on the next clear. The best chain of the run sits beside it. The run’s goal is still 24 coins after debt. The plate keeps a `Coins n / 24` count. Coins earned during the run are not safe yet. The per-throw shop and the meta shop spend only what was already in the purse. After room 8’s shop, Run Complete adds the run’s coins to the purse once, after debt. Reaching 24 is Goal reached. Finishing under it is Short of the goal. The screen also shows rooms cleared, the best chain, and any debt.
 
 Main Menu during a run ends it and drops every coin earned in that run. There is no Restart Room. The only way forward is to finish the throw and the shop.
 
@@ -32,7 +36,7 @@ Default layouts are the long shelf, side shelves, a stack against one wall, stai
 
 A miss or one or two knocks pay nothing. A chain of 3 or 4 pays 1 coin. The payout then climbs slowly: 10 links pay 7, 14 pay 9, and 18 or more pay 11. That buys one stone and does not pay for a second.
 
-The amount is shown on the result line (`+7 coins`) and again in the shop. The purse is in the top-right corner. Cards you cannot afford stay dimmed. Skip is free.
+The amount is shown on the result line (`+7 coins`) and again in the shop. A failed room shows the cut instead of a payout. The purse is in the top-right corner. Cards you cannot afford stay dimmed. Skip is free. Gamble does not buy a stone.
 
 ## Stones
 

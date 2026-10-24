@@ -180,7 +180,7 @@ func _on_body_entered(body: Node) -> void:
 
 
 func _shake_if_hard(body: Node) -> void:
-	if _recent_speed < 780.0:
+	if _recent_speed < 540.0:
 		return
 	if not body.is_in_group("prop") and not body.is_in_group("back_wall") and not body.is_in_group("world"):
 		return

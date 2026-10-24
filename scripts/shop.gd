@@ -5,6 +5,8 @@ extends CanvasLayer
 
 signal picked(item_id: String, item_name: String, item_tint: Color)
 signal skipped
+signal gambled
+signal doubled
 signal meta_requested
 
 const Loadout := preload("res://scripts/loadout.gd")
@@ -52,9 +54,20 @@ func apply_language() -> void:
 	var skip := get_node_or_null("Root/Panel/Skip") as Button
 	if skip:
 		skip.text = Locale.text("shop.skip")
+	var gamble := get_node_or_null("Root/Panel/Gamble") as Button
+	if gamble:
+		gamble.text = Locale.text("shop.gamble")
+		gamble.tooltip_text = Locale.text("shop.gamble_note")
+		gamble.visible = Loadout.run_index < Loadout.RUN_ROOMS
+	var double := get_node_or_null("Root/Panel/Double") as Button
+	if double:
+		double.text = Locale.text("shop.double")
+		double.tooltip_text = Locale.text("shop.double_note")
+		double.visible = Loadout.run_index < Loadout.RUN_ROOMS
 	var meta := get_node_or_null("Root/Panel/Meta") as Button
 	if meta:
-		meta.text = Locale.text("menu.meta")
+		meta.text = Locale.text("shop.meta")
+		meta.tooltip_text = Locale.text("menu.meta")
 	_write_sub()
 	for i in _cards.size():
 		if i < _shown.size():
@@ -65,10 +78,16 @@ func _write_sub() -> void:
 	var sub := get_node_or_null("Root/Panel/Sub") as Label
 	if sub == null:
 		return
-	if Loadout.last_earn > 0:
-		sub.text = Locale.format("shop.earned", [Loadout.coins(Loadout.last_earn), Loadout.coins(Loadout.money)])
+	var run_coins := Loadout.run_earned
+	if not Loadout.last_cleared:
+		if Loadout.last_lost > 0:
+			sub.text = Locale.format("shop.failed", [Loadout.last_lost, run_coins])
+		else:
+			sub.text = Locale.format("shop.failed_none", [run_coins])
+	elif Loadout.last_earn + Loadout.last_bonus > 0:
+		sub.text = Locale.format("shop.earned", [Loadout.last_earn + Loadout.last_bonus, run_coins])
 	else:
-		sub.text = Locale.format("shop.have", [Loadout.coins(Loadout.money)])
+		sub.text = Locale.format("shop.have", [run_coins])
 
 
 func _fill_card(card: Button, offer: Dictionary) -> void:
@@ -85,10 +104,13 @@ func _fill_card(card: Button, offer: Dictionary) -> void:
 	card.modulate = Color(1, 1, 1, 1) if afford else Color(1, 1, 1, 0.45)
 	card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if afford else Control.CURSOR_ARROW
 	card.get_node("Title").text = Locale.item_name(item_id)
-	card.get_node("Line").text = Locale.line_for(item_id)
+	var line := card.get_node("Line") as Label
+	line.visible = false
+	line.text = ""
+	card.tooltip_text = Locale.line_for(item_id)
 	var tag := card.get_node("Tag") as Label
-	tag.visible = owned_flag
-	tag.text = Locale.text("shop.owned")
+	tag.visible = false
+	tag.text = ""
 	var bg := card.get_node("Bg") as ColorRect
 	bg.color = _card_rest(card)
 	var take := card.get_node("Take") as Label
@@ -96,10 +118,10 @@ func _fill_card(card: Button, offer: Dictionary) -> void:
 		take.text = Locale.text("shop.equip")
 		take.add_theme_color_override("font_color", GOLD)
 	elif afford:
-		take.text = Locale.format("shop.buy", [Loadout.coins(price)])
+		take.text = Locale.format("shop.buy", [price])
 		take.add_theme_color_override("font_color", GOLD)
 	else:
-		take.text = Locale.format("shop.need", [Loadout.coins(price)])
+		take.text = Locale.format("shop.need", [price])
 		take.add_theme_color_override("font_color", MUTED)
 	var glyph = card.get_node("Glyph")
 	glyph.tint = offer["tint"]
@@ -144,6 +166,26 @@ func _on_skip() -> void:
 	skipped.emit()
 
 
+func _on_gamble() -> void:
+	if not visible:
+		return
+	if Loadout.run_index >= Loadout.RUN_ROOMS:
+		return
+	AudioKit.play_click()
+	visible = false
+	gambled.emit()
+
+
+func _on_double() -> void:
+	if not visible:
+		return
+	if Loadout.run_index >= Loadout.RUN_ROOMS:
+		return
+	AudioKit.play_click()
+	visible = false
+	doubled.emit()
+
+
 func _on_meta() -> void:
 	if not visible:
 		return
@@ -168,14 +210,14 @@ func _build_ui() -> void:
 	var frame := ColorRect.new()
 	frame.name = "Frame"
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_center(frame, 836, 468, 64.0)
+	_center(frame, 836, 360, 36.0)
 	frame.color = INK
 	root.add_child(frame)
 
 	var panel := Control.new()
 	panel.name = "Panel"
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_center(panel, 820, 452, 64.0)
+	_center(panel, 820, 344, 36.0)
 	root.add_child(panel)
 
 	var wash := ColorRect.new()
@@ -184,11 +226,11 @@ func _build_ui() -> void:
 	wash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(wash)
 
-	var title := _label("", 32, GOLD, Vector2(24, 22), Vector2(772, 42))
+	var title := _label("", 28, GOLD, Vector2(24, 14), Vector2(772, 36))
 	title.name = "Title"
 	panel.add_child(title)
 
-	var sub := _label("", 16, MUTED, Vector2(24, 68), Vector2(772, 26))
+	var sub := _label("", 16, MUTED, Vector2(24, 50), Vector2(772, 24))
 	sub.name = "Sub"
 	panel.add_child(sub)
 
@@ -204,14 +246,46 @@ func _build_ui() -> void:
 	skip.flat = true
 	skip.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_clear_button(skip)
-	skip.position = Vector2(150, 392)
-	skip.size = Vector2(200, 40)
-	skip.add_theme_font_size_override("font_size", 18)
+	skip.position = Vector2(24, 286)
+	skip.size = Vector2(150, 40)
+	skip.add_theme_font_size_override("font_size", 16)
 	skip.add_theme_color_override("font_color", CREAM)
 	skip.add_theme_color_override("font_hover_color", GOLD)
 	skip.add_theme_color_override("font_pressed_color", GOLD)
 	skip.pressed.connect(_on_skip)
 	panel.add_child(skip)
+
+	var gamble := Button.new()
+	gamble.name = "Gamble"
+	gamble.text = ""
+	gamble.focus_mode = Control.FOCUS_NONE
+	gamble.flat = true
+	gamble.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_clear_button(gamble)
+	gamble.position = Vector2(186, 286)
+	gamble.size = Vector2(150, 40)
+	gamble.add_theme_font_size_override("font_size", 16)
+	gamble.add_theme_color_override("font_color", Color(0.96, 0.55, 0.34))
+	gamble.add_theme_color_override("font_hover_color", GOLD)
+	gamble.add_theme_color_override("font_pressed_color", GOLD)
+	gamble.pressed.connect(_on_gamble)
+	panel.add_child(gamble)
+
+	var double := Button.new()
+	double.name = "Double"
+	double.text = ""
+	double.focus_mode = Control.FOCUS_NONE
+	double.flat = true
+	double.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_clear_button(double)
+	double.position = Vector2(348, 286)
+	double.size = Vector2(180, 40)
+	double.add_theme_font_size_override("font_size", 16)
+	double.add_theme_color_override("font_color", Color(1.0, 0.78, 0.32))
+	double.add_theme_color_override("font_hover_color", GOLD)
+	double.add_theme_color_override("font_pressed_color", GOLD)
+	double.pressed.connect(_on_double)
+	panel.add_child(double)
 
 	var meta := Button.new()
 	meta.name = "Meta"
@@ -220,9 +294,9 @@ func _build_ui() -> void:
 	meta.flat = true
 	meta.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_clear_button(meta)
-	meta.position = Vector2(470, 392)
-	meta.size = Vector2(220, 40)
-	meta.add_theme_font_size_override("font_size", 18)
+	meta.position = Vector2(540, 286)
+	meta.size = Vector2(250, 40)
+	meta.add_theme_font_size_override("font_size", 16)
 	meta.add_theme_color_override("font_color", CREAM)
 	meta.add_theme_color_override("font_hover_color", GOLD)
 	meta.add_theme_color_override("font_pressed_color", GOLD)
@@ -238,8 +312,8 @@ func _card(slot: int) -> Button:
 	button.flat = true
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_clear_button(button)
-	button.position = Vector2(28 + slot * 260, 112)
-	button.size = Vector2(244, 262)
+	button.position = Vector2(28 + slot * 260, 82)
+	button.size = Vector2(244, 188)
 	button.custom_minimum_size = button.size
 
 	var bg := ColorRect.new()
@@ -252,7 +326,7 @@ func _card(slot: int) -> Button:
 	var glyph := Glyph.new()
 	glyph.name = "Glyph"
 	glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	glyph.position = Vector2(90, 18)
+	glyph.position = Vector2(90, 12)
 	glyph.size = Vector2(64, 64)
 	glyph.custom_minimum_size = glyph.size
 	button.add_child(glyph)
@@ -262,17 +336,17 @@ func _card(slot: int) -> Button:
 	tag.visible = false
 	button.add_child(tag)
 
-	var title := _label("", 20, CREAM, Vector2(12, 100), Vector2(220, 48))
+	var title := _label("", 18, CREAM, Vector2(12, 84), Vector2(220, 44))
 	title.name = "Title"
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	button.add_child(title)
 
-	var line := _label("", 15, MUTED, Vector2(16, 154), Vector2(212, 52))
+	var line := _label("", 14, MUTED, Vector2(12, 128), Vector2(220, 20))
 	line.name = "Line"
-	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	line.visible = false
 	button.add_child(line)
 
-	var take := _label("Buy", 16, GOLD, Vector2(12, 216), Vector2(220, 28))
+	var take := _label("", 22, GOLD, Vector2(12, 132), Vector2(220, 40))
 	take.name = "Take"
 	button.add_child(take)
 

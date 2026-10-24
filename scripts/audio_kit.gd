@@ -26,11 +26,11 @@ var _click: AudioStream
 func _ready() -> void:
 	kit = self
 	_throw = _oneshot(Callable(self, "_throw_sample"), 0.2)
-	_impact = _oneshot(Callable(self, "_impact_sample"), 0.07)
-	_fall = _oneshot(Callable(self, "_fall_sample"), 0.12)
-	_break = _oneshot(Callable(self, "_break_sample"), 0.16)
-	_good = _oneshot(Callable(self, "_good_sample"), 0.26)
-	_excellent = _oneshot(Callable(self, "_excellent_sample"), 0.38)
+	_impact = _oneshot(Callable(self, "_impact_sample"), 0.12)
+	_fall = _oneshot(Callable(self, "_fall_sample"), 0.16)
+	_break = _oneshot(Callable(self, "_break_sample"), 0.22)
+	_good = _oneshot(Callable(self, "_good_sample"), 0.32)
+	_excellent = _oneshot(Callable(self, "_excellent_sample"), 0.48)
 	_click = _oneshot(Callable(self, "_click_sample"), 0.045)
 	_music = AudioStreamPlayer.new()
 	_music.stream = _music_stream()
@@ -159,44 +159,56 @@ func _throw_sample(t: float) -> float:
 
 
 func _impact_sample(t: float) -> float:
-	var env := exp(-t * 38.0)
+	var env := exp(-t * 18.0)
 	var n := _hash(int(t * float(RATE)) + 19)
-	var body := sin(TAU * 140.0 * t) * 0.35
-	return (body + n * 0.65) * env * 0.85
+	var thump := sin(TAU * 68.0 * t) * exp(-t * 24.0)
+	var body := sin(TAU * 150.0 * t) * exp(-t * 36.0)
+	return (thump * 0.72 + body * 0.3 + n * 0.2) * env
 
 
 func _fall_sample(t: float) -> float:
-	var env := exp(-t * 18.0)
+	var env := exp(-t * 12.0)
 	var n := _hash(int(t * float(RATE)) + 91)
-	return (sin(TAU * 86.0 * t) * 0.45 + n * 0.25) * env
+	var thud := sin(TAU * 54.0 * t) * 0.75
+	var grit := sin(TAU * 130.0 * t) * exp(-t * 28.0) * 0.28
+	return (thud + grit + n * 0.16) * env
 
 
 func _break_sample(t: float) -> float:
-	var env := exp(-t * 16.0)
-	var crack := sin(TAU * 1680.0 * t) * exp(-t * 46.0)
+	var env := exp(-t * 11.0)
+	var pop := sin(TAU * 190.0 * t) * exp(-t * 16.0)
+	var crack := sin(TAU * 1420.0 * t) * exp(-t * 34.0)
 	var n := _hash(int(t * float(RATE)) + 240)
-	return (crack * 0.45 + n * 0.4) * env
+	return (pop * 0.62 + crack * 0.32 + n * 0.28) * env
+
+
+func _chord(freq: float, t: float, local: float) -> float:
+	var env := exp(-local * 5.5)
+	var fund := sin(TAU * freq * t)
+	var low := sin(TAU * freq * 0.5 * t) * 0.4
+	var fifth := sin(TAU * freq * 1.5 * t) * 0.16
+	return (fund * 0.62 + low + fifth) * env
 
 
 func _good_sample(t: float) -> float:
-	var f := 523.0
+	var freq := 523.0
 	var local := t
-	if t >= 0.12:
-		f = 659.0
-		local = t - 0.12
-	return sin(TAU * f * t) * exp(-local * 7.0) * 0.42
+	if t >= 0.14:
+		freq = 659.0
+		local = t - 0.14
+	return _chord(freq, t, local) * 0.5
 
 
 func _excellent_sample(t: float) -> float:
-	var f := 523.0
+	var freq := 523.0
 	var local := t
-	if t >= 0.22:
-		f = 784.0
-		local = t - 0.22
-	elif t >= 0.11:
-		f = 659.0
-		local = t - 0.11
-	return sin(TAU * f * t) * exp(-local * 6.5) * 0.44
+	if t >= 0.28:
+		freq = 784.0
+		local = t - 0.28
+	elif t >= 0.14:
+		freq = 659.0
+		local = t - 0.14
+	return _chord(freq, t, local) * 0.54
 
 
 func _click_sample(t: float) -> float:
