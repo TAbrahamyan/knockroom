@@ -54,6 +54,7 @@ func apply_language() -> void:
 		_back.text = Locale.text("meta.back")
 	if _fresh:
 		_fresh.text = Locale.text("meta.new_room")
+		_fresh.visible = not (Loadout.run_active and not Loadout.start_in_menu)
 	if visible or _coins != null:
 		_refresh()
 	_write_note()

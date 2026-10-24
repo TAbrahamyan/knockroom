@@ -48,7 +48,6 @@ var _menu_panel: Control
 var _menu_mark: Control
 var _menu_title: Label
 var _menu_meta: Button
-var _menu_restart: Button
 var _menu_settings: Button
 var _menu_main: Button
 var _menu_close: Button
@@ -114,13 +113,6 @@ func _input(event: InputEvent) -> void:
 		return
 	if phase == Phase.RUN_END or (_run_end != null and _run_end.visible):
 		return
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_R:
-		_reset()
-	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		if _shop_open:
-			return
-		if phase == Phase.SETTLED and _look <= 0.0:
-			_reset()
 
 
 func _process(delta: float) -> void:
@@ -189,10 +181,11 @@ func _finish() -> void:
 	phase = Phase.SETTLED
 	thrower.can_aim = false
 	_look = _look_for(chain.count)
-	var earned := Loadout.earn(chain.count)
+	var earned := Loadout.payout_for(chain.count)
+	Loadout.last_earn = earned
 	Loadout.note_room(chain.count, earned)
 	chain.show_result(earned)
-	_refresh_money(true)
+	_refresh_money(false)
 	_set_hint("hint.look")
 
 
@@ -527,9 +520,9 @@ func _build_corner_menu() -> void:
 	panel.anchor_right = 0.5
 	panel.anchor_bottom = 0.5
 	panel.offset_left = -230.0
-	panel.offset_top = -250.0
+	panel.offset_top = -210.0
 	panel.offset_right = 230.0
-	panel.offset_bottom = 250.0
+	panel.offset_bottom = 210.0
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	root.add_child(panel)
@@ -551,11 +544,10 @@ func _build_corner_menu() -> void:
 	_menu_title.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
 	panel.add_child(_menu_title)
 
-	_menu_meta = _add_menu_button(panel, "MetaShop", Vector2(40, 96), _on_menu_meta)
-	_menu_restart = _add_menu_button(panel, "RestartRoom", Vector2(40, 164), _on_menu_restart)
-	_menu_settings = _add_menu_button(panel, "Settings", Vector2(40, 232), _on_menu_settings)
-	_menu_main = _add_menu_button(panel, "MainMenu", Vector2(40, 300), _on_menu_main)
-	_menu_close = _add_menu_button(panel, "Close", Vector2(40, 368), _on_menu_close)
+	_menu_meta = _add_menu_button(panel, "MetaShop", Vector2(40, 84), _on_menu_meta)
+	_menu_settings = _add_menu_button(panel, "Settings", Vector2(40, 152), _on_menu_settings)
+	_menu_main = _add_menu_button(panel, "MainMenu", Vector2(40, 220), _on_menu_main)
+	_menu_close = _add_menu_button(panel, "Close", Vector2(40, 288), _on_menu_close)
 	_sync_menu_copy()
 
 	var hud := chain.get_node("UI/Root")
@@ -636,8 +628,6 @@ func _sync_menu_copy() -> void:
 		_menu_title.text = Locale.text("menu.title")
 	if _menu_meta:
 		_menu_meta.text = Locale.text("menu.meta")
-	if _menu_restart:
-		_menu_restart.text = Locale.text("menu.restart")
 	if _menu_settings:
 		_menu_settings.text = Locale.text("menu.settings")
 	if _menu_main:
@@ -702,12 +692,6 @@ func _on_menu_meta() -> void:
 	_open_meta()
 
 
-func _on_menu_restart() -> void:
-	AudioKit.play_click()
-	_set_menu_open(false)
-	_reset()
-
-
 func _on_menu_settings() -> void:
 	AudioKit.play_click()
 	_open_settings()
@@ -745,12 +729,12 @@ func _on_meta_unlocked(_id: String) -> void:
 
 
 func _on_meta_new_room() -> void:
-	if phase == Phase.MENU:
-		if _meta:
-			_meta.visible = false
-		_begin_round()
+	# From the title this starts a run. During a run there is no room restart.
+	if phase != Phase.MENU:
 		return
-	_reset()
+	if _meta:
+		_meta.visible = false
+	_begin_round()
 
 
 func _restore_aim() -> void:
@@ -993,10 +977,11 @@ func _show_run_end() -> void:
 	chain.set_hint("")
 	_randomize_room()
 	_freeze_room()
+	Loadout.bank_run()
 	_sync_run_end()
+	_refresh_money(false)
 	if _run_end:
 		_run_end.visible = true
-	Loadout.save_game()
 
 
 func _on_run_menu() -> void:
@@ -1009,7 +994,7 @@ func _on_run_menu() -> void:
 
 
 func _randomize_room() -> void:
-	# New seed on every launch and every R. The shelves, window, and lamp move, not just the props.
+	# New shelves, window, and lamp whenever a room is built.
 	randomize()
 	var wide = get_node_or_null("ShelfMain")
 	var high = get_node_or_null("ShelfUpper")
@@ -1083,20 +1068,76 @@ func _dress_room(loose: Array, shelves: Array) -> void:
 		if not prop.has_method("apply_look"):
 			continue
 		prop.apply_look(int(bag[index]))
+		_paint_prop(prop)
 		index += 1
 	for shelf in shelves:
 		if shelf != null and is_instance_valid(shelf) and shelf.has_method("set_wood"):
 			shelf.set_wood(wood, lip)
 
 
+func _paint_prop(prop) -> void:
+	if prop == null or not prop.has_method("tint_toward"):
+		return
+	prop.tint_toward(_material_color(layout_name))
+	var look_id := int(prop.look)
+	if layout_name == "attic" and look_id == 2:
+		prop.mark_fragile()
+	elif layout_name == "workshop" and (look_id == 2 or look_id == 3):
+		prop.mark_whirl()
+
+
+func _material_color(id: String) -> Color:
+	match id:
+		"long":
+			return Color(0.84, 0.42, 0.2)
+		"sides":
+			return Color(0.72, 0.38, 0.58)
+		"stack_l", "stack_r":
+			return Color(0.66, 0.26, 0.16)
+		"stairs":
+			return Color(0.62, 0.66, 0.7)
+		"balcony":
+			return Color(0.62, 0.84, 0.96)
+		"alcove":
+			return Color(0.42, 0.52, 0.82)
+		"low_loft":
+			return Color(0.9, 0.72, 0.38)
+		"split_bay":
+			return Color(0.18, 0.58, 0.66)
+		"narrow":
+			return Color(0.28, 0.36, 0.48)
+		"floor_clutter":
+			return Color(0.52, 0.32, 0.16)
+		"window_heavy":
+			return Color(0.78, 0.92, 0.96)
+		"market":
+			return Color(0.9, 0.46, 0.12)
+		"closet":
+			return Color(0.32, 0.16, 0.1)
+		"cellar":
+			return Color(0.28, 0.5, 0.34)
+		"attic":
+			return Color(0.58, 0.36, 0.16)
+		"workshop":
+			return Color(0.58, 0.64, 0.7)
+		_:
+			return Color(0.72, 0.5, 0.28)
+
+
 func _room_style(id: String) -> Dictionary:
 	# mix: 0 pot, 1 bottle, 2 crate, 3 box, 4 glass jar.
 	match id:
-		"narrow", "alcove":
+		"narrow":
 			return {
 				"mix": [1, 1, 1, 1, 1, 4, 0, 0, 2, 3],
-				"wood": Color(0.38, 0.22, 0.14),
-				"lip": Color(0.66, 0.44, 0.26, 0.9),
+				"wood": Color(0.22, 0.26, 0.32),
+				"lip": Color(0.48, 0.58, 0.7, 0.9),
+			}
+		"alcove":
+			return {
+				"mix": [1, 1, 1, 4, 4, 1, 0, 4, 1, 0],
+				"wood": Color(0.18, 0.2, 0.36),
+				"lip": Color(0.62, 0.7, 0.9, 0.9),
 			}
 		"window_heavy":
 			return {
@@ -1106,9 +1147,9 @@ func _room_style(id: String) -> Dictionary:
 			}
 		"balcony":
 			return {
-				"mix": [4, 4, 4, 1, 1, 0, 0, 2, 3, 1],
-				"wood": Color(0.78, 0.52, 0.22),
-				"lip": Color(1.0, 0.82, 0.46, 0.95),
+				"mix": [4, 4, 4, 4, 1, 1, 0, 4, 1, 0],
+				"wood": Color(0.78, 0.88, 0.94),
+				"lip": Color(1.0, 0.97, 0.86, 0.95),
 			}
 		"market":
 			return {
@@ -1124,57 +1165,63 @@ func _room_style(id: String) -> Dictionary:
 			}
 		"split_bay":
 			return {
-				"mix": [2, 2, 2, 2, 2, 3, 3, 0, 1, 2],
-				"wood": Color(0.58, 0.62, 0.66),
-				"lip": Color(0.86, 0.88, 0.9, 0.95),
+				"mix": [1, 1, 1, 4, 4, 1, 4, 1, 4, 1],
+				"wood": Color(0.16, 0.42, 0.48),
+				"lip": Color(0.55, 0.86, 0.84, 0.95),
 			}
 		"stack_l", "stack_r":
 			return {
-				"mix": [2, 2, 2, 2, 2, 3, 3, 0, 1, 2],
-				"wood": Color(0.55, 0.32, 0.16),
-				"lip": Color(0.78, 0.52, 0.28, 0.9),
+				"mix": [2, 2, 2, 2, 3, 3, 2, 0, 2, 3],
+				"wood": Color(0.62, 0.24, 0.16),
+				"lip": Color(0.86, 0.5, 0.32, 0.9),
 			}
-		"low_loft", "long":
+		"low_loft":
 			return {
-				"mix": [0, 0, 0, 0, 0, 0, 1, 2, 3, 1],
-				"wood": Color(0.72, 0.46, 0.22) if id == "low_loft" else Color(0.84, 0.58, 0.28),
-				"lip": Color(0.95, 0.78, 0.48, 0.9),
+				"mix": [0, 0, 0, 0, 0, 0, 3, 0, 2, 0],
+				"wood": Color(0.78, 0.62, 0.32),
+				"lip": Color(0.96, 0.86, 0.52, 0.95),
+			}
+		"long":
+			return {
+				"mix": [0, 0, 0, 0, 0, 1, 0, 4, 0, 0],
+				"wood": Color(0.72, 0.4, 0.2),
+				"lip": Color(0.95, 0.7, 0.4, 0.95),
 			}
 		"stairs":
 			return {
-				"mix": [1, 1, 1, 1, 1, 2, 3, 0, 4, 0],
-				"wood": Color(0.56, 0.46, 0.34),
-				"lip": Color(0.82, 0.74, 0.6, 0.9),
+				"mix": [1, 1, 1, 4, 0, 1, 1, 4, 0, 1],
+				"wood": Color(0.58, 0.6, 0.64),
+				"lip": Color(0.86, 0.88, 0.9, 0.95),
 			}
 		"sides":
 			return {
-				"mix": [0, 1, 2, 3, 4, 0, 2, 3, 1, 0],
-				"wood": Color(0.7, 0.5, 0.28),
-				"lip": Color(0.92, 0.78, 0.5, 0.9),
+				"mix": [4, 1, 0, 3, 2, 4, 1, 0, 3, 4],
+				"wood": Color(0.46, 0.22, 0.38),
+				"lip": Color(0.9, 0.62, 0.78, 0.95),
 			}
 		"attic":
 			return {
-				"mix": [2, 2, 2, 3, 3, 3, 2, 0, 1, 3],
-				"wood": Color(0.52, 0.36, 0.2),
-				"lip": Color(0.74, 0.56, 0.32, 0.9),
+				"mix": [2, 2, 2, 2, 3, 2, 3, 2, 0, 2],
+				"wood": Color(0.48, 0.3, 0.16),
+				"lip": Color(0.72, 0.5, 0.28, 0.9),
 			}
 		"cellar":
 			return {
-				"mix": [1, 1, 1, 1, 4, 4, 4, 0, 1, 4],
-				"wood": Color(0.28, 0.32, 0.28),
-				"lip": Color(0.46, 0.58, 0.48, 0.9),
+				"mix": [1, 1, 1, 1, 4, 4, 1, 4, 1, 4],
+				"wood": Color(0.24, 0.3, 0.18),
+				"lip": Color(0.46, 0.58, 0.32, 0.9),
 			}
 		"workshop":
 			return {
-				"mix": [2, 2, 2, 3, 3, 2, 3, 4, 0, 2],
-				"wood": Color(0.48, 0.5, 0.52),
-				"lip": Color(0.72, 0.74, 0.76, 0.95),
+				"mix": [2, 3, 2, 3, 2, 3, 2, 3, 4, 2],
+				"wood": Color(0.42, 0.46, 0.5),
+				"lip": Color(0.78, 0.82, 0.86, 0.95),
 			}
 		"closet":
 			return {
-				"mix": [3, 3, 3, 2, 2, 3, 2, 0, 1, 3],
-				"wood": Color(0.42, 0.24, 0.14),
-				"lip": Color(0.7, 0.46, 0.28, 0.9),
+				"mix": [3, 3, 3, 3, 2, 3, 2, 3, 0, 3],
+				"wood": Color(0.16, 0.08, 0.06),
+				"lip": Color(0.42, 0.22, 0.14, 0.9),
 			}
 		_:
 			return {
@@ -1729,11 +1776,11 @@ func _pick_sweet_spots(upper) -> void:
 		spot_x = float(riders[0])
 	spot_x = clampf(spot_x, left + 36.0, right - 36.0)
 	# 18px is about one stone. A careful aim lands it. A guess along the plank does not.
-	upper.set_sweet_spots([spot_x], [18.0])
+	upper.set_sweet_spots([spot_x], [12.0])
 
 
 func _roll_layout(wide, high, extra) -> Array:
-	# Room 1 stays on the default shelves. Owned rooms join rooms 2–4.
+	# Room 1 stays on the default shelves. Owned rooms join rooms 2–8.
 	var names: Array = ["long", "sides", "stack_l", "stack_r", "stairs", "balcony", "alcove"]
 	if Loadout.run_index > 1:
 		var extras: Array = ["low_loft", "split_bay", "narrow", "floor_clutter", "window_heavy", "market", "closet", "cellar", "attic", "workshop"]

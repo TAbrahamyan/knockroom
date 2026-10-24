@@ -11,7 +11,7 @@ const GOLD_GLOW := Color(1.0, 0.9, 0.15, 0.6)
 const CHAIN_SPEED := 32.0
 const POP_TIME := 0.48
 ## A fast stone on one of this shelf's spots (set per room) starts the long cascade.
-const SWEET_SPEED := 660.0
+const SWEET_SPEED := 1280.0
 const AudioKit := preload("res://scripts/audio_kit.gd")
 
 @export var kind: Kind = Kind.BARREL
@@ -41,6 +41,9 @@ var _stagger_gap := 0.0
 var _anchor: Node2D
 ## 0 pot, 1 bottle, 2 crate, 3 box, 4 glass jar. Physics stays a circle or a box.
 var look := 0
+var fragile := false
+var whirls := false
+var _broke := false
 var dye := Color(0.86, 0.50, 0.20)
 var wood := Color(0.84, 0.62, 0.30)
 var lip := Color(1.0, 0.90, 0.62, 0.75)
@@ -125,6 +128,22 @@ func set_wood(fill: Color, edge: Color) -> void:
 	queue_redraw()
 
 
+func tint_toward(target: Color) -> void:
+	dye = dye.lerp(target, 0.62)
+	queue_redraw()
+
+
+func mark_fragile() -> void:
+	fragile = true
+	queue_redraw()
+
+
+func mark_whirl() -> void:
+	whirls = true
+	dye = dye.lerp(Color(0.62, 0.68, 0.74), 0.45)
+	queue_redraw()
+
+
 func apply_look(look_id: int) -> void:
 	look = clampi(look_id, 0, 4)
 	shatters = look == 1 or look == 4
@@ -186,7 +205,7 @@ func wake_from(source: Node2D) -> void:
 	# Deferred from the physics callback. Freeze changes are unsafe inside it.
 	# The projectile can wake the plank before the spot is scored. Score it here too.
 	if kind == Kind.SHELF and not _sweet_x.is_empty() and is_instance_valid(source) and source.is_in_group("projectile"):
-		note_hit(source.global_position.x, _body_speed(source))
+		note_hit(source.global_position.x, _body_speed(source), _body_mass(source))
 	if awakened or not freeze:
 		if _heavy:
 			_arm_heavy_if_idle()
@@ -200,15 +219,30 @@ func wake_from(source: Node2D) -> void:
 	freeze = false
 	sleeping = false
 	_join_chain()
+	if whirls:
+		angular_damp = 0.05
+		var spin_sign := -1.0 if randf() < 0.5 else 1.0
+		angular_velocity = spin_sign * randf_range(8.0, 13.0)
 	var dir := Vector2.RIGHT
-	var speed := 420.0
+	var speed := 220.0
+	var from_stone := is_instance_valid(source) and source.is_in_group("projectile")
 	if is_instance_valid(source):
 		var rel := global_position - source.global_position
 		if rel.length() > 1.0:
 			dir = rel.normalized()
 		if source is RigidBody2D:
-			speed = clampf(source.linear_velocity.length(), 280.0, 860.0)
-	var coeff := 0.2
+			var raw: float = (source as RigidBody2D).linear_velocity.length()
+			if from_stone:
+				speed = clampf(raw, 160.0, 700.0)
+			elif _heavy or _force_wake:
+				speed = clampf(raw, 280.0, 860.0)
+			else:
+				speed = clampf(raw, 90.0, 460.0)
+	var coeff := 0.1
+	if from_stone:
+		coeff = 0.14
+	elif _heavy or _force_wake:
+		coeff = 0.2
 	if kind == Kind.SHELF:
 		# A small shove and a real tip. Gravity does the falling.
 		dir = Vector2(dir.x * 0.16, 1.0).normalized()
@@ -221,9 +255,9 @@ func wake_from(source: Node2D) -> void:
 			dir = Vector2(bias * 0.32, 1.0).normalized()
 			coeff = 0.26
 		elif _is_support_shelf():
-			coeff = 0.12 * randf_range(0.75, 1.0)
+			coeff = 0.07 * randf_range(0.75, 1.0)
 		else:
-			coeff = 0.16 * randf_range(0.8, 1.0)
+			coeff = 0.09 * randf_range(0.8, 1.0)
 	elif kind == Kind.LAMP:
 		var horiz := dir.x if absf(dir.x) > 0.2 else 1.0
 		dir = Vector2(signf(horiz), 0.06).normalized()
@@ -258,6 +292,10 @@ func _on_body_entered(body: Node) -> void:
 		_note_projectile_hit(body)
 	if body is RigidBody2D and body.has_method("wake_from") and body.freeze:
 		body.call_deferred("wake_from", self)
+	_maybe_break(body)
+	if whirls and body is RigidBody2D and body.is_in_group("prop"):
+		var other := body as RigidBody2D
+		call_deferred("_clip_with_spin", other)
 	if not counted:
 		call_deferred("_evaluate_hit", body)
 	if not body.is_in_group("projectile") and linear_velocity.length() > 120.0:
@@ -304,7 +342,7 @@ func _shove_below() -> void:
 	var lower := _is_support_shelf()
 	var half_w := box_size.x * 0.5 + (4.0 if lower else 0.0)
 	var max_dy := 150.0 if lower else 96.0
-	var chance := 0.4 if lower else 0.3
+	var chance := 0.08 if lower else 0.05
 	for node in get_tree().get_nodes_in_group("prop"):
 		if node == self or node.freeze:
 			continue
@@ -330,12 +368,24 @@ func _is_support_shelf() -> bool:
 func _impact_wakes(source: Node2D) -> bool:
 	if _heavy or _force_wake:
 		return true
-	if not _is_support_shelf():
-		return true
 	if source != null and source.is_in_group("projectile"):
-		return true
+		var punch := _body_speed(source) * clampf(_body_mass(source) / 2.5, 0.35, 1.75)
+		if kind == Kind.SHELF:
+			return punch >= 700.0
+		if kind == Kind.LAMP:
+			return punch >= 500.0
+		return punch >= 400.0
+	if kind == Kind.SHELF:
+		if source is RigidBody2D:
+			return _body_speed(source) >= 760.0
+		return false
 	if source is RigidBody2D:
-		return _body_speed(source) >= 300.0
+		var hit_speed := _body_speed(source)
+		if hit_speed < 540.0:
+			return false
+		if hit_speed < 820.0 and randf() > 0.42:
+			return false
+		return true
 	return false
 
 
@@ -355,7 +405,7 @@ func _note_projectile_hit(stone: Node) -> void:
 			return
 		shelf = aim
 	if shelf != null and shelf.has_method("note_hit"):
-		shelf.note_hit(stone.global_position.x, _body_speed(stone))
+		shelf.note_hit(stone.global_position.x, _body_speed(stone), _body_mass(stone))
 		# Cargo is already touching the plank, so the stone must wake it.
 		if shelf != self and shelf.freeze:
 			shelf.call_deferred("wake_from", stone)
@@ -370,11 +420,12 @@ func set_sweet_spots(xs: Array, reaches: Array) -> void:
 		_sweet_reach.append(float(reaches[i]))
 
 
-func note_hit(hit_x: float, speed: float) -> void:
-	if speed >= _hit_speed:
+func note_hit(hit_x: float, speed: float, body_mass: float = 2.5) -> void:
+	var punch := speed * clampf(body_mass / 2.5, 0.35, 1.75)
+	if punch >= _hit_speed:
 		_hit_x = hit_x
-		_hit_speed = speed
-	if _heavy or speed < SWEET_SPEED or _sweet_x.is_empty():
+		_hit_speed = punch
+	if _heavy or punch < SWEET_SPEED or _sweet_x.is_empty():
 		return
 	for i in _sweet_x.size():
 		if absf(hit_x - _sweet_x[i]) <= _sweet_reach[i]:
@@ -439,6 +490,10 @@ func _queue_floor_wave() -> void:
 			continue
 		if node.global_position.x < 40.0 or node.global_position.x > 1240.0:
 			continue
+		if absf(node.global_position.x - _hit_x) > 280.0:
+			continue
+		if randf() > 0.55:
+			continue
 		var delta_y = node.global_position.y - global_position.y
 		if delta_y < 10.0 or delta_y > 520.0:
 			continue
@@ -466,7 +521,7 @@ func _kick_next_stagger() -> void:
 			return
 		node.mark_chain()
 		# A roll along the floor. Almost no lift, so they tumble instead of jumping.
-		var kick := Vector2(away * randf_range(260.0, 380.0), randf_range(-28.0, 16.0))
+		var kick := Vector2(away * randf_range(90.0, 150.0), randf_range(-12.0, 10.0))
 		node.apply_central_impulse(kick * node.mass)
 		return
 
@@ -479,6 +534,57 @@ func _find_aim_shelf():
 		if spots is Array and not spots.is_empty():
 			return node
 	return null
+
+
+func _body_mass(body: Node) -> float:
+	if body is RigidBody2D:
+		return (body as RigidBody2D).mass
+	return 2.5
+
+
+func _maybe_break(body: Node) -> void:
+	if not fragile or _broke:
+		return
+	var punch := linear_velocity.length()
+	if body is RigidBody2D:
+		var hit := _body_speed(body) * clampf(_body_mass(body) / 2.5, 0.35, 1.75)
+		punch = maxf(punch, hit)
+	if punch < 720.0:
+		return
+	_broke = true
+	call_deferred("_split_crate")
+
+
+func _split_crate() -> void:
+	var parent := get_parent()
+	if parent == null:
+		return
+	var origin := global_position
+	var chip := dye
+	collision_layer = 0
+	collision_mask = 0
+	visible = false
+	freeze = true
+	for i in 2:
+		var bit := CrateBit.new()
+		var dir := Vector2.from_angle(float(i) * 2.2 + randf_range(-0.4, 0.4))
+		parent.add_child(bit)
+		bit.global_position = origin + dir * 12.0
+		bit.linear_velocity = dir * randf_range(220.0, 340.0) + Vector2(0, randf_range(20.0, 90.0))
+		bit.angular_velocity = randf_range(-12.0, 12.0)
+		bit.tint = chip
+
+
+func _clip_with_spin(other: RigidBody2D) -> void:
+	if not whirls or not is_instance_valid(other) or other == self or other.freeze:
+		return
+	var kind_value = other.get("kind")
+	if kind_value == null or int(kind_value) == Kind.SHELF or int(kind_value) == Kind.LAMP:
+		return
+	var push := clampf(absf(angular_velocity) * 6.0, 28.0, 100.0)
+	var side := 1.0 if angular_velocity >= 0.0 else -1.0
+	other.sleeping = false
+	other.apply_central_impulse(Vector2(side * push, 16.0) * other.mass)
 
 
 func _body_speed(body: Node) -> float:
@@ -718,6 +824,13 @@ func _draw_crate() -> void:
 	draw_rect(Rect2(rect.position.x, rect.position.y + 5.0, rect.size.x, 3.0), slat)
 	draw_rect(Rect2(rect.position.x, rect.position.y + rect.size.y * 0.5 - 1.5, rect.size.x, 3.0), slat)
 	draw_rect(Rect2(rect.position.x, rect.end.y - 8.0, rect.size.x, 3.0), slat)
+	if fragile and not _broke:
+		var crack := Color(0.2, 0.1, 0.06, 0.85)
+		draw_line(rect.position + Vector2(6, 6), rect.end - Vector2(6, 6), crack, 2.0)
+		draw_line(Vector2(rect.end.x - 6.0, rect.position.y + 6.0), Vector2(rect.position.x + 6.0, rect.end.y - 6.0), crack, 2.0)
+	if whirls:
+		draw_rect(Rect2(rect.position.x + 8.0, rect.position.y + 8.0, 4.0, 4.0), Color(0.85, 0.88, 0.9))
+		draw_rect(Rect2(rect.end.x - 12.0, rect.end.y - 12.0, 4.0, 4.0), Color(0.85, 0.88, 0.9))
 
 
 func _draw_box() -> void:
@@ -773,18 +886,18 @@ func _apply_material() -> void:
 	var mat := PhysicsMaterial.new()
 	match kind:
 		Kind.BARREL:
-			mass = 1.55
-			linear_damp = 0.18
-			angular_damp = 0.32
+			mass = 1.7
+			linear_damp = 0.34
+			angular_damp = 0.48
 			gravity_scale = 1.0
-			mat.friction = 0.42 if mass_scale < 0.9 else 0.55
-			mat.bounce = 0.06
+			mat.friction = 0.62 if mass_scale < 0.9 else 0.72
+			mat.bounce = 0.04
 		Kind.CAGE:
-			mass = 2.4
-			linear_damp = 0.26
-			angular_damp = 0.5
+			mass = 2.7
+			linear_damp = 0.42
+			angular_damp = 0.62
 			gravity_scale = 1.0
-			mat.friction = 0.7
+			mat.friction = 0.84
 			mat.bounce = 0.0
 		Kind.SHELF:
 			mass = 5.2
@@ -921,3 +1034,50 @@ class GlassBit extends RigidBody2D:
 			Vector2(0, -6), Vector2(5, 3), Vector2(-4, 4),
 		]), Color(0.78, 0.96, 0.92, 0.92))
 		draw_line(Vector2(-1, -3), Vector2(2, 1), Color(1, 1, 1, 0.8), 1.5)
+
+
+## A piece of a broken attic crate. It can knock a neighbor. It does not add its own chain link.
+class CrateBit extends RigidBody2D:
+	var tint := Color(0.55, 0.34, 0.16)
+	var _recent_speed := 0.0
+
+	func _ready() -> void:
+		add_to_group("prop")
+		collision_layer = 2
+		collision_mask = 7
+		mass = 0.9
+		gravity_scale = 1.0
+		linear_damp = 0.28
+		angular_damp = 0.2
+		can_sleep = true
+		continuous_cd = CCD_MODE_CAST_RAY
+		contact_monitor = true
+		max_contacts_reported = 4
+		var shape_node := CollisionShape2D.new()
+		var rect := RectangleShape2D.new()
+		rect.size = Vector2(16, 18)
+		shape_node.shape = rect
+		add_child(shape_node)
+		var mat := PhysicsMaterial.new()
+		mat.friction = 0.45
+		mat.bounce = 0.05
+		physics_material_override = mat
+		body_entered.connect(_on_bit_hit)
+		queue_redraw()
+
+	func is_in_chain() -> bool:
+		return true
+
+	func mark_chain() -> void:
+		pass
+
+	func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
+		_recent_speed = maxf(state.linear_velocity.length(), _recent_speed * 0.85)
+
+	func _on_bit_hit(body: Node) -> void:
+		if body is RigidBody2D and body.has_method("wake_from") and body.freeze:
+			body.call_deferred("wake_from", self)
+
+	func _draw() -> void:
+		draw_rect(Rect2(-8, -9, 16, 18), Color(0.1, 0.06, 0.04))
+		draw_rect(Rect2(-6, -7, 12, 14), tint)

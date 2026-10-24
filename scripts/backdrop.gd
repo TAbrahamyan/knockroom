@@ -95,89 +95,144 @@ func _draw() -> void:
 
 func _paint_mood() -> void:
 	match layout_id:
-		"split_bay":
-			draw_rect(Rect2(620, 36, 160, 604), Color(0.02, 0.03, 0.05, 0.42))
-			draw_rect(Rect2(32, 36, 520, 500), Color(0.55, 0.62, 0.68, 0.05))
-			draw_rect(Rect2(860, 36, 388, 500), Color(0.55, 0.62, 0.68, 0.05))
-		"alcove":
-			draw_rect(Rect2(32, 36, 560, 590), Color(0.02, 0.03, 0.06, 0.34))
-			draw_rect(Rect2(48, 80, 280, 220), Color(0.45, 0.62, 0.78, 0.08))
-			draw_rect(Rect2(760, 36, 488, 590), Color(0.28, 0.16, 0.1, 0.12))
-		"stack_l":
-			draw_rect(Rect2(32, 36, 640, 590), Color(0.16, 0.06, 0.03, 0.2))
-		"stack_r":
-			draw_rect(Rect2(680, 36, 568, 590), Color(0.16, 0.06, 0.03, 0.2))
-		"sides":
-			draw_rect(Rect2(32, 70, 300, 530), Color(0.05, 0.03, 0.06, 0.22))
-			draw_rect(Rect2(960, 70, 288, 530), Color(0.05, 0.03, 0.06, 0.22))
-			draw_rect(Rect2(420, 80, 440, 420), Color(0.9, 0.8, 0.62, 0.04))
-		"stairs":
-			draw_line(Vector2(280, 560), Vector2(1140, 210), Color(0.0, 0.0, 0.0, 0.22), 48.0)
-			for i in 6:
-				var step := float(i)
-				draw_line(Vector2(340.0 + step * 120.0, 530.0 - step * 52.0), Vector2(470.0 + step * 120.0, 490.0 - step * 52.0), Color(0.42, 0.34, 0.26, 0.22), 10.0)
-		"market":
-			draw_rect(Rect2(40, 390, 1200, 250), Color(1.0, 0.62, 0.22, 0.08))
-			for i in 6:
-				draw_rect(Rect2(90.0 + float(i) * 190.0, 70.0, 22.0, 340.0), Color(0.62, 0.28, 0.1, 0.13))
-			draw_rect(Rect2(48, 548, 1184, 18), Color(0.62, 0.36, 0.16, 0.45))
-		"window_heavy":
-			draw_rect(Rect2(window_rect.position.x - 20.0, window_rect.position.y, window_rect.size.x + 40.0, window_rect.size.y + 220.0), Color(0.8, 0.9, 0.96, 0.08))
-		"narrow":
-			draw_rect(Rect2(520, 36, 340, 590), Color(0.02, 0.04, 0.08, 0.28))
-		"floor_clutter":
-			draw_rect(Rect2(32, 80, 1216, 520), Color(0.08, 0.04, 0.02, 0.1))
-		"balcony":
-			draw_circle(hook_pos + Vector2(0, 48), 72.0, Color(1.0, 0.72, 0.28, 0.12))
-		"low_loft":
-			draw_rect(Rect2(32, 36, 1216, 180), Color(0.0, 0.0, 0.0, 0.22))
-			draw_rect(Rect2(32, 400, 1216, 226), Color(0.2, 0.08, 0.04, 0.1))
 		"long":
-			draw_rect(Rect2(360, 80, 560, 280), Color(0.85, 0.5, 0.24, 0.05))
+			draw_rect(Rect2(180, 90, 140, 110), Color(0.42, 0.22, 0.12))
+			draw_rect(Rect2(196, 106, 108, 78), Color(0.9, 0.72, 0.42))
+			draw_rect(Rect2(920, 110, 160, 120), Color(0.42, 0.22, 0.12))
+			draw_rect(Rect2(936, 126, 128, 88), Color(0.62, 0.28, 0.18))
+			draw_rect(Rect2(260, 560, 760, 28), Color(0.62, 0.16, 0.12, 0.85))
+		"sides":
+			draw_rect(Rect2(32, 36, 250, 590), Color(0.28, 0.06, 0.18, 0.92))
+			draw_rect(Rect2(998, 36, 250, 590), Color(0.28, 0.06, 0.18, 0.92))
+			draw_rect(Rect2(300, 48, 680, 18), Color(0.86, 0.62, 0.28))
+			draw_rect(Rect2(420, 200, 440, 260), Color(0.95, 0.82, 0.55, 0.18))
+		"stack_l":
+			_brick_column(48, 18)
+		"stack_r":
+			_brick_column(980, 18)
+		"stairs":
+			for i in 7:
+				var step := float(i)
+				draw_rect(Rect2(300.0 + step * 110.0, 500.0 - step * 58.0, 150.0, 28.0), Color(0.72, 0.74, 0.76, 0.55))
+				draw_rect(Rect2(300.0 + step * 110.0, 524.0 - step * 58.0, 150.0, 8.0), Color(0.4, 0.42, 0.44, 0.7))
+		"balcony":
+			draw_rect(Rect2(180, 70, 90, 36), Color(0.96, 0.98, 1.0, 0.85))
+			draw_rect(Rect2(520, 96, 140, 28), Color(0.96, 0.98, 1.0, 0.75))
+			draw_rect(Rect2(860, 64, 110, 32), Color(0.96, 0.98, 1.0, 0.8))
+			draw_rect(Rect2(1040, 80, 70, 70), Color(0.98, 0.9, 0.45))
+			draw_rect(Rect2(80, 430, 1120, 8), Color(0.92, 0.95, 0.98, 0.7))
+		"alcove":
+			draw_rect(Rect2(860, 70, 48, 48), Color(0.9, 0.92, 0.86))
+			draw_rect(Rect2(80, 120, 360, 280), Color(0.08, 0.1, 0.2, 0.55))
+			draw_rect(Rect2(860, 160, 300, 360), Color(0.18, 0.22, 0.4, 0.35))
+		"low_loft":
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(32, 420), Vector2(420, 300), Vector2(760, 390), Vector2(1248, 280), Vector2(1248, 640), Vector2(32, 640),
+			]), Color(0.84, 0.62, 0.28, 0.55))
+			draw_rect(Rect2(980, 70, 64, 64), Color(0.98, 0.78, 0.28))
+		"split_bay":
+			for i in 8:
+				var band := 0.08 + float(i) * 0.03
+				draw_rect(Rect2(32, 80.0 + float(i) * 64.0, 1216, 28), Color(0.15, 0.7, 0.78, band))
+			draw_rect(Rect2(200, 160, 18, 10), Color(0.7, 0.95, 0.96, 0.7))
+			draw_rect(Rect2(640, 240, 14, 8), Color(0.7, 0.95, 0.96, 0.65))
+			draw_rect(Rect2(980, 190, 16, 9), Color(0.7, 0.95, 0.96, 0.7))
+		"narrow":
+			for i in 10:
+				draw_rect(Rect2(430, 50.0 + float(i) * 56.0, 420, 10), Color(0.2, 0.24, 0.3, 0.85))
+			draw_rect(Rect2(560, 36, 160, 520), Color(0.15, 0.22, 0.36, 0.28))
+		"floor_clutter":
+			draw_line(Vector2(80, 500), Vector2(420, 560), Color(0.28, 0.16, 0.08), 4.0)
+			draw_line(Vector2(500, 470), Vector2(900, 580), Color(0.28, 0.16, 0.08), 4.0)
+			draw_line(Vector2(860, 500), Vector2(1200, 540), Color(0.22, 0.12, 0.06), 3.0)
+			draw_rect(Rect2(32, 560, 1216, 70), Color(0.36, 0.22, 0.1, 0.35))
+		"window_heavy":
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(window_rect.position.x, window_rect.end.y),
+				Vector2(window_rect.end.x, window_rect.end.y),
+				Vector2(window_rect.end.x + 80.0, 620.0),
+				Vector2(window_rect.position.x - 80.0, 620.0),
+			]), Color(0.95, 0.98, 1.0, 0.28))
+		"market":
+			for i in 10:
+				var stripe := Color(0.82, 0.16, 0.12) if i % 2 == 0 else Color(0.96, 0.9, 0.7)
+				draw_rect(Rect2(48.0 + float(i) * 118.0, 48.0, 118.0, 36.0), stripe)
+			for i in 5:
+				draw_rect(Rect2(140.0 + float(i) * 220.0, 84.0, 14.0, 460.0), Color(0.42, 0.18, 0.08, 0.55))
 		"attic":
 			draw_colored_polygon(PackedVector2Array([
-				Vector2(32, 36),
-				Vector2(860, 36),
-				Vector2(32, 470),
-			]), Color(0.16, 0.08, 0.04, 0.72))
-			draw_rect(Rect2(32, 36, 1216, 590), Color(0.42, 0.26, 0.1, 0.1))
+				Vector2(32, 36), Vector2(980, 36), Vector2(32, 520),
+			]), Color(0.22, 0.1, 0.04, 0.88))
+			draw_line(Vector2(80, 80), Vector2(80, 460), Color(0.42, 0.26, 0.12), 8.0)
+			draw_line(Vector2(220, 48), Vector2(220, 360), Color(0.42, 0.26, 0.12), 8.0)
+			draw_line(Vector2(400, 48), Vector2(400, 250), Color(0.36, 0.2, 0.1), 6.0)
+			draw_rect(Rect2(700, 80, 420, 8), Color(0.55, 0.4, 0.22, 0.35))
 		"cellar":
-			draw_rect(Rect2(32, 36, 1216, 150), Color(0.0, 0.02, 0.03, 0.55))
-			draw_rect(Rect2(32, 36, 1216, 590), Color(0.04, 0.12, 0.12, 0.28))
+			draw_rect(Rect2(32, 36, 1216, 120), Color(0.08, 0.07, 0.04, 0.75))
+			draw_line(Vector2(120, 150), Vector2(80, 420), Color(0.28, 0.2, 0.08), 3.0)
+			draw_line(Vector2(1040, 140), Vector2(1120, 400), Color(0.28, 0.2, 0.08), 3.0)
+			draw_rect(Rect2(48, 520, 1184, 90), Color(0.12, 0.1, 0.05, 0.45))
 		"workshop":
-			draw_rect(Rect2(32, 36, 1216, 590), Color(0.16, 0.18, 0.2, 0.16))
-			draw_rect(Rect2(96, 78, 46, 16), Color(0.95, 0.62, 0.18, 0.7))
-			draw_rect(Rect2(160, 508, 960, 8), Color(0.45, 0.48, 0.52, 0.55))
+			for i in 6:
+				draw_rect(Rect2(80.0 + float(i) * 190.0, 60.0, 4.0, 500.0), Color(0.15, 0.16, 0.18, 0.45))
+			for i in 4:
+				draw_rect(Rect2(60.0, 120.0 + float(i) * 120.0, 1160.0, 3.0), Color(0.15, 0.16, 0.18, 0.4))
+			draw_rect(Rect2(160, 500, 960, 16), Color(0.15, 0.15, 0.16))
+			for i in 16:
+				var hazard := Color(0.92, 0.72, 0.12) if i % 2 == 0 else Color(0.12, 0.12, 0.12)
+				draw_rect(Rect2(160.0 + float(i) * 60.0, 500.0, 60.0, 16.0), hazard)
+			draw_rect(Rect2(96, 78, 54, 18), Color(0.98, 0.62, 0.16))
 		"closet":
-			draw_rect(Rect2(32, 36, 560, 590), Color(0.02, 0.01, 0.02, 0.55))
-			draw_rect(Rect2(1040, 36, 208, 590), Color(0.02, 0.01, 0.02, 0.5))
-			draw_rect(Rect2(700, 36, 280, 590), Color(0.28, 0.12, 0.05, 0.16))
+			draw_rect(Rect2(32, 36, 620, 590), Color(0.0, 0.0, 0.0, 0.72))
+			draw_rect(Rect2(980, 36, 268, 590), Color(0.0, 0.0, 0.0, 0.72))
+			draw_rect(Rect2(680, 36, 260, 590), Color(0.42, 0.2, 0.08, 0.22))
 		_:
 			pass
+
+
+func _brick_column(x: float, rows: int) -> void:
+	for i in rows:
+		var y := 48.0 + float(i) * 32.0
+		var shift := 18.0 if i % 2 == 0 else 0.0
+		draw_rect(Rect2(x + shift, y, 70, 26), Color(0.62, 0.24, 0.16, 0.9))
+		draw_rect(Rect2(x + 78.0 + shift, y, 70, 26), Color(0.5, 0.18, 0.12, 0.9))
+		draw_rect(Rect2(x + 156.0 + shift, y, 70, 26), Color(0.58, 0.22, 0.14, 0.85))
 
 
 func _glass_color() -> Color:
 	match layout_id:
 		"window_heavy":
-			return Color(0.74, 0.9, 0.97)
+			return Color(0.9, 0.97, 1.0)
 		"alcove":
-			return Color(0.28, 0.4, 0.52)
+			return Color(0.35, 0.42, 0.7)
 		"narrow":
-			return Color(0.22, 0.32, 0.44)
+			return Color(0.16, 0.22, 0.36)
 		"market":
-			return Color(0.86, 0.62, 0.36)
+			return Color(0.95, 0.55, 0.22)
 		"balcony":
-			return Color(0.95, 0.72, 0.4)
+			return Color(0.7, 0.88, 1.0)
 		"low_loft":
-			return Color(0.18, 0.16, 0.18)
+			return Color(0.98, 0.82, 0.4)
+		"split_bay":
+			return Color(0.2, 0.7, 0.78)
+		"stairs":
+			return Color(0.7, 0.74, 0.78)
+		"sides":
+			return Color(0.9, 0.55, 0.72)
+		"stack_l", "stack_r":
+			return Color(0.85, 0.45, 0.28)
+		"long":
+			return Color(0.95, 0.72, 0.4)
+		"floor_clutter":
+			return Color(0.72, 0.5, 0.28)
 		"attic":
-			return Color(0.72, 0.58, 0.36)
+			return Color(0.72, 0.52, 0.28)
 		"cellar":
-			return Color(0.16, 0.26, 0.24)
+			return Color(0.28, 0.36, 0.18)
 		"workshop":
-			return Color(0.58, 0.66, 0.7)
+			return Color(0.62, 0.72, 0.78)
 		"closet":
-			return Color(0.22, 0.16, 0.12)
+			return Color(0.28, 0.14, 0.08)
 		_:
 			return GLASS
 
@@ -228,34 +283,38 @@ func _board_color() -> Color:
 
 func _floor_color() -> Color:
 	match layout_id:
-		"floor_clutter":
-			return Color(0.2, 0.12, 0.08)
-		"market":
-			return Color(0.42, 0.24, 0.12)
-		"split_bay":
-			return Color(0.28, 0.3, 0.32)
-		"window_heavy":
-			return Color(0.4, 0.36, 0.3)
-		"narrow", "alcove":
-			return Color(0.14, 0.12, 0.14)
-		"low_loft":
-			return Color(0.16, 0.09, 0.07)
-		"stairs":
-			return Color(0.32, 0.26, 0.2)
-		"balcony":
-			return Color(0.4, 0.24, 0.14)
-		"stack_l", "stack_r":
-			return Color(0.34, 0.2, 0.12)
 		"long":
-			return Color(0.36, 0.2, 0.13)
-		"attic":
-			return Color(0.3, 0.18, 0.1)
-		"cellar":
-			return Color(0.1, 0.14, 0.13)
-		"workshop":
-			return Color(0.24, 0.25, 0.26)
+			return Color(0.48, 0.24, 0.14)
+		"sides":
+			return Color(0.28, 0.1, 0.18)
+		"stack_l", "stack_r":
+			return Color(0.4, 0.18, 0.12)
+		"stairs":
+			return Color(0.38, 0.4, 0.42)
+		"balcony":
+			return Color(0.7, 0.8, 0.86)
+		"alcove":
+			return Color(0.08, 0.09, 0.16)
+		"low_loft":
+			return Color(0.72, 0.52, 0.24)
+		"split_bay":
+			return Color(0.03, 0.16, 0.22)
+		"narrow":
+			return Color(0.08, 0.09, 0.12)
+		"floor_clutter":
+			return Color(0.36, 0.22, 0.1)
+		"window_heavy":
+			return Color(0.78, 0.82, 0.84)
+		"market":
+			return Color(0.5, 0.2, 0.08)
 		"closet":
-			return Color(0.16, 0.09, 0.07)
+			return Color(0.06, 0.04, 0.04)
+		"cellar":
+			return Color(0.12, 0.11, 0.06)
+		"attic":
+			return Color(0.32, 0.18, 0.1)
+		"workshop":
+			return Color(0.22, 0.24, 0.26)
 		_:
 			return FLOOR
 
@@ -284,37 +343,37 @@ func _floor_line() -> Color:
 
 func _wall_color() -> Color:
 	match layout_id:
-		"low_loft":
-			return Color(0.16, 0.09, 0.07)
-		"narrow":
-			return Color(0.08, 0.1, 0.16)
-		"floor_clutter":
-			return Color(0.26, 0.16, 0.1)
-		"split_bay":
-			return Color(0.16, 0.18, 0.2)
-		"window_heavy":
-			return Color(0.28, 0.26, 0.22)
-		"market":
-			return Color(0.4, 0.22, 0.11)
-		"alcove":
-			return Color(0.09, 0.09, 0.13)
-		"stairs":
-			return Color(0.22, 0.17, 0.13)
-		"sides":
-			return Color(0.18, 0.13, 0.15)
-		"stack_l", "stack_r":
-			return Color(0.24, 0.13, 0.08)
-		"balcony":
-			return Color(0.3, 0.16, 0.1)
 		"long":
-			return Color(0.22, 0.13, 0.11)
-		"attic":
-			return Color(0.32, 0.2, 0.12)
-		"cellar":
-			return Color(0.07, 0.11, 0.12)
-		"workshop":
-			return Color(0.2, 0.21, 0.23)
+			return Color(0.74, 0.58, 0.4)
+		"sides":
+			return Color(0.36, 0.14, 0.28)
+		"stack_l", "stack_r":
+			return Color(0.55, 0.28, 0.2)
+		"stairs":
+			return Color(0.52, 0.54, 0.56)
+		"balcony":
+			return Color(0.4, 0.66, 0.88)
+		"alcove":
+			return Color(0.06, 0.07, 0.16)
+		"low_loft":
+			return Color(0.9, 0.74, 0.42)
+		"split_bay":
+			return Color(0.04, 0.26, 0.36)
+		"narrow":
+			return Color(0.06, 0.07, 0.1)
+		"floor_clutter":
+			return Color(0.55, 0.36, 0.18)
+		"window_heavy":
+			return Color(0.88, 0.92, 0.94)
+		"market":
+			return Color(0.78, 0.34, 0.12)
 		"closet":
-			return Color(0.12, 0.07, 0.05)
+			return Color(0.04, 0.03, 0.03)
+		"cellar":
+			return Color(0.16, 0.18, 0.1)
+		"attic":
+			return Color(0.42, 0.26, 0.14)
+		"workshop":
+			return Color(0.32, 0.36, 0.4)
 		_:
 			return WALL

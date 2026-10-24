@@ -16,12 +16,14 @@ static var sfx_volume := 70
 ## Session only. A reload returns to the menu when this is still true.
 static var start_in_menu := true
 ## A run is four rooms. These survive a scene reload. The save file does not store them.
-const RUN_ROOMS := 4
+const RUN_ROOMS := 8
 static var run_active := false
 static var run_index := 1
 static var run_earned := 0
 static var run_best := 0
 static var run_show_complete := false
+## True after Run Complete has moved run_earned into the purse. Abandon never sets this.
+static var run_banked := false
 
 ## speed scales the launch. mass scales the stone's 2.5 base.
 ## impact is extra hit speed on the first body. The rest are on-hit effects.
@@ -29,37 +31,39 @@ const CATALOG: Array = [
 	{
 		"id": "heavy_stone",
 		"name": "Heavy Stone",
-		"line": "Hits harder. Flies shorter.",
+		"line": "Slow throw. A heavy downward hit.",
 		"shape": "heavy",
 		"tint": Color(0.38, 0.34, 0.32),
 		"price": 13,
-		"speed": 0.68,
-		"mass": 2.2,
-		"bounce": 0.03,
-		"friction": 0.78,
-		"impact": 95.0,
+		"speed": 0.6,
+		"mass": 2.35,
+		"bounce": 0.02,
+		"friction": 0.82,
+		"weight": true,
 	},
 	{
 		"id": "light_stone",
 		"name": "Light Stone",
-		"line": "Flies farther off the sling.",
+		"line": "Light. A weak shove.",
 		"shape": "light",
 		"tint": Color(0.92, 0.88, 0.78),
 		"price": 7,
-		"speed": 1.16,
-		"mass": 0.46,
-		"bounce": 0.12,
-		"friction": 0.42,
+		"speed": 1.0,
+		"mass": 0.4,
+		"bounce": 0.05,
+		"friction": 0.58,
 	},
 	{
 		"id": "spring_stone",
 		"name": "Spring Stone",
-		"line": "Bounces hard off everything.",
+		"line": "A small bounce and a weak hit.",
 		"shape": "spring",
 		"tint": Color(0.42, 0.82, 0.38),
 		"price": 8,
-		"bounce": 0.8,
-		"friction": 0.16,
+		"speed": 0.94,
+		"mass": 0.62,
+		"bounce": 0.28,
+		"friction": 0.4,
 	},
 	{
 		"id": "blast_stone",
@@ -68,8 +72,9 @@ const CATALOG: Array = [
 		"shape": "blast",
 		"tint": Color(0.95, 0.32, 0.16),
 		"price": 19,
-		"blast": 118.0,
-		"blast_force": 250.0,
+		"mass": 1.15,
+		"blast": 146.0,
+		"blast_force": 320.0,
 	},
 	{
 		"id": "magnet_stone",
@@ -78,18 +83,21 @@ const CATALOG: Array = [
 		"shape": "magnet",
 		"tint": Color(0.38, 0.58, 0.96),
 		"price": 16,
-		"magnet": 0.75,
-		"magnet_radius": 148.0,
-		"magnet_pull": 1100.0,
+		"mass": 1.05,
+		"magnet": 0.85,
+		"magnet_radius": 176.0,
+		"magnet_pull": 1500.0,
 	},
 	{
 		"id": "wide_stone",
 		"name": "Wide Stone",
-		"line": "A fatter stone. Easier to clip.",
+		"line": "A little wider. Still a light hit.",
 		"shape": "wide",
 		"tint": Color(0.96, 0.74, 0.22),
 		"price": 9,
-		"radius": 26.0,
+		"speed": 0.92,
+		"mass": 0.78,
+		"radius": 18.0,
 	},
 	{
 		"id": "glass_charm",
@@ -98,7 +106,8 @@ const CATALOG: Array = [
 		"shape": "glass",
 		"tint": Color(0.55, 0.86, 0.94),
 		"price": 10,
-		"glass": 110.0,
+		"mass": 0.85,
+		"glass": 64.0,
 	},
 	{
 		"id": "high_pop",
@@ -107,8 +116,9 @@ const CATALOG: Array = [
 		"shape": "pop",
 		"tint": Color(0.98, 0.48, 0.18),
 		"price": 11,
-		"pop": 108.0,
-		"pop_lift": 260.0,
+		"mass": 0.9,
+		"pop": 80.0,
+		"pop_lift": 140.0,
 	},
 	{
 		"id": "cork_stone",
@@ -118,8 +128,8 @@ const CATALOG: Array = [
 		"shape": "cork",
 		"tint": Color(0.73, 0.50, 0.30),
 		"price": 8,
-		"speed": 0.92,
-		"mass": 1.35,
+		"speed": 0.86,
+		"mass": 0.7,
 		"bounce": 0.0,
 		"friction": 0.95,
 	},
@@ -131,11 +141,11 @@ const CATALOG: Array = [
 		"shape": "needle",
 		"tint": Color(0.86, 0.91, 0.96),
 		"price": 9,
-		"speed": 1.28,
-		"mass": 0.34,
-		"radius": 9.0,
-		"bounce": 0.04,
-		"friction": 0.22,
+		"speed": 1.15,
+		"mass": 0.26,
+		"radius": 8.0,
+		"bounce": 0.02,
+		"friction": 0.28,
 	},
 	{
 		"id": "thud_stone",
@@ -145,11 +155,11 @@ const CATALOG: Array = [
 		"shape": "thud",
 		"tint": Color(0.55, 0.36, 0.28),
 		"price": 10,
-		"speed": 0.86,
-		"mass": 1.45,
+		"speed": 0.88,
+		"mass": 0.95,
 		"bounce": 0.02,
 		"friction": 0.7,
-		"impact": 150.0,
+		"impact": 70.0,
 	},
 	{
 		"id": "split_stone",
@@ -184,15 +194,15 @@ const CATALOG: Array = [
 		"id": "bounce_stone",
 		"unlock": "bounce_stone",
 		"name": "Bounce Stone",
-		"line": "Bounces hard and keeps rebounding.",
+		"line": "Rebounds a lot. The direct hit stays light.",
 		"shape": "bounce",
 		"tint": Color(0.38, 0.82, 0.96),
 		"price": 13,
-		"speed": 1.04,
-		"mass": 0.82,
+		"speed": 1.0,
+		"mass": 0.62,
 		"radius": 14.0,
 		"bounce": 0.92,
-		"friction": 0.1,
+		"friction": 0.08,
 		"damp": 0.02,
 		"spin_damp": 0.08,
 	},
@@ -205,7 +215,7 @@ const CATALOG: Array = [
 		"tint": Color(0.96, 0.78, 0.28),
 		"price": 14,
 		"speed": 1.02,
-		"mass": 0.92,
+		"mass": 0.78,
 		"radius": 14.0,
 		"bounce": 0.55,
 		"friction": 0.2,
@@ -219,10 +229,10 @@ const CATALOG: Array = [
 		"shape": "drop",
 		"tint": Color(0.45, 0.34, 0.28),
 		"price": 15,
-		"speed": 0.9,
-		"mass": 1.5,
-		"bounce": 0.03,
-		"friction": 0.55,
+		"speed": 0.78,
+		"mass": 1.85,
+		"bounce": 0.02,
+		"friction": 0.6,
 		"heavy_drop": true,
 	},
 ]
@@ -364,7 +374,7 @@ const META: Array = [
 		"id": "attic",
 		"kind": "room",
 		"name": "Attic",
-		"line": "A steep roof and a low side. Crates and old boxes.",
+		"line": "Dusty wood under a steep roof. Crates split when hit hard.",
 		"blurb": "Next rooms can roll this",
 		"cost": 134,
 		"shape": "attic",
@@ -374,7 +384,7 @@ const META: Array = [
 		"id": "bounce_stone",
 		"kind": "stone",
 		"name": "Bounce Stone",
-		"line": "Bounces hard and keeps rebounding.",
+		"line": "Rebounds a lot. The direct hit stays light.",
 		"blurb": "Throw shop, 13 coins",
 		"cost": 140,
 		"shape": "bounce",
@@ -384,7 +394,7 @@ const META: Array = [
 		"id": "workshop",
 		"kind": "room",
 		"name": "Workshop",
-		"line": "A workbench, crates, and metal parts.",
+		"line": "A metal bench. Parts spin as they fall and clip what they touch.",
 		"blurb": "Next rooms can roll this",
 		"cost": 150,
 		"shape": "workshop",
@@ -498,12 +508,19 @@ static func earn(chain_count: int) -> int:
 	return pay
 
 
-## Gross coins and the longest chain for the run-complete screen.
-## earn() already put the coins in the purse, so this does not pay them again.
+## Run coins stay out of the purse until Run Complete calls bank_run().
 static func note_room(chain_count: int, pay: int) -> void:
 	run_earned += pay
 	if chain_count > run_best:
 		run_best = chain_count
+
+
+## Moves this run's coins into the purse once. Later calls do not add them again.
+static func bank_run() -> void:
+	if not run_banked:
+		money += run_earned
+		run_banked = true
+	save_game()
 
 
 static func begin_run() -> void:
@@ -512,9 +529,10 @@ static func begin_run() -> void:
 	run_earned = 0
 	run_best = 0
 	run_show_complete = false
+	run_banked = false
 
 
-## Shop pick or skip. Room 4 ends the run. Earlier rooms move the index forward.
+## Shop pick or skip. Room 8 ends the run. Earlier rooms move the index forward.
 static func advance_run() -> void:
 	if run_index >= RUN_ROOMS:
 		run_show_complete = true
@@ -524,13 +542,14 @@ static func advance_run() -> void:
 	run_index += 1
 
 
-## Leaves the purse alone. Coins already earned stay saved.
+## Drops coins earned this run. The purse keeps only what was already saved.
 static func abandon_run() -> void:
 	run_active = false
 	run_index = 1
 	run_earned = 0
 	run_best = 0
 	run_show_complete = false
+	run_banked = false
 	save_game()
 
 

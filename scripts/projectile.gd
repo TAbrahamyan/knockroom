@@ -10,7 +10,7 @@ var item_id := ""
 var _approach_speed := 0.0
 var _recent_speed := 0.0
 var _speed_hold := 0.0
-var _radius := RADIUS
+var _radius := 14.0
 var _impact := 0.0
 var _blast_r := 0.0
 var _blast_force := 0.0
@@ -40,6 +40,8 @@ var _flight_vel := Vector2.ZERO
 var _ricochet := false
 var _heavy_drop := false
 var _drop_armed := false
+var _weight := false
+var _weight_used := false
 
 
 func _ready() -> void:
@@ -49,9 +51,9 @@ func _ready() -> void:
 	max_contacts_reported = 8
 	contact_monitor = true
 	continuous_cd = CCD_MODE_CAST_SHAPE
-	mass = 2.5
+	mass = 1.15
 	gravity_scale = 1.0
-	linear_damp = 0.06
+	linear_damp = 0.16
 	angular_damp = 0.22
 	z_index = 5
 	_apply_loadout()
@@ -98,6 +100,7 @@ func _apply_loadout() -> void:
 	_sticky = item.get("sticky", false) == true
 	_ricochet = item.get("ricochet", false) == true
 	_heavy_drop = item.get("heavy_drop", false) == true
+	_weight = item.get("weight", false) == true
 	if item.has("damp"):
 		linear_damp = float(item["damp"])
 	if item.has("spin_damp"):
@@ -164,6 +167,7 @@ func _on_body_entered(body: Node) -> void:
 		call_deferred("_kick_off_shelf")
 	_try_stick(body)
 	_try_heavy_drop(body)
+	_try_weight(body)
 	if not _bonus_used and _impact > 0.0 and body is RigidBody2D and body.is_in_group("prop"):
 		_bonus_used = true
 		var hit := body as RigidBody2D
@@ -355,7 +359,7 @@ func _try_heavy_drop(body: Node) -> void:
 
 
 func _arm_drop() -> void:
-	gravity_scale = 1.85
+	gravity_scale = 2.2
 
 
 func _shove_down(body: RigidBody2D) -> void:
@@ -365,7 +369,31 @@ func _shove_down(body: RigidBody2D) -> void:
 	if body.global_position.x < global_position.x:
 		side = -1.0
 	body.sleeping = false
-	body.apply_central_impulse(Vector2(side * 36.0, 150.0) * body.mass)
+	body.apply_central_impulse(Vector2(side * 28.0, 240.0) * body.mass)
+
+
+func _try_weight(body: Node) -> void:
+	if not _weight or _weight_used:
+		return
+	if not body is RigidBody2D or not body.is_in_group("prop"):
+		return
+	_weight_used = true
+	gravity_scale = 1.55
+	var host := body as RigidBody2D
+	var kind_value = host.get("kind")
+	if kind_value == null:
+		return
+	var kind := int(kind_value)
+	if kind == PropScript.Kind.SHELF or kind == PropScript.Kind.LAMP:
+		return
+	call_deferred("_crush_down", host)
+
+
+func _crush_down(body: RigidBody2D) -> void:
+	if not is_instance_valid(body) or body.freeze:
+		return
+	body.sleeping = false
+	body.apply_central_impulse(Vector2(0.0, 190.0) * body.mass)
 
 
 func _bonus_impact(body: RigidBody2D) -> void:
