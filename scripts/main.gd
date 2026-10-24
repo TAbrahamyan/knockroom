@@ -1,9 +1,10 @@
 extends Node2D
 
 ## READY: pull back, the stone flies the other way.
-## WATCHING: the chain counts itself. SETTLED: look, then the shop, then a new room.
+## WATCHING: the chain counts itself. SETTLED: look, then the shop, then the next room.
+## A run is four rooms. RUN_END is the screen after the fourth shop.
 
-enum Phase { WARMUP, READY, AIMING, WATCHING, SETTLED, MENU }
+enum Phase { WARMUP, READY, AIMING, WATCHING, SETTLED, MENU, RUN_END }
 
 const Loadout := preload("res://scripts/loadout.gd")
 const Locale := preload("res://scripts/locale.gd")
@@ -52,6 +53,14 @@ var _menu_settings: Button
 var _menu_main: Button
 var _menu_close: Button
 var _room_label: Label
+var _run_label: Label
+var _room_plate: Panel
+var _run_end: CanvasLayer
+var _run_title: Label
+var _run_earned: Label
+var _run_best: Label
+var _run_sub: Label
+var _run_back: Button
 var _equipped: Label
 var _money: Label
 var _excellent: ColorRect
@@ -78,9 +87,12 @@ func _ready() -> void:
 	_build_equipped()
 	_build_money()
 	_build_flash()
+	_build_run_end()
 	apply_language()
 	if Loadout.start_in_menu:
 		_enter_main_menu()
+	elif Loadout.run_show_complete:
+		_show_run_end()
 	else:
 		_begin_round()
 
@@ -100,6 +112,8 @@ func _input(event: InputEvent) -> void:
 		return
 	if _main_menu != null and _main_menu.visible:
 		return
+	if phase == Phase.RUN_END or (_run_end != null and _run_end.visible):
+		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_R:
 		_reset()
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
@@ -111,7 +125,7 @@ func _input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	if _menu_button != null:
-		var busy: bool = phase == Phase.WARMUP or phase == Phase.AIMING or phase == Phase.WATCHING
+		var busy: bool = phase == Phase.WARMUP or phase == Phase.AIMING or phase == Phase.WATCHING or phase == Phase.RUN_END
 		var covered: bool = false
 		if _meta != null and _meta.visible:
 			covered = true
@@ -128,7 +142,7 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if phase == Phase.MENU:
+	if phase == Phase.MENU or phase == Phase.RUN_END:
 		return
 	if phase == Phase.WARMUP:
 		_warm_frames += 1
@@ -176,6 +190,7 @@ func _finish() -> void:
 	thrower.can_aim = false
 	_look = _look_for(chain.count)
 	var earned := Loadout.earn(chain.count)
+	Loadout.note_room(chain.count, earned)
 	chain.show_result(earned)
 	_refresh_money(true)
 	_set_hint("hint.look")
@@ -358,6 +373,9 @@ func _enter_main_menu() -> void:
 	_freeze_room()
 	if _menu_button:
 		_menu_button.visible = false
+	if _run_end:
+		_run_end.visible = false
+	_set_room_plate(false)
 	if _main_menu:
 		_main_menu.show_menu()
 	_hint_key = ""
@@ -366,6 +384,8 @@ func _enter_main_menu() -> void:
 
 func _begin_round() -> void:
 	Loadout.start_in_menu = false
+	if not Loadout.run_active:
+		Loadout.begin_run()
 	if _main_menu:
 		_main_menu.hide_menu()
 	if _settings and _settings.visible:
@@ -375,6 +395,10 @@ func _begin_round() -> void:
 	if _shop:
 		_shop.visible = false
 	_shop_open = false
+	if _run_end:
+		_run_end.visible = false
+	_set_room_plate(true)
+	_show_chain_readout(true)
 	if _menu_button:
 		_menu_button.visible = true
 	phase = Phase.WARMUP
@@ -430,6 +454,8 @@ func apply_language() -> void:
 		chain.apply_language()
 	if _room_label != null and layout_name != "":
 		_room_label.text = Locale.room_name(layout_name)
+	_refresh_run_label()
+	_sync_run_end()
 	if _money != null:
 		_refresh_money(false)
 	_refresh_equipped()
@@ -539,8 +565,8 @@ func _build_corner_menu() -> void:
 	plate.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	plate.offset_left = 48.0
 	plate.offset_top = 32.0
-	plate.offset_right = 430.0
-	plate.offset_bottom = 64.0
+	plate.offset_right = 460.0
+	plate.offset_bottom = 96.0
 	var plate_style := StyleBoxFlat.new()
 	plate_style.bg_color = Color(0.05, 0.03, 0.04, 0.78)
 	plate_style.set_corner_radius_all(8)
@@ -552,7 +578,7 @@ func _build_corner_menu() -> void:
 	room.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	room.offset_left = 60.0
 	room.offset_top = 34.0
-	room.offset_right = 418.0
+	room.offset_right = 448.0
 	room.offset_bottom = 62.0
 	room.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	room.add_theme_font_size_override("font_size", 18)
@@ -561,6 +587,23 @@ func _build_corner_menu() -> void:
 	room.add_theme_constant_override("outline_size", 4)
 	hud.add_child(room)
 	_room_label = room
+	_room_plate = plate
+	var progress := Label.new()
+	progress.name = "RunProgress"
+	progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	progress.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	progress.offset_left = 60.0
+	progress.offset_top = 60.0
+	progress.offset_right = 448.0
+	progress.offset_bottom = 90.0
+	progress.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	progress.add_theme_font_size_override("font_size", 15)
+	progress.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
+	progress.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.04, 0.9))
+	progress.add_theme_constant_override("outline_size", 4)
+	hud.add_child(progress)
+	_run_label = progress
+	_refresh_run_label()
 
 
 func _add_menu_button(panel: Control, node_name: String, pos: Vector2, handler: Callable) -> Button:
@@ -673,6 +716,7 @@ func _on_menu_settings() -> void:
 func _on_menu_main() -> void:
 	AudioKit.play_click()
 	_set_menu_open(false)
+	Loadout.abandon_run()
 	Loadout.start_in_menu = true
 	_reset()
 
@@ -685,7 +729,7 @@ func _on_menu_close() -> void:
 func _open_meta() -> void:
 	if _reloading or _meta == null:
 		return
-	if phase == Phase.WARMUP or phase == Phase.AIMING or phase == Phase.WATCHING:
+	if phase == Phase.WARMUP or phase == Phase.AIMING or phase == Phase.WATCHING or phase == Phase.RUN_END:
 		return
 	thrower.aiming = false
 	thrower.can_aim = false
@@ -808,12 +852,159 @@ func _on_shop_picked(item_id: String, item_name: String, item_tint: Color) -> vo
 		_shop.visible = true
 		return
 	Loadout.equip(item_id, item_name, item_tint)
-	_reset()
+	_leave_room()
 
 
 func _on_shop_skipped() -> void:
 	if not _shop_open or _reloading:
 		return
+	_leave_room()
+
+
+func _leave_room() -> void:
+	Loadout.advance_run()
+	_reset()
+
+
+func _set_room_plate(show_plate: bool) -> void:
+	if _room_plate:
+		_room_plate.visible = show_plate
+	if _room_label:
+		_room_label.visible = show_plate
+	if _run_label:
+		_run_label.visible = show_plate
+
+
+func _refresh_run_label() -> void:
+	if _run_label == null:
+		return
+	var index := Loadout.run_index
+	if index < 1:
+		index = 1
+	_run_label.text = Locale.format("run.progress", [index, Loadout.RUN_ROOMS])
+
+
+func _show_chain_readout(show_readout: bool) -> void:
+	for node_name in ["Number", "Word", "Result"]:
+		var node := chain.get_node_or_null("UI/Root/" + str(node_name)) as CanvasItem
+		if node:
+			node.visible = show_readout
+
+
+func _build_run_end() -> void:
+	var layer := CanvasLayer.new()
+	layer.name = "RunEnd"
+	layer.layer = 60
+	layer.visible = false
+	add_child(layer)
+	_run_end = layer
+	var root := Control.new()
+	root.name = "Root"
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_STOP
+	layer.add_child(root)
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.04, 0.03, 0.05, 0.84)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(dim)
+	var panel := Panel.new()
+	panel.name = "Panel"
+	panel.anchor_left = 0.5
+	panel.anchor_top = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_bottom = 0.5
+	panel.offset_left = -260.0
+	panel.offset_top = -180.0
+	panel.offset_right = 260.0
+	panel.offset_bottom = 180.0
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.10, 0.08, 0.09, 0.98)
+	style.set_corner_radius_all(12)
+	panel.add_theme_stylebox_override("panel", style)
+	root.add_child(panel)
+	_run_title = _run_line(panel, "Title", Vector2(24, 28), 32, Color(1.0, 0.86, 0.42))
+	_run_earned = _run_line(panel, "Earned", Vector2(24, 96), 22, Color(0.98, 0.94, 0.86))
+	_run_best = _run_line(panel, "Best", Vector2(24, 140), 22, Color(0.98, 0.94, 0.86))
+	_run_sub = _run_line(panel, "Sub", Vector2(24, 184), 16, Color(0.78, 0.7, 0.62))
+	_run_back = Button.new()
+	_run_back.name = "BackToMenu"
+	_run_back.focus_mode = Control.FOCUS_NONE
+	_run_back.flat = true
+	_run_back.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_run_back.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var empty := StyleBoxEmpty.new()
+	_run_back.add_theme_stylebox_override("normal", empty)
+	_run_back.add_theme_stylebox_override("hover", empty)
+	_run_back.add_theme_stylebox_override("pressed", empty)
+	_run_back.add_theme_stylebox_override("focus", empty)
+	_run_back.position = Vector2(40, 248)
+	_run_back.size = Vector2(440, 52)
+	_run_back.add_theme_font_size_override("font_size", 22)
+	_run_back.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
+	_run_back.add_theme_color_override("font_hover_color", Color(1.0, 0.94, 0.7))
+	_run_back.add_theme_color_override("font_pressed_color", Color(1.0, 0.94, 0.7))
+	_run_back.pressed.connect(_on_run_menu)
+	panel.add_child(_run_back)
+
+
+func _run_line(panel: Control, node_name: String, pos: Vector2, font_size: int, color: Color) -> Label:
+	var label := Label.new()
+	label.name = node_name
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.position = pos
+	label.size = Vector2(472, 40)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", color)
+	panel.add_child(label)
+	return label
+
+
+func _sync_run_end() -> void:
+	if _run_title == null:
+		return
+	_run_title.text = Locale.text("run.title")
+	_run_earned.text = Locale.format("run.earned", [Loadout.coins(Loadout.run_earned)])
+	_run_best.text = Locale.format("run.best", [Loadout.run_best])
+	_run_sub.text = Locale.text("run.sub")
+	if _run_back:
+		_run_back.text = Locale.text("run.menu")
+
+
+func _show_run_end() -> void:
+	phase = Phase.RUN_END
+	thrower.aiming = false
+	thrower.can_aim = false
+	thrower.flying = false
+	if _main_menu:
+		_main_menu.hide_menu()
+	if _shop:
+		_shop.visible = false
+	_shop_open = false
+	if _menu_button:
+		_menu_button.visible = false
+	if _menu_panel:
+		_menu_panel.visible = false
+	_set_room_plate(false)
+	_show_chain_readout(false)
+	_hint_key = ""
+	chain.set_hint("")
+	_randomize_room()
+	_freeze_room()
+	_sync_run_end()
+	if _run_end:
+		_run_end.visible = true
+	Loadout.save_game()
+
+
+func _on_run_menu() -> void:
+	if _reloading:
+		return
+	AudioKit.play_click()
+	Loadout.abandon_run()
+	Loadout.start_in_menu = true
 	_reset()
 
 
@@ -871,6 +1062,7 @@ func _randomize_room() -> void:
 		backdrop.queue_redraw()
 	if _room_label != null:
 		_room_label.text = Locale.room_name(layout_name)
+	_refresh_run_label()
 
 
 func _dress_room(loose: Array, shelves: Array) -> void:
@@ -959,6 +1151,30 @@ func _room_style(id: String) -> Dictionary:
 				"mix": [0, 1, 2, 3, 4, 0, 2, 3, 1, 0],
 				"wood": Color(0.7, 0.5, 0.28),
 				"lip": Color(0.92, 0.78, 0.5, 0.9),
+			}
+		"attic":
+			return {
+				"mix": [2, 2, 2, 3, 3, 3, 2, 0, 1, 3],
+				"wood": Color(0.52, 0.36, 0.2),
+				"lip": Color(0.74, 0.56, 0.32, 0.9),
+			}
+		"cellar":
+			return {
+				"mix": [1, 1, 1, 1, 4, 4, 4, 0, 1, 4],
+				"wood": Color(0.28, 0.32, 0.28),
+				"lip": Color(0.46, 0.58, 0.48, 0.9),
+			}
+		"workshop":
+			return {
+				"mix": [2, 2, 2, 3, 3, 2, 3, 4, 0, 2],
+				"wood": Color(0.48, 0.5, 0.52),
+				"lip": Color(0.72, 0.74, 0.76, 0.95),
+			}
+		"closet":
+			return {
+				"mix": [3, 3, 3, 2, 2, 3, 2, 0, 1, 3],
+				"wood": Color(0.42, 0.24, 0.14),
+				"lip": Color(0.7, 0.46, 0.28, 0.9),
 			}
 		_:
 			return {
@@ -1106,7 +1322,10 @@ func _place_prop(body, pos: Vector2) -> void:
 
 
 func _prop_half(prop) -> Vector2:
-	var k = int(prop.kind)
+	var kind = prop.get("kind")
+	if kind == null:
+		return Vector2(8.0, 8.0)
+	var k := int(kind)
 	if k == 0 or k == 3:
 		return Vector2(prop.radius, prop.radius)
 	return prop.box_size * 0.5
@@ -1514,19 +1733,13 @@ func _pick_sweet_spots(upper) -> void:
 
 
 func _roll_layout(wide, high, extra) -> Array:
+	# Room 1 stays on the default shelves. Owned rooms join rooms 2–4.
 	var names: Array = ["long", "sides", "stack_l", "stack_r", "stairs", "balcony", "alcove"]
-	if Loadout.owns("low_loft"):
-		names.append("low_loft")
-	if Loadout.owns("split_bay"):
-		names.append("split_bay")
-	if Loadout.owns("narrow"):
-		names.append("narrow")
-	if Loadout.owns("floor_clutter"):
-		names.append("floor_clutter")
-	if Loadout.owns("window_heavy"):
-		names.append("window_heavy")
-	if Loadout.owns("market"):
-		names.append("market")
+	if Loadout.run_index > 1:
+		var extras: Array = ["low_loft", "split_bay", "narrow", "floor_clutter", "window_heavy", "market", "closet", "cellar", "attic", "workshop"]
+		for id in extras:
+			if Loadout.owns(str(id)):
+				names.append(id)
 	var pick := str(names[randi() % names.size()])
 	if extra == null and (pick == "sides" or pick == "stairs"):
 		pick = "long"
@@ -1556,6 +1769,14 @@ func _roll_layout(wide, high, extra) -> Array:
 			return _layout_market(wide)
 		"alcove":
 			return _layout_alcove(high, wide)
+		"attic":
+			return _layout_attic(high, wide)
+		"cellar":
+			return _layout_cellar(high, wide)
+		"workshop":
+			return _layout_workshop(high, wide)
+		"closet":
+			return _layout_closet(high, extra, wide)
 		_:
 			return _layout_long(wide)
 
@@ -1647,6 +1868,80 @@ func _layout_market(counter) -> Array:
 	var x := randf_range(min_center, max_center)
 	_use_shelf(counter, x, y, w)
 	return [counter]
+
+
+func _layout_attic(high, low) -> Array:
+	# Steep roof on the left. A short board high on the right, a longer one under the slope.
+	var sw := randf_range(150.0, 200.0)
+	var lw := randf_range(420.0, 520.0)
+	var hy := randf_range(222.0, 244.0)
+	var ly := randf_range(448.0, 478.0)
+	var sx := randf_range(980.0, 1080.0)
+	var half := lw * 0.5
+	var min_center := 430.0 + half
+	if ly <= 455.0:
+		min_center = 360.0 + half
+	var max_center := 920.0 - half
+	if min_center > max_center:
+		min_center = max_center
+	var lx := randf_range(min_center, max_center)
+	_use_shelf(high, sx, hy, sw)
+	_use_shelf(low, lx, ly, lw)
+	return [high, low]
+
+
+func _layout_cellar(upper, lower) -> Array:
+	# Two short boards, both low. The higher one keeps the sweet spot.
+	var uw := randf_range(280.0, 340.0)
+	var lw := randf_range(300.0, 360.0)
+	var uy := randf_range(300.0, 340.0)
+	var ly := randf_range(452.0, 486.0)
+	var ux := randf_range(620.0, 780.0)
+	var lx := randf_range(880.0, 1040.0)
+	_use_shelf(upper, ux, uy, uw)
+	_use_shelf(lower, lx, ly, lw)
+	_keep_x_apart([upper, lower], 36.0)
+	return [upper, lower]
+
+
+func _layout_workshop(parts, bench) -> Array:
+	# A long low bench and a small parts shelf above it.
+	var bw := randf_range(600.0, 700.0)
+	var pw := randf_range(140.0, 190.0)
+	var by := randf_range(486.0, 500.0)
+	var py := randf_range(224.0, 252.0)
+	var half := bw * 0.5
+	var min_center := 430.0 + half
+	var max_center := 1220.0 - half
+	if min_center > max_center:
+		min_center = max_center
+	var bx := randf_range(min_center, max_center)
+	var px := clampf(bx + randf_range(40.0, 180.0), 560.0, 1120.0)
+	_use_shelf(parts, px, py, pw)
+	_use_shelf(bench, bx, by, bw)
+	return [parts, bench]
+
+
+func _layout_closet(top, mid, bot) -> Array:
+	# Three narrow planks in a tight column. A missing side shelf falls back to two.
+	var w1 := randf_range(130.0, 156.0)
+	var w2 := randf_range(134.0, 160.0)
+	var w3 := randf_range(130.0, 156.0)
+	var cx := randf_range(820.0, 920.0)
+	var y1 := randf_range(220.0, 232.0)
+	if mid == null:
+		_use_shelf(top, cx, y1, w1)
+		_use_shelf(bot, cx, y1 + 200.0, w2)
+		_keep_stacked(top, bot, 180.0)
+		return [top, bot]
+	var y2 := y1 + randf_range(96.0, 104.0)
+	var y3 := y2 + randf_range(96.0, 104.0)
+	_use_shelf(top, cx + randf_range(-6.0, 6.0), y1, w1)
+	_use_shelf(mid, cx + randf_range(-6.0, 6.0), y2, w2)
+	_use_shelf(bot, cx + randf_range(-6.0, 6.0), y3, w3)
+	_keep_stacked(top, mid, 96.0)
+	_keep_stacked(mid, bot, 96.0)
+	return [top, mid, bot]
 
 
 func _layout_alcove(upper, lower) -> Array:
@@ -2082,6 +2377,14 @@ func _pick_window(hook: Vector2) -> Rect2:
 		var wide := randf_range(300.0, 380.0)
 		var tall := randf_range(170.0, 220.0)
 		return Rect2(48.0, 64.0, wide, tall)
+	if layout_name == "attic":
+		return Rect2(1000.0, 48.0, 168.0, 84.0)
+	if layout_name == "cellar":
+		return Rect2(560.0, 46.0, 110.0, 58.0)
+	if layout_name == "workshop":
+		return Rect2(360.0, 62.0, 200.0, 100.0)
+	if layout_name == "closet":
+		return Rect2(1108.0, 48.0, 42.0, 210.0)
 	var win_w := randf_range(228.0, 340.0)
 	var win_h := randf_range(108.0, 146.0)
 	var win_x := randf_range(56.0, 1224.0 - win_w)
@@ -2100,6 +2403,9 @@ func _nudge_away_from_lamp(lamp) -> void:
 		if node == lamp:
 			continue
 		if node.has_method("is_shelf") and node.is_shelf():
+			continue
+		var kind = node.get("kind")
+		if kind == null or int(kind) == 3:
 			continue
 		props.append(node)
 	_clear_lamp(props, lamp)

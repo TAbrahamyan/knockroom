@@ -37,6 +37,9 @@ var _mass_given := false
 var _host: Node2D
 var _local_off := Vector2.ZERO
 var _flight_vel := Vector2.ZERO
+var _ricochet := false
+var _heavy_drop := false
+var _drop_armed := false
 
 
 func _ready() -> void:
@@ -93,6 +96,8 @@ func _apply_loadout() -> void:
 	_magnet_pull = float(item.get("magnet_pull", 0.0))
 	_wants_split = item.get("split", false) == true
 	_sticky = item.get("sticky", false) == true
+	_ricochet = item.get("ricochet", false) == true
+	_heavy_drop = item.get("heavy_drop", false) == true
 	if item.has("damp"):
 		linear_damp = float(item["damp"])
 	if item.has("spin_damp"):
@@ -155,7 +160,10 @@ func _on_body_entered(body: Node) -> void:
 	var splitting := _try_split(body)
 	if body.is_in_group("back_wall") and not splitting:
 		call_deferred("_kick_off_back_wall")
+	elif _ricochet and _is_shelf(body):
+		call_deferred("_kick_off_shelf")
 	_try_stick(body)
+	_try_heavy_drop(body)
 	if not _bonus_used and _impact > 0.0 and body is RigidBody2D and body.is_in_group("prop"):
 		_bonus_used = true
 		var hit := body as RigidBody2D
@@ -300,12 +308,64 @@ func _retire() -> void:
 func _kick_off_back_wall() -> void:
 	# Stronger than a floor or shelf graze: fly back into the room.
 	var kick := clampf(maxf(_approach_speed * 1.5, 900.0), 900.0, 1320.0)
+	if _ricochet:
+		kick = clampf(kick * 1.22, 900.0, 1580.0)
 	var drop := linear_velocity.y
 	if absf(drop) < 80.0:
 		drop = 180.0
 	linear_velocity = Vector2(kick, clampf(drop, -180.0, 420.0))
 	angular_velocity = randf_range(-6.0, 6.0)
 	_approach_speed = 0.0
+
+
+func _is_shelf(body: Node) -> bool:
+	return body.has_method("is_shelf") and body.is_shelf()
+
+
+func _kick_off_shelf() -> void:
+	var incoming := _flight_vel
+	var speed := incoming.length()
+	var out := Vector2(incoming.x, -absf(incoming.y))
+	if out.length() < 1.0:
+		out = Vector2(120.0, -420.0)
+	else:
+		out = out.normalized() * clampf(speed * 0.84, 420.0, 980.0)
+	if out.y > -260.0:
+		out.y = -420.0
+	linear_velocity = out
+	angular_velocity = randf_range(-7.0, 7.0)
+
+
+func _try_heavy_drop(body: Node) -> void:
+	if not _heavy_drop:
+		return
+	if not _drop_armed:
+		_drop_armed = true
+		call_deferred("_arm_drop")
+	if not body is RigidBody2D or not body.is_in_group("prop"):
+		return
+	var host := body as RigidBody2D
+	var kind_value = host.get("kind")
+	if kind_value == null:
+		return
+	var kind := int(kind_value)
+	if kind == PropScript.Kind.SHELF or kind == PropScript.Kind.LAMP:
+		return
+	call_deferred("_shove_down", host)
+
+
+func _arm_drop() -> void:
+	gravity_scale = 1.85
+
+
+func _shove_down(body: RigidBody2D) -> void:
+	if not is_instance_valid(body) or body.freeze:
+		return
+	var side := 1.0
+	if body.global_position.x < global_position.x:
+		side = -1.0
+	body.sleeping = false
+	body.apply_central_impulse(Vector2(side * 36.0, 150.0) * body.mass)
 
 
 func _bonus_impact(body: RigidBody2D) -> void:

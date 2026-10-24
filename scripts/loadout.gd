@@ -15,6 +15,13 @@ static var music_volume := 40
 static var sfx_volume := 70
 ## Session only. A reload returns to the menu when this is still true.
 static var start_in_menu := true
+## A run is four rooms. These survive a scene reload. The save file does not store them.
+const RUN_ROOMS := 4
+static var run_active := false
+static var run_index := 1
+static var run_earned := 0
+static var run_best := 0
+static var run_show_complete := false
 
 ## speed scales the launch. mass scales the stone's 2.5 base.
 ## impact is extra hit speed on the first body. The rest are on-hit effects.
@@ -189,6 +196,35 @@ const CATALOG: Array = [
 		"damp": 0.02,
 		"spin_damp": 0.08,
 	},
+	{
+		"id": "ricochet_stone",
+		"unlock": "ricochet_stone",
+		"name": "Ricochet Stone",
+		"line": "Bounces harder off walls and shelves.",
+		"shape": "ricochet",
+		"tint": Color(0.96, 0.78, 0.28),
+		"price": 14,
+		"speed": 1.02,
+		"mass": 0.92,
+		"radius": 14.0,
+		"bounce": 0.55,
+		"friction": 0.2,
+		"ricochet": true,
+	},
+	{
+		"id": "heavy_drop",
+		"unlock": "heavy_drop",
+		"name": "Heavy Drop Stone",
+		"line": "After the first hit it drops faster and knocks downward.",
+		"shape": "drop",
+		"tint": Color(0.45, 0.34, 0.28),
+		"price": 15,
+		"speed": 0.9,
+		"mass": 1.5,
+		"bounce": 0.03,
+		"friction": 0.55,
+		"heavy_drop": true,
+	},
 ]
 
 ## Permanent unlocks. A full clear pays 11, so 28 takes about three strong throws.
@@ -285,6 +321,16 @@ const META: Array = [
 		"tint": Color(0.55, 0.36, 0.28),
 	},
 	{
+		"id": "closet",
+		"kind": "room",
+		"name": "Closet",
+		"line": "A tight shaft of stacked shelves.",
+		"blurb": "Next rooms can roll this",
+		"cost": 104,
+		"shape": "closet",
+		"tint": Color(0.62, 0.4, 0.24),
+	},
+	{
 		"id": "split_stone",
 		"kind": "stone",
 		"name": "Split Stone",
@@ -293,6 +339,16 @@ const META: Array = [
 		"cost": 112,
 		"shape": "split",
 		"tint": Color(0.95, 0.55, 0.72),
+	},
+	{
+		"id": "cellar",
+		"kind": "room",
+		"name": "Cellar",
+		"line": "Dark and low. Bottles and jars in the damp.",
+		"blurb": "Next rooms can roll this",
+		"cost": 118,
+		"shape": "cellar",
+		"tint": Color(0.28, 0.46, 0.42),
 	},
 	{
 		"id": "sticky_stone",
@@ -305,6 +361,16 @@ const META: Array = [
 		"tint": Color(0.62, 0.78, 0.36),
 	},
 	{
+		"id": "attic",
+		"kind": "room",
+		"name": "Attic",
+		"line": "A steep roof and a low side. Crates and old boxes.",
+		"blurb": "Next rooms can roll this",
+		"cost": 134,
+		"shape": "attic",
+		"tint": Color(0.72, 0.52, 0.28),
+	},
+	{
 		"id": "bounce_stone",
 		"kind": "stone",
 		"name": "Bounce Stone",
@@ -313,6 +379,36 @@ const META: Array = [
 		"cost": 140,
 		"shape": "bounce",
 		"tint": Color(0.38, 0.82, 0.96),
+	},
+	{
+		"id": "workshop",
+		"kind": "room",
+		"name": "Workshop",
+		"line": "A workbench, crates, and metal parts.",
+		"blurb": "Next rooms can roll this",
+		"cost": 150,
+		"shape": "workshop",
+		"tint": Color(0.55, 0.58, 0.62),
+	},
+	{
+		"id": "ricochet_stone",
+		"kind": "stone",
+		"name": "Ricochet Stone",
+		"line": "Bounces harder off walls and shelves.",
+		"blurb": "Throw shop, 14 coins",
+		"cost": 158,
+		"shape": "ricochet",
+		"tint": Color(0.96, 0.78, 0.28),
+	},
+	{
+		"id": "heavy_drop",
+		"kind": "stone",
+		"name": "Heavy Drop Stone",
+		"line": "After the first hit it drops faster and knocks downward.",
+		"blurb": "Throw shop, 15 coins",
+		"cost": 174,
+		"shape": "drop",
+		"tint": Color(0.45, 0.34, 0.28),
 	},
 ]
 
@@ -400,6 +496,42 @@ static func earn(chain_count: int) -> int:
 	money += pay
 	save_game()
 	return pay
+
+
+## Gross coins and the longest chain for the run-complete screen.
+## earn() already put the coins in the purse, so this does not pay them again.
+static func note_room(chain_count: int, pay: int) -> void:
+	run_earned += pay
+	if chain_count > run_best:
+		run_best = chain_count
+
+
+static func begin_run() -> void:
+	run_active = true
+	run_index = 1
+	run_earned = 0
+	run_best = 0
+	run_show_complete = false
+
+
+## Shop pick or skip. Room 4 ends the run. Earlier rooms move the index forward.
+static func advance_run() -> void:
+	if run_index >= RUN_ROOMS:
+		run_show_complete = true
+		run_active = false
+		save_game()
+		return
+	run_index += 1
+
+
+## Leaves the purse alone. Coins already earned stay saved.
+static func abandon_run() -> void:
+	run_active = false
+	run_index = 1
+	run_earned = 0
+	run_best = 0
+	run_show_complete = false
+	save_game()
 
 
 static func can_afford(price: int) -> bool:

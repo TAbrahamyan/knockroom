@@ -66,6 +66,34 @@ static func draw(canvas: CanvasItem, center: Vector2, radius: float, shape: Stri
 			canvas.draw_circle(center + Vector2(0.0, -inner * 0.24), inner * 0.38, tint)
 			canvas.draw_arc(center + Vector2(0.0, inner * 0.22), inner * 0.42, PI * 1.15, PI * 1.85, 12, tint, weight)
 			canvas.draw_arc(center + Vector2(0.0, inner * 0.42), inner * 0.68, PI * 1.22, PI * 1.78, 12, tint.lightened(0.2), maxf(1.6, weight * 0.7))
+		"ricochet":
+			canvas.draw_circle(center + Vector2(-inner * 0.22, inner * 0.08), inner * 0.28, tint)
+			canvas.draw_line(center + Vector2(-inner * 0.55, -inner * 0.55), center + Vector2(inner * 0.15, -inner * 0.05), tint, weight)
+			canvas.draw_line(center + Vector2(inner * 0.15, -inner * 0.05), center + Vector2(inner * 0.62, -inner * 0.62), tint, weight)
+		"drop":
+			canvas.draw_circle(center + Vector2(0.0, -inner * 0.28), inner * 0.32, tint)
+			canvas.draw_colored_polygon(PackedVector2Array([
+				center + Vector2(-inner * 0.42, inner * 0.02),
+				center + Vector2(inner * 0.42, inner * 0.02),
+				center + Vector2(0.0, inner * 0.72),
+			]), tint)
+		"attic":
+			canvas.draw_colored_polygon(PackedVector2Array([
+				center + Vector2(-inner * 0.8, inner * 0.15),
+				center + Vector2(inner * 0.15, -inner * 0.72),
+				center + Vector2(inner * 0.8, inner * 0.15),
+			]), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.15, inner * 0.22), Vector2(inner * 0.7, inner * 0.14)), tint)
+		"cellar":
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.55, inner * 0.02), Vector2(inner * 0.7, inner * 0.14)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.2, inner * 0.4), Vector2(inner * 0.78, inner * 0.14)), tint)
+		"workshop":
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.82, inner * 0.28), Vector2(inner * 1.64, inner * 0.16)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(inner * 0.18, -inner * 0.42), Vector2(inner * 0.46, inner * 0.12)), tint.lightened(0.15))
+		"closet":
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.22, -inner * 0.62), Vector2(inner * 0.44, inner * 0.12)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.22, -inner * 0.08), Vector2(inner * 0.44, inner * 0.12)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.22, inner * 0.46), Vector2(inner * 0.44, inner * 0.12)), tint)
 		"loft":
 			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.55, inner * 0.05), Vector2(inner * 0.7, inner * 0.16)), tint)
 			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.2, inner * 0.42), Vector2(inner * 0.85, inner * 0.16)), tint)
