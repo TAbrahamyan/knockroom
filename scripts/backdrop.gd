@@ -251,8 +251,41 @@ func _paint_mood() -> void:
 			draw_rect(Rect2(32, 36, 620, 590), Color(0.0, 0.0, 0.0, 0.72))
 			draw_rect(Rect2(980, 36, 268, 590), Color(0.0, 0.0, 0.0, 0.72))
 			draw_rect(Rect2(680, 36, 260, 590), Color(0.42, 0.2, 0.08, 0.22))
+		"gallery":
+			_frame(180, 90, 150, 110, Color(0.55, 0.32, 0.22))
+			_frame(520, 150, 120, 90, Color(0.28, 0.4, 0.55))
+			_frame(900, 80, 170, 120, Color(0.72, 0.55, 0.28))
+		"greenhouse":
+			for i in 6:
+				draw_rect(Rect2(160.0 + float(i) * 170.0, 80.0, 8.0, 420.0), Color(0.28, 0.48, 0.22, 0.85))
+				draw_rect(Rect2(140.0 + float(i) * 170.0, 140.0, 48.0, 16.0), Color(0.4, 0.66, 0.3, 0.9))
+				draw_rect(Rect2(148.0 + float(i) * 170.0, 260.0, 40.0, 14.0), Color(0.5, 0.74, 0.34, 0.85))
+		"laundry":
+			draw_rect(Rect2(80, 168, 1120, 6), Color(0.82, 0.86, 0.9))
+			for i in 5:
+				draw_rect(Rect2(160.0 + float(i) * 200.0, 174.0, 36.0, 48.0), Color(0.95, 0.96, 0.98, 0.9))
+				draw_rect(Rect2(168.0 + float(i) * 200.0, 168.0, 4.0, 10.0), Color(0.45, 0.5, 0.58))
+		"library":
+			for i in 14:
+				var spine := Color(0.45, 0.22, 0.14) if i % 3 == 0 else Color(0.28, 0.36, 0.42)
+				if i % 3 == 1:
+					spine = Color(0.62, 0.48, 0.22)
+				draw_rect(Rect2(70.0 + float(i) * 22.0, 80.0, 16.0, 90.0), spine)
+				draw_rect(Rect2(70.0 + float(i) * 22.0, 190.0, 16.0, 78.0), spine.darkened(0.12))
+		"kitchen":
+			draw_rect(Rect2(48, 300, 1184, 70), Color(0.78, 0.82, 0.8, 0.9))
+			for i in 8:
+				draw_rect(Rect2(48.0 + float(i) * 148.0, 300.0, 2.0, 70.0), Color(0.55, 0.58, 0.56, 0.7))
+			draw_rect(Rect2(980, 70, 180, 120), Color(0.72, 0.86, 0.92))
+			draw_rect(Rect2(1068, 70, 4, 120), Color(0.9, 0.92, 0.9))
+			draw_rect(Rect2(980, 128, 180, 4), Color(0.9, 0.92, 0.9))
 		_:
 			pass
+
+
+func _frame(x: float, y: float, w: float, h: float, fill: Color) -> void:
+	draw_rect(Rect2(x, y, w, h), Color(0.28, 0.2, 0.12))
+	draw_rect(Rect2(x + 8.0, y + 8.0, w - 16.0, h - 16.0), fill)
 
 
 func _brick_column(x: float, rows: int) -> void:
@@ -298,6 +331,16 @@ func _glass_color() -> Color:
 			return Color(0.62, 0.72, 0.78)
 		"closet":
 			return Color(0.28, 0.14, 0.08)
+		"gallery":
+			return Color(0.95, 0.9, 0.78)
+		"greenhouse":
+			return Color(0.62, 0.86, 0.55)
+		"laundry":
+			return Color(0.78, 0.88, 0.96)
+		"library":
+			return Color(0.72, 0.52, 0.32)
+		"kitchen":
+			return Color(0.96, 0.9, 0.72)
 		_:
 			return GLASS
 
@@ -320,6 +363,16 @@ func _peg_color() -> Color:
 			return Color(0.38, 0.4, 0.42)
 		"closet":
 			return Color(0.24, 0.12, 0.08)
+		"gallery":
+			return Color(0.62, 0.5, 0.34)
+		"greenhouse":
+			return Color(0.36, 0.42, 0.24)
+		"laundry":
+			return Color(0.7, 0.76, 0.82)
+		"library":
+			return Color(0.36, 0.22, 0.12)
+		"kitchen":
+			return Color(0.72, 0.64, 0.5)
 		_:
 			return WOOD_DARK
 
@@ -342,6 +395,16 @@ func _board_color() -> Color:
 			return Color(0.4, 0.42, 0.44)
 		"closet":
 			return Color(0.32, 0.18, 0.1)
+		"gallery":
+			return Color(0.7, 0.6, 0.44)
+		"greenhouse":
+			return Color(0.4, 0.48, 0.28)
+		"laundry":
+			return Color(0.72, 0.78, 0.84)
+		"library":
+			return Color(0.4, 0.26, 0.14)
+		"kitchen":
+			return Color(0.78, 0.7, 0.54)
 		_:
 			return BOARD
 
@@ -380,6 +443,16 @@ func _floor_color() -> Color:
 			return Color(0.32, 0.18, 0.1)
 		"workshop":
 			return Color(0.22, 0.24, 0.26)
+		"gallery":
+			return Color(0.62, 0.5, 0.36)
+		"greenhouse":
+			return Color(0.28, 0.4, 0.22)
+		"laundry":
+			return Color(0.7, 0.78, 0.84)
+		"library":
+			return Color(0.32, 0.2, 0.12)
+		"kitchen":
+			return Color(0.72, 0.68, 0.6)
 		_:
 			return FLOOR
 
@@ -402,6 +475,16 @@ func _floor_line() -> Color:
 			return Color(0.7, 0.72, 0.74)
 		"closet":
 			return Color(0.48, 0.28, 0.16)
+		"gallery":
+			return Color(0.82, 0.72, 0.52)
+		"greenhouse":
+			return Color(0.5, 0.66, 0.38)
+		"laundry":
+			return Color(0.82, 0.88, 0.94)
+		"library":
+			return Color(0.55, 0.36, 0.2)
+		"kitchen":
+			return Color(0.86, 0.72, 0.48)
 		_:
 			return Color(0.62, 0.44, 0.28)
 
@@ -440,5 +523,15 @@ func _wall_color() -> Color:
 			return Color(0.42, 0.26, 0.14)
 		"workshop":
 			return Color(0.32, 0.36, 0.4)
+		"gallery":
+			return Color(0.9, 0.86, 0.78)
+		"greenhouse":
+			return Color(0.62, 0.78, 0.52)
+		"laundry":
+			return Color(0.8, 0.88, 0.94)
+		"library":
+			return Color(0.48, 0.34, 0.24)
+		"kitchen":
+			return Color(0.94, 0.9, 0.82)
 		_:
 			return WALL

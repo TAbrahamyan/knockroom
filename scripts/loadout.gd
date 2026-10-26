@@ -42,6 +42,8 @@ static var run_double_next := false
 ## One faster throw, granted by a Chain Master clear. Consumed on launch.
 static var run_afterglow := false
 const AFTERGLOW_SCALE := 1.08
+## A throw that starts after the clock hits zero. Still playable.
+const SOFT_SCALE := 0.88
 static var last_lost := 0
 static var last_bonus := 0
 static var last_cleared := true
@@ -57,7 +59,7 @@ const CATALOG: Array = [
 		"line": "Slow throw. A heavy downward hit.",
 		"shape": "heavy",
 		"tint": Color(0.38, 0.34, 0.32),
-		"price": 13,
+		"price": 16,
 		"speed": 0.6,
 		"mass": 2.35,
 		"bounce": 0.02,
@@ -67,12 +69,12 @@ const CATALOG: Array = [
 	{
 		"id": "light_stone",
 		"name": "Light Stone",
-		"line": "Light. A weak shove.",
+		"line": "Light. A short knock.",
 		"shape": "light",
 		"tint": Color(0.92, 0.88, 0.78),
-		"price": 7,
-		"speed": 1.0,
-		"mass": 0.4,
+		"price": 8,
+		"speed": 1.08,
+		"mass": 0.55,
 		"bounce": 0.05,
 		"friction": 0.58,
 	},
@@ -82,8 +84,8 @@ const CATALOG: Array = [
 		"line": "A small bounce and a weak hit.",
 		"shape": "spring",
 		"tint": Color(0.42, 0.82, 0.38),
-		"price": 8,
-		"speed": 0.94,
+		"price": 9,
+		"speed": 1.0,
 		"mass": 0.62,
 		"bounce": 0.28,
 		"friction": 0.4,
@@ -94,7 +96,7 @@ const CATALOG: Array = [
 		"line": "Pops nearby props on impact.",
 		"shape": "blast",
 		"tint": Color(0.95, 0.32, 0.16),
-		"price": 19,
+		"price": 22,
 		"mass": 1.15,
 		"blast": 146.0,
 		"blast_force": 320.0,
@@ -105,7 +107,7 @@ const CATALOG: Array = [
 		"line": "Tugs nearby props after a hit.",
 		"shape": "magnet",
 		"tint": Color(0.38, 0.58, 0.96),
-		"price": 16,
+		"price": 19,
 		"mass": 1.05,
 		"magnet": 0.85,
 		"magnet_radius": 176.0,
@@ -117,8 +119,8 @@ const CATALOG: Array = [
 		"line": "A little wider. Still a light hit.",
 		"shape": "wide",
 		"tint": Color(0.96, 0.74, 0.22),
-		"price": 9,
-		"speed": 0.92,
+		"price": 10,
+		"speed": 0.96,
 		"mass": 0.78,
 		"radius": 18.0,
 	},
@@ -128,7 +130,7 @@ const CATALOG: Array = [
 		"line": "Shatters bottles near the hit.",
 		"shape": "glass",
 		"tint": Color(0.55, 0.86, 0.94),
-		"price": 10,
+		"price": 12,
 		"mass": 0.85,
 		"glass": 64.0,
 	},
@@ -138,10 +140,11 @@ const CATALOG: Array = [
 		"line": "The hit throws props upward.",
 		"shape": "pop",
 		"tint": Color(0.98, 0.48, 0.18),
-		"price": 11,
+		"price": 12,
+		"speed": 1.02,
 		"mass": 0.9,
-		"pop": 80.0,
-		"pop_lift": 140.0,
+		"pop": 100.0,
+		"pop_lift": 170.0,
 	},
 	{
 		"id": "cork_stone",
@@ -150,7 +153,7 @@ const CATALOG: Array = [
 		"line": "Stops where it lands.",
 		"shape": "cork",
 		"tint": Color(0.73, 0.50, 0.30),
-		"price": 8,
+		"price": 9,
 		"speed": 0.86,
 		"mass": 0.7,
 		"bounce": 0.0,
@@ -163,7 +166,7 @@ const CATALOG: Array = [
 		"line": "Small and fast. Flies far.",
 		"shape": "needle",
 		"tint": Color(0.86, 0.91, 0.96),
-		"price": 9,
+		"price": 10,
 		"speed": 1.15,
 		"mass": 0.26,
 		"radius": 8.0,
@@ -177,7 +180,7 @@ const CATALOG: Array = [
 		"line": "The first hit shoves harder.",
 		"shape": "thud",
 		"tint": Color(0.55, 0.36, 0.28),
-		"price": 10,
+		"price": 12,
 		"speed": 0.88,
 		"mass": 0.95,
 		"bounce": 0.02,
@@ -191,7 +194,7 @@ const CATALOG: Array = [
 		"line": "The first hit breaks it into two smaller stones.",
 		"shape": "split",
 		"tint": Color(0.95, 0.55, 0.72),
-		"price": 11,
+		"price": 13,
 		"speed": 0.96,
 		"mass": 1.05,
 		"radius": 16.0,
@@ -206,7 +209,7 @@ const CATALOG: Array = [
 		"line": "Sticks to the first thing it hits, then they fall together.",
 		"shape": "sticky",
 		"tint": Color(0.62, 0.78, 0.36),
-		"price": 12,
+		"price": 13,
 		"speed": 0.94,
 		"mass": 1.15,
 		"bounce": 0.02,
@@ -220,7 +223,7 @@ const CATALOG: Array = [
 		"line": "Rebounds a lot. The direct hit stays light.",
 		"shape": "bounce",
 		"tint": Color(0.38, 0.82, 0.96),
-		"price": 13,
+		"price": 15,
 		"speed": 1.0,
 		"mass": 0.62,
 		"radius": 14.0,
@@ -236,7 +239,7 @@ const CATALOG: Array = [
 		"line": "Bounces harder off walls and shelves.",
 		"shape": "ricochet",
 		"tint": Color(0.96, 0.78, 0.28),
-		"price": 14,
+		"price": 16,
 		"speed": 1.02,
 		"mass": 0.78,
 		"radius": 14.0,
@@ -251,16 +254,91 @@ const CATALOG: Array = [
 		"line": "After the first hit it drops faster and knocks downward.",
 		"shape": "drop",
 		"tint": Color(0.45, 0.34, 0.28),
-		"price": 15,
+		"price": 18,
 		"speed": 0.78,
 		"mass": 1.85,
 		"bounce": 0.02,
 		"friction": 0.6,
 		"heavy_drop": true,
 	},
+	{
+		"id": "pebble_stone",
+		"unlock": "pebble_stone",
+		"name": "Pebble",
+		"line": "Small and quick. A short knock.",
+		"shape": "pebble",
+		"tint": Color(0.78, 0.74, 0.66),
+		"price": 9,
+		"speed": 1.14,
+		"mass": 0.5,
+		"radius": 10.0,
+		"bounce": 0.2,
+		"friction": 0.35,
+	},
+	{
+		"id": "pillow_stone",
+		"unlock": "pillow_stone",
+		"name": "Pillow",
+		"line": "Big and slow. A soft wide hit.",
+		"shape": "pillow",
+		"tint": Color(0.95, 0.62, 0.68),
+		"price": 10,
+		"speed": 0.76,
+		"mass": 0.95,
+		"radius": 22.0,
+		"bounce": 0.42,
+		"friction": 0.22,
+		"damp": 0.1,
+	},
+	{
+		"id": "feather_stone",
+		"unlock": "feather_stone",
+		"name": "Feather",
+		"line": "Light. Lifts what it hits.",
+		"shape": "feather",
+		"tint": Color(0.96, 0.94, 0.86),
+		"price": 12,
+		"speed": 1.06,
+		"mass": 0.48,
+		"radius": 12.0,
+		"bounce": 0.12,
+		"friction": 0.3,
+		"pop": 120.0,
+		"pop_lift": 210.0,
+	},
+	{
+		"id": "spark_stone",
+		"unlock": "spark_stone",
+		"name": "Spark",
+		"line": "A small pop around the hit.",
+		"shape": "spark",
+		"tint": Color(0.98, 0.72, 0.22),
+		"price": 13,
+		"speed": 0.98,
+		"mass": 0.85,
+		"radius": 14.0,
+		"blast": 88.0,
+		"blast_force": 170.0,
+	},
+	{
+		"id": "skip_stone",
+		"unlock": "skip_stone",
+		"name": "Skip Stone",
+		"line": "Fast. Kicks off walls.",
+		"shape": "skip",
+		"tint": Color(0.42, 0.78, 0.62),
+		"price": 15,
+		"speed": 1.16,
+		"mass": 0.52,
+		"radius": 12.0,
+		"bounce": 0.45,
+		"friction": 0.1,
+		"damp": 0.04,
+		"ricochet": true,
+	},
 ]
 
-## Permanent unlocks. A full clear pays 11, so 28 takes about three strong throws.
+## Permanent unlocks. A full clear pays up to 20. Cheapest first in the shop.
 ## kind is "stone" or "room". The shop sorts this list by cost.
 const META: Array = [
 	{
@@ -269,7 +347,7 @@ const META: Array = [
 		"name": "Cork Stone",
 		"line": "Stops where it lands.",
 		"blurb": "Throw shop, 8 coins",
-		"cost": 28,
+		"cost": 40,
 		"shape": "cork",
 		"tint": Color(0.73, 0.50, 0.30),
 	},
@@ -299,7 +377,7 @@ const META: Array = [
 		"name": "Needle Stone",
 		"line": "Small and fast. Flies far.",
 		"blurb": "Throw shop, 9 coins",
-		"cost": 56,
+		"cost": 80,
 		"shape": "needle",
 		"tint": Color(0.86, 0.91, 0.96),
 	},
@@ -349,7 +427,7 @@ const META: Array = [
 		"name": "Thud Stone",
 		"line": "The first hit shoves harder.",
 		"blurb": "Throw shop, 10 coins",
-		"cost": 98,
+		"cost": 140,
 		"shape": "thud",
 		"tint": Color(0.55, 0.36, 0.28),
 	},
@@ -369,7 +447,7 @@ const META: Array = [
 		"name": "Split Stone",
 		"line": "The first hit breaks it into two smaller stones.",
 		"blurb": "Throw shop, 11 coins",
-		"cost": 112,
+		"cost": 160,
 		"shape": "split",
 		"tint": Color(0.95, 0.55, 0.72),
 	},
@@ -389,7 +467,7 @@ const META: Array = [
 		"name": "Sticky Stone",
 		"line": "Sticks to the first thing it hits, then they fall together.",
 		"blurb": "Throw shop, 12 coins",
-		"cost": 126,
+		"cost": 175,
 		"shape": "sticky",
 		"tint": Color(0.62, 0.78, 0.36),
 	},
@@ -409,7 +487,7 @@ const META: Array = [
 		"name": "Bounce Stone",
 		"line": "Rebounds a lot. The direct hit stays light.",
 		"blurb": "Throw shop, 13 coins",
-		"cost": 140,
+		"cost": 195,
 		"shape": "bounce",
 		"tint": Color(0.38, 0.82, 0.96),
 	},
@@ -429,7 +507,7 @@ const META: Array = [
 		"name": "Ricochet Stone",
 		"line": "Bounces harder off walls and shelves.",
 		"blurb": "Throw shop, 14 coins",
-		"cost": 158,
+		"cost": 220,
 		"shape": "ricochet",
 		"tint": Color(0.96, 0.78, 0.28),
 	},
@@ -439,9 +517,109 @@ const META: Array = [
 		"name": "Heavy Drop Stone",
 		"line": "After the first hit it drops faster and knocks downward.",
 		"blurb": "Throw shop, 15 coins",
-		"cost": 174,
+		"cost": 245,
 		"shape": "drop",
 		"tint": Color(0.45, 0.34, 0.28),
+	},
+	{
+		"id": "gallery",
+		"kind": "room",
+		"name": "Gallery",
+		"line": "Short shelves under a few frames.",
+		"blurb": "Next rooms can roll this",
+		"cost": 182,
+		"shape": "gallery",
+		"tint": Color(0.86, 0.78, 0.62),
+	},
+	{
+		"id": "pebble_stone",
+		"kind": "stone",
+		"name": "Pebble",
+		"line": "Small and quick. A short knock.",
+		"blurb": "Throw shop, 6 coins",
+		"cost": 265,
+		"shape": "pebble",
+		"tint": Color(0.78, 0.74, 0.66),
+	},
+	{
+		"id": "greenhouse",
+		"kind": "room",
+		"name": "Greenhouse",
+		"line": "A low bench between two high pots.",
+		"blurb": "Next rooms can roll this",
+		"cost": 198,
+		"shape": "greenhouse",
+		"tint": Color(0.46, 0.72, 0.4),
+	},
+	{
+		"id": "pillow_stone",
+		"kind": "stone",
+		"name": "Pillow",
+		"line": "Big and slow. A soft wide hit.",
+		"blurb": "Throw shop, 7 coins",
+		"cost": 290,
+		"shape": "pillow",
+		"tint": Color(0.95, 0.62, 0.68),
+	},
+	{
+		"id": "laundry",
+		"kind": "room",
+		"name": "Laundry",
+		"line": "A high line and one low tub.",
+		"blurb": "Next rooms can roll this",
+		"cost": 214,
+		"shape": "laundry",
+		"tint": Color(0.62, 0.78, 0.9),
+	},
+	{
+		"id": "feather_stone",
+		"kind": "stone",
+		"name": "Feather",
+		"line": "Light. Lifts what it hits.",
+		"blurb": "Throw shop, 8 coins",
+		"cost": 310,
+		"shape": "feather",
+		"tint": Color(0.96, 0.94, 0.86),
+	},
+	{
+		"id": "library",
+		"kind": "room",
+		"name": "Library",
+		"line": "Stacked bookshelves and a low table.",
+		"blurb": "Next rooms can roll this",
+		"cost": 230,
+		"shape": "library",
+		"tint": Color(0.55, 0.36, 0.22),
+	},
+	{
+		"id": "spark_stone",
+		"kind": "stone",
+		"name": "Spark",
+		"line": "A small pop around the hit.",
+		"blurb": "Throw shop, 9 coins",
+		"cost": 335,
+		"shape": "spark",
+		"tint": Color(0.98, 0.72, 0.22),
+	},
+	{
+		"id": "kitchen",
+		"kind": "room",
+		"name": "Kitchen",
+		"line": "A long counter with two wall shelves.",
+		"blurb": "Next rooms can roll this",
+		"cost": 246,
+		"shape": "kitchen",
+		"tint": Color(0.93, 0.84, 0.68),
+	},
+	{
+		"id": "skip_stone",
+		"kind": "stone",
+		"name": "Skip Stone",
+		"line": "Fast. Kicks off walls.",
+		"blurb": "Throw shop, 10 coins",
+		"cost": 355,
+		"shape": "skip",
+		"tint": Color(0.42, 0.78, 0.62),
 	},
 ]
 
@@ -494,7 +672,7 @@ static func throw_scale() -> float:
 	if run_afterglow:
 		scale *= AFTERGLOW_SCALE
 	if soft_throw:
-		scale *= 0.75
+		scale *= SOFT_SCALE
 	return scale
 
 
@@ -517,20 +695,23 @@ static func stone_radius() -> float:
 
 
 static func payout_for(chain_count: int) -> int:
-	# A miss or a couple of knocks pay nothing. Clearing a small need pays a little.
-	# Around 8 links the cheapest stone is exact. A full clear tops out at one
-	# medium stone, with too little left for a second buy.
-	if chain_count <= 2:
+	# One knock pays nothing. Medium and good chains pay a bit faster.
+	# A full clear tops out at 20.
+	if chain_count <= 1:
 		return 0
-	if chain_count <= 4:
-		return 2
+	if chain_count == 2:
+		return 4
+	if chain_count == 3:
+		return 6
+	if chain_count == 4:
+		return 8
 	if chain_count < 8:
-		return chain_count - 2
-	# 8 pays 6, 10 pays 7, 12 pays 8, 14 pays 9, 15 pays 9.
+		return chain_count + 4
+	if chain_count < 12:
+		return 13 + (chain_count - 8) / 2
 	if chain_count < 16:
-		return 6 + (chain_count - 8) / 2
-	# 16 pays 10. 18 and above pay 11, one medium stone and no second buy.
-	return mini(10 + (chain_count - 16) / 2, 11)
+		return 16 + (chain_count - 12) / 2
+	return mini(18 + (chain_count - 16) / 2, 20)
 
 
 ## Coins added on the next clear for the heat already banked. Heat 0 pays nothing.
@@ -559,16 +740,16 @@ static func note_room(chain_count: int, pay: int) -> void:
 		run_best = chain_count
 
 
-## Rooms 1–2 need 3. Rooms 3–5 need 5. Rooms 6–8 need 6.
-## A failed room strains the next one by 1, and the need never goes past 8.
+## Rooms 1–2 need 2. Rooms 3–5 need 3. Rooms 6–8 need 4.
+## A failed room strains the next one by 1, and the need never goes past 4.
 static func chain_need() -> int:
-	var need := 3
+	var need := 2
 	if run_index >= 6:
-		need = 6
+		need = 4
 	elif run_index >= 3:
-		need = 5
+		need = 3
 	if run_strain:
-		need = mini(need + 1, 8)
+		need = mini(need + 1, 4)
 	return need
 
 
@@ -600,8 +781,8 @@ static func mark_fail() -> void:
 	run_strain = true
 	last_cleared = false
 	run_heat = maxi(run_heat - 1, 0)
-	if run_streak >= 2:
-		run_debt = mini(run_debt + 1, 3)
+	if run_streak >= 4:
+		run_debt = mini(run_debt + 1, 1)
 
 
 static func grant_afterglow() -> void:
@@ -818,6 +999,6 @@ static func load_game() -> void:
 	elif ids is Array:
 		for entry in ids:
 			owned.append(str(entry))
-	Locale.set_code(str(cfg.get_value("settings", "language", "en")))
+	Locale.set_code(str(cfg.get_value("settings", "language", "ru")))
 	music_volume = int(cfg.get_value("settings", "music", 40))
 	sfx_volume = int(cfg.get_value("settings", "sfx", 70))

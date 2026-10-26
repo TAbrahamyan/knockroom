@@ -115,6 +115,44 @@ static func draw(canvas: CanvasItem, center: Vector2, radius: float, shape: Stri
 		"market":
 			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.82, inner * 0.18), Vector2(inner * 1.64, inner * 0.16)), tint)
 			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.7, inner * 0.42), Vector2(inner * 1.4, inner * 0.14)), tint.darkened(0.15))
+		"pebble":
+			canvas.draw_circle(center + Vector2(-inner * 0.08, inner * 0.06), inner * 0.32, tint)
+		"pillow":
+			canvas.draw_set_transform(center, 0.0, Vector2(1.35, 0.72))
+			canvas.draw_circle(Vector2.ZERO, inner * 0.55, tint)
+			canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		"feather":
+			canvas.draw_colored_polygon(PackedVector2Array([
+				center + Vector2(0.0, -inner * 0.85),
+				center + Vector2(inner * 0.22, inner * 0.55),
+				center + Vector2(-inner * 0.22, inner * 0.55),
+			]), tint)
+		"spark":
+			_burst(canvas, center, inner * 0.72, tint)
+		"skip":
+			canvas.draw_circle(center + Vector2(-inner * 0.28, inner * 0.12), inner * 0.28, tint)
+			canvas.draw_line(center + Vector2(-inner * 0.7, inner * 0.35), center + Vector2(inner * 0.7, -inner * 0.45), tint, weight)
+		"gallery":
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.7, -inner * 0.55), Vector2(inner * 0.4, inner * 0.32)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.1, -inner * 0.2), Vector2(inner * 0.34, inner * 0.26)), tint.lightened(0.12))
+			canvas.draw_rect(Rect2(center + Vector2(inner * 0.28, inner * 0.18), Vector2(inner * 0.38, inner * 0.28)), tint.darkened(0.1))
+		"greenhouse":
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.08, -inner * 0.2), Vector2(inner * 0.16, inner * 0.7)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.42, -inner * 0.15), Vector2(inner * 0.34, inner * 0.16)), tint.lightened(0.15))
+			canvas.draw_rect(Rect2(center + Vector2(inner * 0.1, -inner * 0.42), Vector2(inner * 0.34, inner * 0.16)), tint.lightened(0.15))
+		"laundry":
+			canvas.draw_line(center + Vector2(-inner * 0.7, -inner * 0.35), center + Vector2(inner * 0.7, -inner * 0.35), tint, weight)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.42, -inner * 0.28), Vector2(inner * 0.22, inner * 0.36)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(inner * 0.16, -inner * 0.28), Vector2(inner * 0.22, inner * 0.36)), tint.lightened(0.12))
+		"library":
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.55, -inner * 0.45), Vector2(inner * 0.16, inner * 0.7)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.32, -inner * 0.45), Vector2(inner * 0.16, inner * 0.7)), tint.darkened(0.12))
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.08, -inner * 0.45), Vector2(inner * 0.16, inner * 0.7)), tint.lightened(0.1))
+			canvas.draw_rect(Rect2(center + Vector2(inner * 0.16, inner * 0.35), Vector2(inner * 0.5, inner * 0.14)), tint)
+		"kitchen":
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.75, inner * 0.28), Vector2(inner * 1.5, inner * 0.16)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(inner * 0.15, -inner * 0.45), Vector2(inner * 0.42, inner * 0.12)), tint.darkened(0.08))
+			canvas.draw_circle(center + Vector2(-inner * 0.28, -inner * 0.05), inner * 0.18, tint.lightened(0.12))
 		_:
 			canvas.draw_circle(center, inner * 0.62, tint)
 

@@ -22,7 +22,6 @@ var _sfx_label: Label
 var _close: Button
 var _lang_en: Button
 var _lang_ru: Button
-var _lang_zh: Button
 var _music: HSlider
 var _sfx: HSlider
 var _music_value: Label
@@ -62,7 +61,6 @@ func apply_language() -> void:
 	_close.text = Locale.text("settings.close")
 	_lang_en.text = Locale.text("lang.en")
 	_lang_ru.text = Locale.text("lang.ru")
-	_lang_zh.text = Locale.text("lang.zh")
 	_mark_language()
 
 
@@ -103,15 +101,12 @@ func _build() -> void:
 	_language = _label("", 16, MUTED, Vector2(24, 78), Vector2(492, 24))
 	panel.add_child(_language)
 
-	_lang_en = _lang_button("LangEn", Vector2(36, 114))
+	_lang_en = _lang_button("LangEn", Vector2(90, 114))
 	_lang_en.pressed.connect(_on_lang.bind("en"))
 	panel.add_child(_lang_en)
-	_lang_ru = _lang_button("LangRu", Vector2(190, 114))
+	_lang_ru = _lang_button("LangRu", Vector2(280, 114))
 	_lang_ru.pressed.connect(_on_lang.bind("ru"))
 	panel.add_child(_lang_ru)
-	_lang_zh = _lang_button("LangZh", Vector2(344, 114))
-	_lang_zh.pressed.connect(_on_lang.bind("zh"))
-	panel.add_child(_lang_zh)
 
 	_music_label = _label("", 16, CREAM, Vector2(24, 190), Vector2(160, 28))
 	_music_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -200,7 +195,6 @@ func _on_sfx(value: float) -> void:
 func _mark_language() -> void:
 	_paint_lang(_lang_en, Locale.code == "en")
 	_paint_lang(_lang_ru, Locale.code == "ru")
-	_paint_lang(_lang_zh, Locale.code == "zh")
 
 
 func _paint_lang(button: Button, selected: bool) -> void:

@@ -19,8 +19,8 @@ const PropScript := preload("res://scripts/prop.gd")
 const WARM_FRAMES := 45
 const LOOK_TIME := 2.6
 const SHAKE_TIME := 0.2
-const ROOM_TIME := 52.0
-const SHAKY_TIME := 44.0
+const ROOM_TIME := 78.0
+const SHAKY_TIME := 66.0
 const WARN_TIME := 12.0
 ## Floor props stay to the right of this edge so the slingshot has a clear lane.
 const LANE_LEFT := 304.0
@@ -254,17 +254,17 @@ func _finish() -> void:
 			bonus += earned
 			Loadout.run_earned += earned
 		if chain_count - need >= 4:
-			bonus += 2
-			Loadout.run_earned += 2
+			bonus += 3
+			Loadout.run_earned += 3
 			Loadout.grant_afterglow()
 			master = true
 		Loadout.mark_pass()
 	else:
-		var percent := 30
+		var percent := 6
 		if doubled:
-			percent = 50
+			percent = 18
 		elif gambled:
-			percent = 45
+			percent = 12
 		lost = Loadout.take_run_cut(percent)
 		Loadout.mark_fail()
 		_look = maxf(_look, 2.4)
@@ -499,13 +499,9 @@ func _build_main_menu() -> void:
 
 
 func _install_font() -> void:
-	var cjk := SystemFont.new()
-	cjk.font_names = PackedStringArray(["Microsoft YaHei", "Microsoft YaHei UI", "SimSun"])
-	var latin := SystemFont.new()
-	latin.font_names = PackedStringArray(["Segoe UI", "Arial"])
-	var faces: Array[Font] = [cjk]
-	latin.fallbacks = faces
-	ThemeDB.fallback_font = latin
+	# The engine font already draws Latin and Cyrillic, including in a web build.
+	# A SystemFont lookup is empty in the browser, so the fallback stays as it is.
+	pass
 
 
 func _enter_main_menu() -> void:
@@ -1482,25 +1478,29 @@ func _build_run_end() -> void:
 	panel.anchor_top = 0.5
 	panel.anchor_right = 0.5
 	panel.anchor_bottom = 0.5
-	panel.offset_left = -300.0
-	panel.offset_top = -280.0
-	panel.offset_right = 300.0
-	panel.offset_bottom = 280.0
+	panel.offset_left = -280.0
+	panel.offset_top = -210.0
+	panel.offset_right = 280.0
+	panel.offset_bottom = 210.0
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.10, 0.08, 0.09, 0.98)
 	style.set_corner_radius_all(12)
 	panel.add_theme_stylebox_override("panel", style)
 	root.add_child(panel)
-	_run_title = _run_line(panel, "Title", Vector2(24, 22), 32, Color(1.0, 0.86, 0.42))
-	_run_earned = _run_line(panel, "Earned", Vector2(24, 84), 22, Color(0.98, 0.94, 0.86))
-	_run_goal = _run_line(panel, "Goal", Vector2(24, 124), 18, Color(1.0, 0.86, 0.42))
-	_run_cleared = _run_line(panel, "Cleared", Vector2(24, 164), 20, Color(0.98, 0.94, 0.86))
-	_run_best = _run_line(panel, "Best", Vector2(24, 204), 22, Color(0.98, 0.94, 0.86))
-	_run_fails = _run_line(panel, "Fails", Vector2(24, 248), 18, Color(0.96, 0.55, 0.38))
-	_run_summary = _run_line(panel, "Summary", Vector2(24, 288), 16, Color(0.9, 0.84, 0.74))
+	_run_title = _run_line(panel, "Title", Vector2(20, 8), 32, Color(1.0, 0.86, 0.42))
+	_run_title.visible = false
+	_run_cleared = _run_line(panel, "Cleared", Vector2(20, 36), 40, Color(0.98, 0.94, 0.86))
+	_run_best = _run_line(panel, "Best", Vector2(20, 100), 28, Color(0.98, 0.94, 0.86))
+	_run_earned = _run_line(panel, "Earned", Vector2(20, 156), 28, Color(1.0, 0.86, 0.42))
+	_run_fails = _run_line(panel, "Fails", Vector2(20, 216), 24, Color(0.96, 0.55, 0.38))
+	_run_goal = _run_line(panel, "Goal", Vector2(20, 8), 18, Color(1.0, 0.86, 0.42))
+	_run_goal.visible = false
+	_run_summary = _run_line(panel, "Summary", Vector2(20, 8), 16, Color(0.9, 0.84, 0.74))
+	_run_summary.visible = false
 	_run_summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_run_sub = _run_line(panel, "Sub", Vector2(24, 292), 16, Color(0.78, 0.7, 0.62))
+	_run_sub = _run_line(panel, "Sub", Vector2(20, 8), 16, Color(0.78, 0.7, 0.62))
+	_run_sub.visible = false
 	_run_back = Button.new()
 	_run_back.name = "BackToMenu"
 	_run_back.focus_mode = Control.FOCUS_NONE
@@ -1512,7 +1512,7 @@ func _build_run_end() -> void:
 	_run_back.add_theme_stylebox_override("hover", empty)
 	_run_back.add_theme_stylebox_override("pressed", empty)
 	_run_back.add_theme_stylebox_override("focus", empty)
-	_run_back.position = Vector2(40, 400)
+	_run_back.position = Vector2(20, 292)
 	_run_back.size = Vector2(520, 52)
 	_run_back.add_theme_font_size_override("font_size", 22)
 	_run_back.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
@@ -1527,7 +1527,7 @@ func _run_line(panel: Control, node_name: String, pos: Vector2, font_size: int, 
 	label.name = node_name
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.position = pos
-	label.size = Vector2(552, 40)
+	label.size = Vector2(520, 56)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)
@@ -1538,45 +1538,45 @@ func _run_line(panel: Control, node_name: String, pos: Vector2, font_size: int, 
 func _sync_run_end() -> void:
 	if _run_title == null:
 		return
-	var banked := Loadout.run_earned
-	var won := banked >= Loadout.RUN_GOAL
-	if won:
-		_run_title.text = Locale.text("run.won")
-		_run_title.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
-	else:
-		_run_title.text = Locale.text("run.short")
-		_run_title.add_theme_color_override("font_color", Color(0.96, 0.62, 0.42))
-	_run_earned.text = Locale.format("run.earned", [banked])
+	_run_title.visible = false
 	if _run_goal:
-		_run_goal.text = Locale.format("run.goal", [Loadout.RUN_GOAL, banked])
+		_run_goal.visible = false
+	if _run_summary:
+		_run_summary.visible = false
+		_run_summary.text = ""
+	if _run_sub:
+		_run_sub.visible = false
+		_run_sub.text = ""
+	var banked := Loadout.run_earned
+	if _run_earned:
+		_run_earned.visible = true
+		_run_earned.text = Locale.coins(banked)
 	var cleared := Loadout.RUN_ROOMS - Loadout.run_fails
 	if cleared < 0:
 		cleared = 0
 	if _run_cleared:
+		_run_cleared.visible = true
 		_run_cleared.text = Locale.format("run.cleared", [cleared, Loadout.RUN_ROOMS])
-	_run_best.text = Locale.format("run.best", [Loadout.run_best])
-	if Loadout.run_best >= 10:
-		_run_best.add_theme_font_size_override("font_size", 26)
-		_run_best.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
-	else:
-		_run_best.add_theme_font_size_override("font_size", 22)
-		_run_best.add_theme_color_override("font_color", Color(0.98, 0.94, 0.86))
+	if _run_best:
+		_run_best.visible = true
+		_run_best.text = Locale.format("run.best", [Loadout.run_best])
+		if Loadout.run_best >= 10:
+			_run_best.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
+		else:
+			_run_best.add_theme_color_override("font_color", Color(0.98, 0.94, 0.86))
+	var missed := Loadout.run_fails > 0
 	if _run_fails:
-		if Loadout.run_fails > 0:
-			_run_fails.visible = true
+		_run_fails.visible = missed
+		if missed:
 			_run_fails.text = Locale.format("run.fails", [Loadout.run_fails])
 		else:
-			_run_fails.visible = false
 			_run_fails.text = ""
-	if _run_summary:
-		_run_summary.text = ""
-		_run_summary.visible = false
-	if Loadout.run_debt_paid > 0:
-		_run_sub.text = Locale.format("run.sub_debt", [Loadout.run_debt_paid])
-	else:
-		_run_sub.text = Locale.text("run.sub")
 	if _run_back:
 		_run_back.text = Locale.text("run.menu")
+		if missed:
+			_run_back.position.y = 292.0
+		else:
+			_run_back.position.y = 228.0
 
 
 func _show_run_end() -> void:
@@ -1743,6 +1743,16 @@ func _material_color(id: String) -> Color:
 			return Color(0.58, 0.36, 0.16)
 		"workshop":
 			return Color(0.58, 0.64, 0.7)
+		"gallery":
+			return Color(0.86, 0.72, 0.48)
+		"greenhouse":
+			return Color(0.42, 0.7, 0.36)
+		"laundry":
+			return Color(0.62, 0.78, 0.9)
+		"library":
+			return Color(0.55, 0.34, 0.2)
+		"kitchen":
+			return Color(0.9, 0.78, 0.52)
 		_:
 			return Color(0.72, 0.5, 0.28)
 
@@ -1845,6 +1855,36 @@ func _room_style(id: String) -> Dictionary:
 				"mix": [3, 3, 3, 3, 2, 3, 2, 3, 0, 3],
 				"wood": Color(0.16, 0.08, 0.06),
 				"lip": Color(0.42, 0.22, 0.14, 0.9),
+			}
+		"gallery":
+			return {
+				"mix": [4, 4, 1, 4, 1, 0, 4, 1, 4, 0],
+				"wood": Color(0.72, 0.62, 0.46),
+				"lip": Color(0.95, 0.88, 0.7, 0.95),
+			}
+		"greenhouse":
+			return {
+				"mix": [0, 0, 0, 0, 4, 0, 1, 0, 4, 0],
+				"wood": Color(0.42, 0.5, 0.28),
+				"lip": Color(0.7, 0.86, 0.48, 0.95),
+			}
+		"laundry":
+			return {
+				"mix": [3, 3, 3, 2, 3, 3, 2, 0, 3, 3],
+				"wood": Color(0.78, 0.84, 0.9),
+				"lip": Color(0.55, 0.7, 0.86, 0.95),
+			}
+		"library":
+			return {
+				"mix": [3, 1, 3, 1, 3, 3, 1, 2, 3, 1],
+				"wood": Color(0.42, 0.26, 0.14),
+				"lip": Color(0.72, 0.5, 0.28, 0.95),
+			}
+		"kitchen":
+			return {
+				"mix": [0, 0, 4, 1, 0, 0, 4, 1, 0, 3],
+				"wood": Color(0.86, 0.8, 0.68),
+				"lip": Color(0.95, 0.7, 0.42, 0.95),
 			}
 		_:
 			return {
@@ -2406,12 +2446,12 @@ func _roll_layout(wide, high, extra) -> Array:
 	# Room 1 stays on the default shelves. Owned rooms join rooms 2–8.
 	var names: Array = ["long", "sides", "stack_l", "stack_r", "stairs", "balcony", "alcove"]
 	if Loadout.run_index > 1:
-		var extras: Array = ["low_loft", "split_bay", "narrow", "floor_clutter", "window_heavy", "market", "closet", "cellar", "attic", "workshop"]
+		var extras: Array = ["low_loft", "split_bay", "narrow", "floor_clutter", "window_heavy", "market", "closet", "cellar", "attic", "workshop", "gallery", "greenhouse", "laundry", "library", "kitchen"]
 		for id in extras:
 			if Loadout.owns(str(id)):
 				names.append(id)
 	var pick := str(names[randi() % names.size()])
-	if extra == null and (pick == "sides" or pick == "stairs"):
+	if extra == null and (pick == "sides" or pick == "stairs" or pick == "gallery" or pick == "greenhouse" or pick == "laundry" or pick == "library" or pick == "kitchen"):
 		pick = "long"
 	layout_name = pick
 	match pick:
@@ -2447,6 +2487,16 @@ func _roll_layout(wide, high, extra) -> Array:
 			return _layout_workshop(high, wide)
 		"closet":
 			return _layout_closet(high, extra, wide)
+		"gallery":
+			return _layout_gallery(high, extra, wide)
+		"greenhouse":
+			return _layout_greenhouse(high, extra, wide)
+		"laundry":
+			return _layout_laundry(high, extra, wide)
+		"library":
+			return _layout_library(high, extra, wide)
+		"kitchen":
+			return _layout_kitchen(high, extra, wide)
 		_:
 			return _layout_long(wide)
 
@@ -2625,6 +2675,67 @@ func _layout_alcove(upper, lower) -> Array:
 	_use_shelf(lower, cx + randf_range(-14.0, 14.0), ly, lw)
 	_keep_stacked(upper, lower, 180.0)
 	return [upper, lower]
+
+
+func _layout_gallery(top, mid, low) -> Array:
+	# Three short boards stepping across a pale wall.
+	var w1 := randf_range(160.0, 200.0)
+	var w2 := randf_range(200.0, 260.0)
+	var w3 := randf_range(170.0, 220.0)
+	_use_shelf(top, randf_range(700.0, 840.0), randf_range(222.0, 240.0), w1)
+	_use_shelf(mid, randf_range(980.0, 1100.0), randf_range(336.0, 368.0), w2)
+	_use_shelf(low, randf_range(520.0, 680.0), randf_range(458.0, 490.0), w3)
+	_keep_x_apart([top, mid], 40.0)
+	return [top, mid, low]
+
+
+func _layout_greenhouse(left_shelf, right_shelf, bench) -> Array:
+	# Two high pots and a long bench near the floor.
+	var lw := randf_range(140.0, 180.0)
+	var rw := randf_range(140.0, 180.0)
+	var bw := randf_range(540.0, 660.0)
+	var y_high := randf_range(228.0, 256.0)
+	_use_shelf(left_shelf, randf_range(430.0, 540.0), y_high, lw)
+	_use_shelf(right_shelf, randf_range(980.0, 1100.0), y_high + randf_range(6.0, 28.0), rw)
+	_use_shelf(bench, randf_range(720.0, 900.0), randf_range(468.0, 496.0), bw)
+	_keep_x_apart([left_shelf, right_shelf], 180.0)
+	return [left_shelf, right_shelf, bench]
+
+
+func _layout_laundry(left_shelf, right_shelf, tub) -> Array:
+	# A high line of two short boards and one wide tub below.
+	var w := randf_range(150.0, 190.0)
+	var tw := randf_range(420.0, 520.0)
+	var y_line := randf_range(222.0, 246.0)
+	_use_shelf(left_shelf, randf_range(500.0, 640.0), y_line, w)
+	_use_shelf(right_shelf, randf_range(900.0, 1080.0), y_line + randf_range(8.0, 26.0), w)
+	_use_shelf(tub, randf_range(760.0, 980.0), randf_range(466.0, 496.0), tw)
+	_keep_x_apart([left_shelf, right_shelf], 70.0)
+	return [left_shelf, right_shelf, tub]
+
+
+func _layout_library(top, mid, table) -> Array:
+	# Two short boards stacked on the right, and a long low table.
+	var sw := randf_range(160.0, 200.0)
+	var tw := randf_range(460.0, 560.0)
+	var cx := randf_range(960.0, 1080.0)
+	var y1 := randf_range(220.0, 236.0)
+	_use_shelf(top, cx, y1, sw)
+	_use_shelf(mid, cx + randf_range(-16.0, 16.0), y1 + randf_range(118.0, 146.0), sw + 16.0)
+	_use_shelf(table, randf_range(620.0, 780.0), randf_range(460.0, 492.0), tw)
+	_keep_stacked(top, mid, 108.0)
+	return [top, mid, table]
+
+
+func _layout_kitchen(upper, mid, counter) -> Array:
+	# A long counter, a high shelf on the right, and a shorter one to the left.
+	var uw := randf_range(200.0, 260.0)
+	var mw := randf_range(160.0, 210.0)
+	var cw := randf_range(600.0, 720.0)
+	_use_shelf(upper, randf_range(980.0, 1100.0), randf_range(222.0, 246.0), uw)
+	_use_shelf(mid, randf_range(470.0, 620.0), randf_range(328.0, 368.0), mw)
+	_use_shelf(counter, randf_range(760.0, 940.0), randf_range(476.0, 500.0), cw)
+	return [upper, mid, counter]
 
 
 func _layout_title(id: String) -> String:

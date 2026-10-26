@@ -235,14 +235,14 @@ func wake_from(source: Node2D) -> void:
 		if source is RigidBody2D:
 			var raw: float = (source as RigidBody2D).linear_velocity.length()
 			if from_stone:
-				speed = clampf(raw, 160.0, 700.0)
+				speed = clampf(raw, 180.0, 780.0)
 			elif _heavy or _force_wake:
 				speed = clampf(raw, 280.0, 860.0)
 			else:
 				speed = clampf(raw, 90.0, 460.0)
 	var coeff := 0.1
 	if from_stone:
-		coeff = 0.14
+		coeff = 0.17
 	elif _heavy or _force_wake:
 		coeff = 0.2
 	if kind == Kind.SHELF:
@@ -257,9 +257,9 @@ func wake_from(source: Node2D) -> void:
 			dir = Vector2(bias * 0.32, 1.0).normalized()
 			coeff = 0.26
 		elif _is_support_shelf():
-			coeff = 0.07 * randf_range(0.75, 1.0)
+			coeff = 0.085 * randf_range(0.8, 1.05)
 		else:
-			coeff = 0.09 * randf_range(0.8, 1.0)
+			coeff = 0.11 * randf_range(0.85, 1.05)
 	elif kind == Kind.LAMP:
 		var horiz := dir.x if absf(dir.x) > 0.2 else 1.0
 		dir = Vector2(signf(horiz), 0.06).normalized()
@@ -383,20 +383,20 @@ func _impact_wakes(source: Node2D) -> bool:
 	if source != null and source.is_in_group("projectile"):
 		var punch := _body_speed(source) * clampf(_body_mass(source) / 2.5, 0.35, 1.75)
 		if kind == Kind.SHELF:
-			return punch >= 700.0
+			return punch >= 480.0
 		if kind == Kind.LAMP:
-			return punch >= 500.0
-		return punch >= 400.0
+			return punch >= 440.0
+		return punch >= 350.0
 	if kind == Kind.SHELF:
 		if source is RigidBody2D:
-			return _body_speed(source) >= 760.0
+			return _body_speed(source) >= 680.0
 		return false
 	if source is RigidBody2D:
 		var hit_speed := _body_speed(source)
-		# A soft bump still dies. A medium hit wakes a little more often.
-		if hit_speed < 500.0:
+		# A soft bump still dies. A medium hit wakes more often than before.
+		if hit_speed < 430.0:
 			return false
-		if hit_speed < 820.0 and randf() > 0.58:
+		if hit_speed < 720.0 and randf() > 0.72:
 			return false
 		return true
 	return false
@@ -562,7 +562,7 @@ func _maybe_break(body: Node) -> void:
 	if body is RigidBody2D:
 		var hit := _body_speed(body) * clampf(_body_mass(body) / 2.5, 0.35, 1.75)
 		punch = maxf(punch, hit)
-	if punch < 720.0:
+	if punch < 630.0:
 		return
 	_broke = true
 	call_deferred("_split_crate")
