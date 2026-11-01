@@ -449,7 +449,7 @@ func _refit_box(node: Control, design_w: float, design_h: float, vp: Vector2) ->
 
 
 func _refit_hud(vp: Vector2) -> void:
-	var plate_right := minf(400.0, vp.x - 156.0)
+	var plate_right := minf(620.0, vp.x - 200.0)
 	if plate_right < 160.0:
 		plate_right = vp.x - 8.0
 	if _room_plate:
@@ -954,23 +954,26 @@ func _refresh_rules() -> void:
 	_rule_label.text = Locale.format("rule.need", [need])
 	if _status_label == null:
 		return
-	var bits: PackedStringArray = PackedStringArray()
-	bits.append(Locale.format("rule.run_goal", [Locale.coins(Loadout.run_earned)]))
+	var extra: PackedStringArray = PackedStringArray()
 	if _goal_is_sweet():
-		bits.append(Locale.text("rule.goal_sweet"))
+		extra.append(Locale.text("rule.goal_sweet"))
 	else:
-		bits.append(Locale.text("rule.goal_ten"))
+		extra.append(Locale.text("rule.goal_ten"))
 	if strained:
-		bits.append(Locale.text("rule.strain"))
+		extra.append(Locale.text("rule.strain"))
 	if Loadout.run_debt > 0:
-		bits.append(Locale.format("rule.debt", [Loadout.run_debt]))
+		extra.append(Locale.format("rule.debt", [Loadout.run_debt]))
 	if Loadout.run_gamble:
-		bits.append(Locale.text("rule.gamble"))
+		extra.append(Locale.text("rule.gamble"))
 	if Loadout.run_double:
-		bits.append(Locale.text("rule.double"))
+		extra.append(Locale.text("rule.double"))
 	if Loadout.run_afterglow:
-		bits.append(Locale.text("rule.hot"))
-	_status_label.text = "  ".join(bits)
+		extra.append(Locale.text("rule.hot"))
+	var head := Locale.format("rule.run_goal", [Locale.coins(Loadout.run_earned)])
+	if extra.is_empty():
+		_status_label.text = head
+	else:
+		_status_label.text = head + "\n" + ". ".join(extra) + "."
 	var tips: PackedStringArray = PackedStringArray()
 	if layout_name != "":
 		tips.append(Locale.room_name(layout_name))
@@ -1114,7 +1117,7 @@ func _build_corner_menu() -> void:
 	plate.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	plate.offset_left = 48.0
 	plate.offset_top = 28.0
-	plate.offset_right = 400.0
+	plate.offset_right = 620.0
 	plate.offset_bottom = 156.0
 	plate.mouse_filter = Control.MOUSE_FILTER_STOP
 	var plate_style := StyleBoxFlat.new()
@@ -1128,7 +1131,7 @@ func _build_corner_menu() -> void:
 	room.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	room.offset_left = 60.0
 	room.offset_top = 30.0
-	room.offset_right = 388.0
+	room.offset_right = 608.0
 	room.offset_bottom = 48.0
 	room.visible = false
 	room.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -1145,7 +1148,7 @@ func _build_corner_menu() -> void:
 	progress.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	progress.offset_left = 60.0
 	progress.offset_top = 32.0
-	progress.offset_right = 388.0
+	progress.offset_right = 608.0
 	progress.offset_bottom = 54.0
 	progress.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	progress.add_theme_font_size_override("font_size", 15)
@@ -1160,7 +1163,7 @@ func _build_corner_menu() -> void:
 	rule.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	rule.offset_left = 60.0
 	rule.offset_top = 52.0
-	rule.offset_right = 388.0
+	rule.offset_right = 608.0
 	rule.offset_bottom = 82.0
 	rule.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	rule.add_theme_font_size_override("font_size", 22)
@@ -1176,7 +1179,7 @@ func _build_corner_menu() -> void:
 	status.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	status.offset_left = 60.0
 	status.offset_top = 82.0
-	status.offset_right = 388.0
+	status.offset_right = 608.0
 	status.offset_bottom = 150.0
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status.add_theme_font_size_override("font_size", 13)
