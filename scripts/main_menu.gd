@@ -22,6 +22,10 @@ var _start: Button
 var _meta: Button
 var _settings: Button
 var _quit: Button
+var _tab_play: Button
+var _tab_rules: Button
+var _help: Label
+var _page := "play"
 
 
 func _ready() -> void:
@@ -31,6 +35,7 @@ func _ready() -> void:
 
 
 func show_menu() -> void:
+	_show_page("play")
 	apply_language()
 	visible = true
 
@@ -48,6 +53,13 @@ func apply_language() -> void:
 	_meta.text = Locale.text("menu.meta")
 	_settings.text = Locale.text("menu.settings")
 	_quit.text = Locale.text("menu.quit")
+	if _tab_play:
+		_tab_play.text = Locale.text("menu.tab_play")
+	if _tab_rules:
+		_tab_rules.text = Locale.text("menu.tab_rules")
+	if _help:
+		_help.text = Locale.text("help.body")
+	_paint_tabs()
 
 
 func _build() -> void:
@@ -82,19 +94,92 @@ func _build() -> void:
 	_tagline.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	panel.add_child(_tagline)
 
-	_start = _button("StartGame", Vector2(40, 156), true, "play")
+	_tab_play = _button("TabPlay", Vector2(40, 142), false, "play")
+	_tab_play.size = Vector2(192, 44)
+	_tab_play.add_theme_font_size_override("font_size", 18)
+	_tab_play.pressed.connect(_on_tab_play)
+	panel.add_child(_tab_play)
+	_tab_rules = _button("TabRules", Vector2(248, 142), false, "gear")
+	_tab_rules.size = Vector2(192, 44)
+	_tab_rules.add_theme_font_size_override("font_size", 18)
+	_tab_rules.pressed.connect(_on_tab_rules)
+	panel.add_child(_tab_rules)
+	for tab in [_tab_play, _tab_rules]:
+		for child in tab.get_children():
+			child.visible = false
+
+	_start = _button("StartGame", Vector2(40, 204), true, "play")
 	_start.pressed.connect(_on_start)
 	panel.add_child(_start)
-	_meta = _button("MetaShop", Vector2(40, 252), false, "coin")
+	_meta = _button("MetaShop", Vector2(40, 288), false, "coin")
 	_meta.pressed.connect(_on_meta)
 	panel.add_child(_meta)
-	_settings = _button("Settings", Vector2(40, 328), false, "gear")
+	_settings = _button("Settings", Vector2(40, 358), false, "gear")
 	_settings.pressed.connect(_on_settings)
 	panel.add_child(_settings)
-	_quit = _button("Quit", Vector2(40, 404), false, "x")
+	_quit = _button("Quit", Vector2(40, 428), false, "x")
 	_quit.pressed.connect(_on_quit)
 	panel.add_child(_quit)
+
+	_help = _label("", 16, CREAM, Vector2(28, 200), Vector2(424, 330))
+	_help.name = "Help"
+	_help.visible = false
+	_help.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_help.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	panel.add_child(_help)
 	apply_language()
+	_show_page("play")
+
+
+func _on_tab_play() -> void:
+	if _page == "play":
+		return
+	AudioKit.play_click()
+	_show_page("play")
+
+
+func _on_tab_rules() -> void:
+	if _page == "rules":
+		return
+	AudioKit.play_click()
+	_show_page("rules")
+
+
+func _show_page(page: String) -> void:
+	_page = page
+	var rules := page == "rules"
+	if _help:
+		_help.visible = rules
+	if _tagline:
+		_tagline.visible = not rules
+	if _start:
+		_start.visible = not rules
+	if _meta:
+		_meta.visible = not rules
+	if _settings:
+		_settings.visible = not rules
+	if _quit:
+		_quit.visible = not rules
+	_paint_tabs()
+
+
+func _paint_tabs() -> void:
+	_paint_tab(_tab_play, _page == "play")
+	_paint_tab(_tab_rules, _page == "rules")
+
+
+func _paint_tab(button: Button, on: bool) -> void:
+	if button == null:
+		return
+	button.add_theme_stylebox_override("normal", _plate(on, false))
+	button.add_theme_stylebox_override("hover", _plate(on, true))
+	button.add_theme_stylebox_override("pressed", _plate(on, false))
+	button.add_theme_stylebox_override("focus", _plate(on, false))
+	var font := INK_TEXT if on else CREAM
+	button.add_theme_color_override("font_color", font)
+	button.add_theme_color_override("font_hover_color", font)
+	button.add_theme_color_override("font_pressed_color", font)
 
 
 func _on_start() -> void:

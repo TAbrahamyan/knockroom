@@ -19,9 +19,9 @@ const PropScript := preload("res://scripts/prop.gd")
 const WARM_FRAMES := 45
 const LOOK_TIME := 2.6
 const SHAKE_TIME := 0.2
-const ROOM_TIME := 78.0
-const SHAKY_TIME := 66.0
-const WARN_TIME := 12.0
+const ROOM_TIME := 30.0
+const SHAKY_TIME := 24.0
+const WARN_TIME := 8.0
 ## Floor props stay to the right of this edge so the slingshot has a clear lane.
 const LANE_LEFT := 304.0
 ## Closest-point gap from the stone's center to a prop. The stone itself is 15px.
@@ -55,6 +55,10 @@ var _menu_meta: Button
 var _menu_settings: Button
 var _menu_main: Button
 var _menu_close: Button
+var _menu_tab_play: Button
+var _menu_tab_rules: Button
+var _menu_help: Label
+var _menu_page := "play"
 var _room_label: Label
 var _run_label: Label
 var _rule_label: Label
@@ -232,10 +236,12 @@ func _finish() -> void:
 	_look = _look_for(chain.count)
 	var need := Loadout.chain_need()
 	var chain_count: int = chain.count
-	var earned := Loadout.payout_for(chain_count)
+	var passed: bool = chain_count >= need
+	var earned := 0
+	if passed:
+		earned = Loadout.payout_for(chain_count)
 	Loadout.last_earn = earned
 	Loadout.note_room(chain_count, earned)
-	var passed: bool = chain_count >= need
 	var goal_sweet := _goal_is_sweet() and _sweet_hit
 	var goal_ten: bool = not _goal_is_sweet() and chain_count >= 10
 	var gambled := Loadout.run_gamble
@@ -273,10 +279,11 @@ func _finish() -> void:
 		lost = Loadout.take_run_cut(percent)
 		Loadout.mark_fail()
 		_look = maxf(_look, 2.4)
-	if goal_sweet or goal_ten:
+	if passed and (goal_sweet or goal_ten):
 		var goal_pay := Loadout.receive_coins(2)
-		bonus += goal_pay
-		Loadout.run_earned += goal_pay
+		if goal_pay > 0:
+			bonus += goal_pay
+			Loadout.run_earned += goal_pay
 	Loadout.run_gamble = false
 	Loadout.run_double = false
 	Loadout.last_bonus = bonus
@@ -435,7 +442,7 @@ func _fit_to(vp: Vector2) -> void:
 		_settings.refit(vp)
 	if _main_menu != null and _main_menu.has_method("refit"):
 		_main_menu.refit(vp)
-	_refit_box(_menu_panel, 460.0, 420.0, vp)
+	_refit_menu_panel(vp)
 	var run_panel: Control = null
 	if _run_end != null:
 		run_panel = _run_end.get_node_or_null("Root/Panel") as Control
@@ -449,6 +456,26 @@ func _refit_box(node: Control, design_w: float, design_h: float, vp: Vector2) ->
 	scale = minf(scale, (vp.y - 16.0) / design_h)
 	node.pivot_offset = Vector2(design_w * 0.5, design_h * 0.5)
 	node.scale = Vector2(scale, scale)
+
+
+func _refit_menu_panel(vp: Vector2) -> void:
+	if _menu_panel == null:
+		return
+	var tall := _menu_page == "rules"
+	var design_h := 420.0
+	if tall and _menu_help:
+		var text_h := _menu_help.get_minimum_size().y
+		_menu_help.size = Vector2(404, text_h)
+		if _menu_close:
+			_menu_close.position.y = _menu_help.position.y + text_h + 18.0
+			design_h = _menu_close.position.y + _menu_close.size.y + 28.0
+	elif _menu_close:
+		_menu_close.position.y = 300.0
+	_menu_panel.offset_top = -design_h * 0.5
+	_menu_panel.offset_bottom = design_h * 0.5
+	if vp.x < 2.0 or vp.y < 2.0:
+		return
+	_refit_box(_menu_panel, 460.0, design_h, vp)
 
 
 func _refit_hud(vp: Vector2) -> void:
@@ -479,8 +506,8 @@ func _refit_hud(vp: Vector2) -> void:
 			_heat_row.set_anchors_preset(Control.PRESET_TOP_LEFT)
 			_heat_row.offset_left = 48.0
 			_heat_row.offset_right = 420.0
-			_heat_row.offset_top = 162.0
-			_heat_row.offset_bottom = 186.0
+			_heat_row.offset_top = 126.0
+			_heat_row.offset_bottom = 150.0
 	_refresh_equipped()
 
 
@@ -840,9 +867,9 @@ func _build_heat(hud: Node) -> void:
 	row.visible = false
 	row.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	row.offset_left = 48.0
-	row.offset_top = 162.0
+	row.offset_top = 126.0
 	row.offset_right = 420.0
-	row.offset_bottom = 186.0
+	row.offset_bottom = 150.0
 	hud.add_child(row)
 	_heat_row = row
 	var heat := Label.new()
@@ -950,52 +977,14 @@ func _refresh_rules() -> void:
 			_status_label.text = ""
 		return
 	var need := Loadout.chain_need()
-	var strained := Loadout.run_strain
 	if phase == Phase.SETTLED and _shown_need > 0:
 		need = _shown_need
-		strained = false
 	_rule_label.text = Locale.format("rule.need", [need])
 	if _status_label == null:
 		return
-	var extra: PackedStringArray = PackedStringArray()
-	if _goal_is_sweet():
-		extra.append(Locale.text("rule.goal_sweet"))
-	else:
-		extra.append(Locale.text("rule.goal_ten"))
-	if strained:
-		extra.append(Locale.text("rule.strain"))
-	if Loadout.run_debt > 0:
-		extra.append(Locale.format("rule.debt", [Loadout.run_debt]))
-	if Loadout.run_gamble:
-		extra.append(Locale.text("rule.gamble"))
-	if Loadout.run_double:
-		extra.append(Locale.text("rule.double"))
-	if Loadout.run_afterglow:
-		extra.append(Locale.text("rule.hot"))
-	var head := Locale.format("rule.run_goal", [Locale.coins(Loadout.run_earned)])
-	if extra.is_empty():
-		_status_label.text = head
-	else:
-		_status_label.text = head + "\n" + ". ".join(extra) + "."
-	var tips: PackedStringArray = PackedStringArray()
-	if layout_name != "":
-		tips.append(Locale.room_name(layout_name))
-	if _goal_is_sweet():
-		tips.append(Locale.text("rule.tip_sweet"))
-	else:
-		tips.append(Locale.text("rule.tip_ten"))
-	if strained:
-		tips.append(Locale.text("rule.tip_strain"))
-	if Loadout.run_debt > 0:
-		tips.append(Locale.text("rule.tip_debt"))
-	if Loadout.run_gamble:
-		tips.append(Locale.text("rule.tip_gamble"))
-	if Loadout.run_double:
-		tips.append(Locale.text("rule.tip_double"))
-	if Loadout.run_afterglow:
-		tips.append(Locale.text("rule.tip_hot"))
+	_status_label.text = Locale.format("rule.run_goal", [Locale.coins(Loadout.run_earned)])
 	if _room_plate:
-		_room_plate.tooltip_text = "\n".join(tips)
+		_room_plate.tooltip_text = ""
 	_refresh_heat()
 
 
@@ -1107,11 +1096,32 @@ func _build_corner_menu() -> void:
 	_menu_title.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
 	panel.add_child(_menu_title)
 
-	_menu_meta = _add_menu_button(panel, "MetaShop", Vector2(40, 84), _on_menu_meta)
-	_menu_settings = _add_menu_button(panel, "Settings", Vector2(40, 152), _on_menu_settings)
-	_menu_main = _add_menu_button(panel, "MainMenu", Vector2(40, 220), _on_menu_main)
-	_menu_close = _add_menu_button(panel, "Close", Vector2(40, 288), _on_menu_close)
+	_menu_tab_play = _add_menu_button(panel, "TabPlay", Vector2(24, 68), _on_menu_tab_play)
+	_menu_tab_play.size = Vector2(196, 40)
+	_menu_tab_play.add_theme_font_size_override("font_size", 18)
+	_menu_tab_rules = _add_menu_button(panel, "TabRules", Vector2(232, 68), _on_menu_tab_rules)
+	_menu_tab_rules.size = Vector2(196, 40)
+	_menu_tab_rules.add_theme_font_size_override("font_size", 18)
+
+	_menu_meta = _add_menu_button(panel, "MetaShop", Vector2(40, 120), _on_menu_meta)
+	_menu_settings = _add_menu_button(panel, "Settings", Vector2(40, 180), _on_menu_settings)
+	_menu_main = _add_menu_button(panel, "MainMenu", Vector2(40, 240), _on_menu_main)
+	_menu_close = _add_menu_button(panel, "Close", Vector2(40, 300), _on_menu_close)
+
+	_menu_help = Label.new()
+	_menu_help.name = "Help"
+	_menu_help.visible = false
+	_menu_help.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_menu_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_menu_help.position = Vector2(28, 124)
+	_menu_help.size = Vector2(404, 280)
+	_menu_help.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	_menu_help.add_theme_font_size_override("font_size", 16)
+	_menu_help.add_theme_color_override("font_color", Color(0.98, 0.94, 0.86))
+	_menu_help.add_theme_constant_override("line_spacing", 6)
+	panel.add_child(_menu_help)
 	_sync_menu_copy()
+	_show_menu_page("play")
 
 	var hud := chain.get_node("UI/Root")
 	var plate := Panel.new()
@@ -1121,7 +1131,7 @@ func _build_corner_menu() -> void:
 	plate.offset_left = 48.0
 	plate.offset_top = 28.0
 	plate.offset_right = 620.0
-	plate.offset_bottom = 156.0
+	plate.offset_bottom = 118.0
 	plate.mouse_filter = Control.MOUSE_FILTER_STOP
 	var plate_style := StyleBoxFlat.new()
 	plate_style.bg_color = Color(0.05, 0.03, 0.04, 0.78)
@@ -1183,7 +1193,7 @@ func _build_corner_menu() -> void:
 	status.offset_left = 60.0
 	status.offset_top = 82.0
 	status.offset_right = 608.0
-	status.offset_bottom = 150.0
+	status.offset_bottom = 110.0
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status.add_theme_font_size_override("font_size", 13)
 	status.add_theme_color_override("font_color", Color(0.95, 0.88, 0.74))
@@ -1291,6 +1301,68 @@ func _sync_menu_copy() -> void:
 		_menu_main.text = Locale.text("menu.main")
 	if _menu_close:
 		_menu_close.text = Locale.text("menu.close")
+	if _menu_tab_play:
+		_menu_tab_play.text = Locale.text("menu.tab_play")
+	if _menu_tab_rules:
+		_menu_tab_rules.text = Locale.text("menu.tab_rules")
+	if _menu_help:
+		_menu_help.text = Locale.text("help.body")
+	_paint_menu_tabs()
+
+
+func _on_menu_tab_play() -> void:
+	if _menu_page == "play":
+		return
+	AudioKit.play_click()
+	_show_menu_page("play")
+
+
+func _on_menu_tab_rules() -> void:
+	if _menu_page == "rules":
+		return
+	AudioKit.play_click()
+	_show_menu_page("rules")
+
+
+func _show_menu_page(page: String) -> void:
+	_menu_page = page
+	var rules := page == "rules"
+	if _menu_help:
+		_menu_help.visible = rules
+	if _menu_meta:
+		_menu_meta.visible = not rules
+	if _menu_settings:
+		_menu_settings.visible = not rules
+	if _menu_main:
+		_menu_main.visible = not rules
+	_paint_menu_tabs()
+	_refit_menu_panel(get_viewport().get_visible_rect().size)
+
+
+func _paint_menu_tabs() -> void:
+	_paint_menu_tab(_menu_tab_play, _menu_page == "play")
+	_paint_menu_tab(_menu_tab_rules, _menu_page == "rules")
+
+
+func _paint_menu_tab(button: Button, on: bool) -> void:
+	if button == null:
+		return
+	var bg := Color(1.0, 0.84, 0.38) if on else Color(0.24, 0.14, 0.10)
+	var font := Color(0.22, 0.12, 0.06) if on else Color(0.98, 0.94, 0.86)
+	var box := StyleBoxFlat.new()
+	box.bg_color = bg
+	box.border_color = Color(1.0, 0.84, 0.38)
+	box.set_border_width_all(2)
+	box.set_corner_radius_all(10)
+	var hover := box.duplicate() as StyleBoxFlat
+	hover.bg_color = bg.lightened(0.08)
+	button.add_theme_stylebox_override("normal", box)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", box)
+	button.add_theme_stylebox_override("focus", box)
+	button.add_theme_color_override("font_color", font)
+	button.add_theme_color_override("font_hover_color", font)
+	button.add_theme_color_override("font_pressed_color", font)
 
 
 func _toggle_menu() -> void:
@@ -1312,6 +1384,7 @@ func _set_menu_open(show_menu: bool) -> void:
 		if dim:
 			dim.visible = show_menu
 	if show_menu:
+		_show_menu_page("play")
 		thrower.aiming = false
 		thrower.can_aim = false
 		_set_hint("hint.menu")

@@ -6,17 +6,17 @@ Open the project in Godot 4.7 and run `scenes/main.tscn`. The game opens on the 
 
 ## Loop
 
-A run is 5 rooms. The plate under the corner menu shows `Room 1 of 5` (or `Комната 1 из 5`) and the chain that room needs.
+A run is 5 rooms. The plate under the corner menu shows the room number, the chain that room needs, and the coins of this run. Rules live on the Rules tab of the main menu and the pause menu.
 
 Hold the left mouse button, pull back from the slingshot, and release. The stone flies the opposite way. Touch uses the same drag. When the room settles, a banner says whether the room was cleared, the chain length, and the coins gained or lost. Then the throw shop offers three stones.
 
-Rooms 1–3 need a chain of 2. Rooms 4–5 need a chain of 3. A miss does not end the run. It cuts about 6% of the coins earned so far in that run, and the next room needs one more link, up to 4. Four misses in a row add 1 debt, taken once when the run ends. A clear removes the extra link.
+Every room needs a chain of 5. Fewer than 5 pays nothing for that room. A miss does not end the run. It cuts about 6% of the coins earned so far in that run. Four misses in a row add 1 debt, taken once when the run ends.
 
-Beating the need by 4 or more is a great clear: a gold banner, 4 extra coins, and one faster throw next room. Risk, from the throw shop, adds 2 coins on the next clear and raises a miss cut to 12%. Double adds a second copy of that room’s payout on a clear and raises a miss cut to 18%. Both are hidden on room 5, because there is no next room. Skip leaves the stone you have and still advances.
+Beating the need by 4 or more is a great clear: a gold banner, 1 extra coin, and one faster throw next room. Risk, from the throw shop, adds 1 coin on the next clear and raises a miss cut to 12%. Double adds a second copy of that room’s payout on a clear and raises a miss cut to 18%. Both are hidden on room 5, because there is no next room. Skip leaves the stone you have and still advances.
 
-Odd rooms also pay 1 coin for hitting the bright spot. Even rooms pay 1 coin for a chain of 10. The plate says which one is active. The clock is about 78 seconds, or about 66 after two misses in a row. It pauses in the shop and the menus. If it hits zero before the throw, that throw is a little softer.
+The clock is 30 seconds, or 24 after two misses in a row. It pauses in the shop and the menus. If it hits zero before the throw, that throw is a little softer.
 
-A streak of clears fills five marks. The next clear pays 1 or 2 extra coins from that streak. A miss cools it by one. The best chain of the run sits beside those marks.
+A streak of clears fills five marks. The next clear pays 1 extra coin when all five are full. A miss cools it by one. The best chain of the run sits beside those marks.
 
 Coins on the plate are this run only. The number in the corner, and in the meta shop, is the saved purse. The throw shop and the meta shop spend the purse, not the coins still inside the run. After room 5 the run banks once, debt is paid out of the run first, and Run Complete shows the rooms cleared, the best chain, the coins added, and the misses. The meta shop opens on top of that screen.
 
@@ -101,7 +101,7 @@ Coins spent here come from the saved purse. Unlocks stay after you close the gam
 
 ## Coins from a chain
 
-One knock pays nothing. A chain of 2 pays 6, 3 pays 8, and 4 pays 11. From there the room pays about 3 coins per link until 8, then less, and a chain tops out at 42 before the bonuses above. That is 30% less than the earlier table, rounded. A chain of 2 is still enough for the Light Stone at 4. Skip Stone stays 355, and the Study is 438, so the full set still takes more than one run.
+One knock pays nothing. A chain of 5 pays 4, 6 pays 5, 8 pays 7, and 10 pays 8. A chain tops out at 13 before the small bonuses above. That is 70% less than the previous payouts, rounded, for each room and for the run total those rooms add up to. A chain under 5 pays nothing. Skip Stone stays 355, and the Study is 438, so the full set still takes more than one run.
 
 ## Room
 

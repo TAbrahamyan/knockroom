@@ -748,8 +748,8 @@ static func stone_radius() -> float:
 
 
 static func payout_for(chain_count: int) -> int:
-	# One knock pays nothing. A decent chain pays enough to shop after the run.
-	# The old table topped out at 60. Players receive 30% less, so the cap is 42.
+	# One knock pays nothing. Room coins and the run total use the same cut.
+	# The old table topped out at 60, then 30% was taken off. This takes off another 70%.
 	var full := 0
 	if chain_count <= 1:
 		return 0
@@ -770,11 +770,12 @@ static func payout_for(chain_count: int) -> int:
 	return receive_coins(full)
 
 
-## Flat bonuses use the same 30% cut as the chain table. Round half up.
+## 70% less than the previous payout. Round half up. A 1-coin bonus can become 0.
 static func receive_coins(amount: int) -> int:
 	if amount <= 0:
 		return 0
-	return (amount * 7 + 5) / 10
+	var previous := (amount * 7 + 5) / 10
+	return (previous * 3 + 5) / 10
 
 
 ## Coins added on the next clear for the heat already banked. Heat 0 pays nothing.
@@ -803,15 +804,9 @@ static func note_room(chain_count: int, pay: int) -> void:
 		run_best = chain_count
 
 
-## Rooms 1–3 need 2. Rooms 4–5 need 3.
-## A failed room strains the next one by 1, and the need never goes past 4.
+## Every room needs 5. Fewer than 5 pays nothing for that room.
 static func chain_need() -> int:
-	var need := 2
-	if run_index >= 4:
-		need = 3
-	if run_strain:
-		need = mini(need + 1, 4)
-	return need
+	return 5
 
 
 ## Cuts this run's coins. At least 1 when the run has any. Returns how many were lost.
