@@ -38,9 +38,9 @@ func _ready() -> void:
 func _place_banner() -> void:
 	result.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	result.offset_left = -300.0
-	result.offset_top = 150.0
+	result.offset_top = 168.0
 	result.offset_right = 300.0
-	result.offset_bottom = 210.0
+	result.offset_bottom = 292.0
 	result.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	result.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	result.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -52,9 +52,9 @@ func _place_banner() -> void:
 	wash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	wash.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	wash.offset_left = -320.0
-	wash.offset_top = 144.0
+	wash.offset_top = 160.0
 	wash.offset_right = 320.0
-	wash.offset_bottom = 216.0
+	wash.offset_bottom = 300.0
 	wash.color = Color(0.05, 0.03, 0.04, 0.0)
 	wash.visible = false
 	wash.z_index = 1
@@ -72,6 +72,25 @@ func _place_banner() -> void:
 	lip.color = Color(1, 0.86, 0.35, 0)
 	wash.add_child(lip)
 	_lip = lip
+
+
+func refit(forced: Vector2 = Vector2(-1, -1)) -> void:
+	var vp := get_viewport().get_visible_rect().size
+	if forced.x > 1.0:
+		vp = forced
+	if result == null or vp.x < 2.0:
+		return
+	var half := minf(300.0, maxf(110.0, (vp.x - 24.0) * 0.5))
+	result.offset_left = -half
+	result.offset_right = half
+	var extra := 48.0 if vp.x < 720.0 else 0.0
+	result.offset_top = 168.0
+	result.offset_bottom = 292.0 + extra
+	if _wash:
+		_wash.offset_left = -(half + 16.0)
+		_wash.offset_right = half + 16.0
+		_wash.offset_top = 160.0
+		_wash.offset_bottom = 300.0 + extra
 
 
 func apply_language() -> void:

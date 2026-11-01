@@ -1,116 +1,115 @@
 # Knockroom
 
-Eight rooms, one throw each. Pull the stone back and it flies the other way. Whatever it knocks down joins the chain. The chain pays at the end of the run, and the shop sells a stone for the next room.
+Five rooms, one throw each. Pull the stone back and it flies the other way. Whatever it knocks down joins the chain. Coins from the run are paid when the run ends. The shop between rooms rents a stone for the next throw. A separate shop keeps permanent unlocks.
 
-Open the project in Godot 4.7 and run `scenes/main.tscn`. The game opens on the main menu. Start Game begins a run.
+Open the project in Godot 4.7 and run `scenes/main.tscn`. The game opens on the main menu. The first launch with no save is Russian. Settings switches between Russian and English.
 
 ## Loop
 
-A run is 8 rooms. The plate under the title shows the room name and `Room X / 8`.
+A run is 5 rooms. The plate under the corner menu shows `Room 1 of 5` (or `Комната 1 из 5`) and the chain that room needs.
 
-Hold the left mouse button, pull back from the slingshot, and release. The stone flies the opposite way. When the room settles, the result shows the chain and the coins that room earned. The shop then offers three stones. Buy one you can afford from the safe purse, or equip a stone you already unlocked, or skip. Gamble is one optional risk: the next room pays 3 extra coins if you clear it, and a miss takes a larger cut. Double or nothing is the other: that room’s coins are doubled on a clear, and a miss takes about 18%. The last room has no next room, so both are hidden there. The next room loads on its own.
+Hold the left mouse button, pull back from the slingshot, and release. The stone flies the opposite way. Touch uses the same drag. When the room settles, a banner says whether the room was cleared, the chain length, and the coins gained or lost. Then the throw shop offers three stones.
 
-Each room asks for a minimum chain. The plate says it in one line, `Need 3`. Rooms 1–2 need 2, rooms 3–5 need 3, and rooms 6–8 need 4. While the chain is one or two short, the counter says so. A miss shows a full-width Room failed banner with the chain, the need, and the coins lost. The run still continues. A miss cuts about 6% of the coins earned so far in the run. Gamble raises that cut to 12%. Double or nothing, the other optional risk, doubles that room’s coins on a clear and takes about 18% on a miss. A miss also marks the next room Strained +1, up to a need of 4. Four misses in a row add 1 debt, up to 1, taken when the run ends, and the next clock starts a little shorter. A clear drops the strain and the miss streak. Beating the need by 4 or more is a Chain Master clear: a gold banner, 3 extra coins, and a slightly faster throw next room.
+Rooms 1–3 need a chain of 2. Rooms 4–5 need a chain of 3. A miss does not end the run. It cuts about 6% of the coins earned so far in that run, and the next room needs one more link, up to 4. Four misses in a row add 1 debt, taken once when the run ends. A clear removes the extra link.
 
-A room also has a small bonus that does not fail you. Odd rooms pay 2 coins for hitting the sweet spot. Even rooms pay 2 coins for a chain of 10. The clock sits in a box as `70s`. It is about 78 seconds, and it pauses in the shop and the menus. Under 12 seconds the box and the edge of the screen turn red. If it hits zero before the throw, that throw is a little softer. You can still throw.
+Beating the need by 4 or more is a great clear: a gold banner, 6 extra coins, and one faster throw next room. Risk, from the throw shop, adds 3 coins on the next clear and raises a miss cut to 12%. Double adds a second copy of that room’s payout on a clear and raises a miss cut to 18%. Both are hidden on room 5, because there is no next room. Skip leaves the stone you have and still advances.
 
-Heat sits under the counter. Clears fill it, up to 5, and a miss cools it by one. Heat pays a small bonus on the next clear. The best chain of the run sits beside it. The run’s goal is still 24 coins after debt. The plate keeps a `Coins n / 24` count. Coins earned during the run are not safe yet. The per-throw shop and the meta shop spend only what was already in the purse. After room 8’s shop, Run Complete adds the run’s coins to the purse once, after debt. The screen shows rooms cleared, the best chain, the coins added, and the misses if there were any. The run’s goal stays 24 coins after debt.
+Odd rooms also pay 2 coins for hitting the bright spot. Even rooms pay 2 coins for a chain of 10. The plate says which one is active. The clock is about 78 seconds, or about 66 after two misses in a row. It pauses in the shop and the menus. If it hits zero before the throw, that throw is a little softer.
 
-Main Menu during a run ends it and drops every coin earned in that run. There is no Restart Room. The only way forward is to finish the throw and the shop.
+A streak of clears fills five marks. The next clear pays 1, 2, or 3 extra coins from that streak. A miss cools it by one. The best chain of the run sits beside those marks.
 
-A quiet loop plays in the background. The throw, hits, breaks, and chain milestones have their own sounds.
+Coins on the plate are this run only. The number in the corner, and in the meta shop, is the saved purse. The throw shop and the meta shop spend the purse, not the coins still inside the run. After room 5 the run banks once, debt is paid out of the run first, and Run Complete shows the rooms cleared, the best chain, the coins added, and the misses. The meta shop opens on top of that screen.
 
-Coins, the equipped stone, unlocks, language, and volume are saved. The corner icon opens a menu for the meta shop, settings, and the main menu. The first launch with no save uses Russian. Settings has English and Russian, plus music and effects volume.
+Main Menu during a run ends it and drops the coins that were not banked yet. There is no Restart Room.
 
-## Room
+The window fits landscape and portrait. In the editor the play window stays 1280×720. On a phone the camera zoom follows the screen.
 
-Every room builds a new shelf layout, and each layout has its own wall, floor, light, and material. The name and the run counter sit on a plate under the title. Room 1 rolls the default layouts only. Rooms 2–8 add every room you have unlocked.
+## Stones between rooms
 
-A careful throw with a cheap stone can clear an early room. A long chain still wants a heavier hit. Heavier and more expensive stones hit harder or do something the cheap ones cannot: a downward crush, a long rebound, a wall kick, a magnet pull, a blast, a soft wide pillow, a small spark, or a fast skip off the wall.
+The throw shop shows three stones you pay for each time you take them. These eight are always the pool. The stone already on the slingshot is left out of the three, so the shop does not sell you the one you are holding. Take one you can afford, or skip.
 
-Narrow shelves, the stairs, and the alcove stock bottles. Split bay and the cellar stock bottles and jars. Market row, floor clutter, and the closet stock boxes. The stacks, the attic, and the workshop stock crates. The long shelf and the low loft stock pots. The window and the balcony stock glass. A room has 18–23 loose objects and exactly 1 sweet spot on the highest shelf. A hard hit on that spot can still drop the shelves in order, then roll only the nearby floor. A miss barely travels. The floor beside the slingshot stays clear.
-
-Default layouts are the long shelf, side shelves, a stack against one wall, stairs, a balcony, and an alcove. Narrow shelves are a short column with a tall drop. Floor clutter keeps almost everything on the ground. Split bay leaves a wide empty middle, including on the floor. Window heavy crowds the shelves under a large window. Market row is one long low counter. Low loft keeps both boards near the floor. The long shelf is a warm plaster hall. Side shelves hang between plum curtains. The stacks sit on a brick column. Stairs are cut stone. The balcony is open sky. The alcove is night. The low loft is sand. Split bay is underwater. Narrow shelves are a stone well. Floor clutter is dry earth. Window heavy is a bright glass room. Market row has a striped awning. The attic is dusty wood under a roof, and its crates split into pieces when hit hard. The cellar is dirt and roots. The workshop is metal, and its parts spin as they fall and clip whatever they touch. The closet is almost black, with one warm slit. The gallery is pale plaster with a few frames. The greenhouse is green, with stems on the wall. The laundry is pale blue, with a line and hanging cloth. The library is brown, with book spines. The kitchen is cream, with a tile band and a small window.
-
-## Coins
-
-One knock pays nothing. A chain of 2 pays 4 coins, 4 pays 8, 6 pays 10, 8 pays 13, 10 pays 14, and a full clear tops out at 20. A short clear no longer buys a stone by itself.
-
-The amount is shown on the result line (`+7 coins`) and again in the shop. A failed room shows the cut instead of a payout. The purse is in the top-right corner. Cards you cannot afford stay dimmed. Skip is free. Gamble does not buy a stone.
-
-## Stones
-
-The equipped stone is tinted, carries an icon for what it does, and is named in the corner.
-
-| Stone | Price | Effect |
+| Stone | Price | What it does |
 | --- | --- | --- |
-| Light Stone | 8 coins | Light. A short knock |
-| Spring Stone | 9 coins | A small bounce and a weak hit |
-| Wide Stone | 10 coins | A little wider. Still a light hit |
-| Glass Charm | 12 coins | Shatters bottles near the impact |
-| High Pop | 12 coins | Throws nearby props upward |
-| Heavy Stone | 16 coins | Slow throw, heavy downward hit |
-| Magnet Stone | 19 coins | Pulls nearby props in after a hit |
-| Blast Stone | 22 coins | Shoves nearby props on impact |
-| Cork Stone | 9 coins | Stops where it lands. Unlocked in the meta shop |
-| Pebble | 9 coins | Small and quick. Unlocked in the meta shop |
-| Needle Stone | 10 coins | Small and fast. Unlocked in the meta shop |
-| Pillow | 10 coins | Big, slow, and soft. Unlocked in the meta shop |
-| Thud Stone | 12 coins | A harder first hit. Unlocked in the meta shop |
-| Feather | 12 coins | Light, and it lifts what it hits. Unlocked in the meta shop |
-| Split Stone | 13 coins | Splits into two smaller stones on the first hit. Unlocked in the meta shop |
-| Sticky Stone | 13 coins | Sticks to the first thing it hits, then they fall together. Unlocked in the meta shop |
-| Spark | 13 coins | A small pop around the hit. Unlocked in the meta shop |
-| Bounce Stone | 15 coins | Lots of rebounds, a light direct hit. Unlocked in the meta shop |
-| Skip Stone | 15 coins | Fast, and it kicks off walls. Unlocked in the meta shop |
-| Ricochet Stone | 16 coins | Bounces harder off walls and shelves. Unlocked in the meta shop |
-| Heavy Drop Stone | 18 coins | After the first hit it falls faster and knocks downward. Unlocked in the meta shop |
+| Light Stone | 4 | Light. Knocks only nearby things |
+| Spring Stone | 5 | Bounces. The hit is weak |
+| Wide Stone | 6 | Wider, and still a light hit |
+| Glass Charm | 8 | Breaks bottles near the hit |
+| High Pop | 8 | Throws things upward |
+| Heavy Stone | 12 | Slow, and it hits downward hard |
+| Magnet Stone | 14 | Pulls nearby things in after a hit |
+| Blast Stone | 16 | Shoves everything nearby |
+
+Stones you buy in the meta shop are not sold again. Equip one from that shop, in Yours, for free. The button says Take. The stone already with you says With you. Rooms you own stay marked Owned.
+
+| Stone | What it does |
+| --- | --- |
+| Cork Stone | Drops and stops where it lands |
+| Needle Stone | Thin and fast. Flies farther |
+| Pebble | Small and fast. A light hit |
+| Pillow | Big, slow, and soft |
+| Thud Stone | The first hit is harder |
+| Feather | Lifts what it hits |
+| Split Stone | The first hit splits it into two stones |
+| Sticky Stone | Sticks to the thing it hits and falls with it |
+| Spark | A small blast where it hits |
+| Bounce Stone | Bounces many times. The hit is light |
+| Skip Stone | Fast. Kicks off walls |
+| Ricochet Stone | Kicks harder off walls and shelves |
+| Heavy Drop Stone | After the first hit it gets heavy and knocks down |
 
 ## Meta shop
 
-The corner icon opens a centered menu: Meta Shop, Settings, and Main Menu. Meta Shop is also on the main menu and on the throw shop. Stones and rooms are listed apart, each cheapest first. Coins spent there come from the safe purse. Unlocks stay after you close the game. Main Menu during a run drops that run’s coins.
+The main menu, the pause menu, and the throw shop open the same shop. Rows are grouped as Buy, Close (40 coins or fewer short), Later, and Yours. The price sits inside the row. A shortfall shows how many coins are missing and a fill bar. The line under the title is the next unlock you cannot afford yet. It does not repeat something you already own, and it does not repeat something already sitting in Buy.
 
-| Unlock | Kind | Cost | What it does |
-| --- | --- | --- | --- |
-| Cork Stone | Stone | 40 coins | Joins the throw shop. Equipping it there is free |
-| Narrow Shelves | Room | 36 coins | Short planks with a tall drop between them |
-| Low Loft | Room | 46 coins | Shelves sit close to the floor |
-| Needle Stone | Stone | 80 coins | Joins the throw shop. Equipping it there is free |
-| Floor Clutter | Room | 66 coins | One small shelf. Most props sit on the floor |
-| Market Row | Room | 72 coins | One long low counter |
-| Split Bay | Room | 78 coins | Two shelves far apart, at different heights |
-| Window Heavy | Room | 88 coins | A large window with the shelves crowded under it |
-| Thud Stone | Stone | 140 coins | Joins the throw shop. Equipping it there is free |
-| Closet | Room | 104 coins | Rooms 2–8 can roll a dark closet |
-| Split Stone | Stone | 160 coins | Joins the throw shop. Equipping it there is free |
-| Cellar | Room | 118 coins | Rooms 2–8 can roll a dirt cellar |
-| Sticky Stone | Stone | 175 coins | Joins the throw shop. Equipping it there is free |
-| Attic | Room | 134 coins | Rooms 2–8 can roll a dusty attic. Hard hits split its crates |
-| Bounce Stone | Stone | 195 coins | Joins the throw shop. Equipping it there is free |
-| Workshop | Room | 150 coins | Rooms 2–8 can roll a metal workshop. Parts spin as they fall |
-| Ricochet Stone | Stone | 220 coins | Joins the throw shop. Equipping it there is free |
-| Heavy Drop Stone | Stone | 245 coins | Joins the throw shop. Equipping it there is free |
-| Gallery | Room | 182 coins | Rooms 2–8 can roll a pale gallery |
-| Pebble | Stone | 265 coins | Joins the throw shop. Equipping it there is free |
-| Greenhouse | Room | 198 coins | Rooms 2–8 can roll a green greenhouse |
-| Pillow | Stone | 290 coins | Joins the throw shop. Equipping it there is free |
-| Laundry | Room | 214 coins | Rooms 2–8 can roll a pale laundry |
-| Feather | Stone | 310 coins | Joins the throw shop. Equipping it there is free |
-| Library | Room | 230 coins | Rooms 2–8 can roll a brown library |
-| Spark | Stone | 335 coins | Joins the throw shop. Equipping it there is free |
-| Kitchen | Room | 246 coins | Rooms 2–8 can roll a cream kitchen |
-| Skip Stone | Stone | 355 coins | Joins the throw shop. Equipping it there is free |
+Coins spent here come from the saved purse. Unlocks stay after you close the game. Owned rooms join the random mix from room 2. Room 1 uses only the default layouts.
 
-A full clear pays up to 16. Owned rows stay marked Owned. Back returns to where you were. New room is only on the title. During a run it is hidden, and nothing rebuilds the current room. The throw shop mixes the eight base stones with stones you already own, and never shows a locked stone. An owned stone is marked Owned and equipped for the next room without another coin cost. Cheap stones can clear a short chain. Higher prices hit harder or do a job the cheap stones cannot.
+| Unlock | Kind | Cost |
+| --- | --- | --- |
+| Narrow Shelves | Room | 18 |
+| Cork Stone | Stone | 24 |
+| Low Loft | Room | 32 |
+| Floor Clutter | Room | 44 |
+| Market Row | Room | 54 |
+| Split Bay | Room | 66 |
+| Needle Stone | Stone | 78 |
+| Window Heavy | Room | 88 |
+| Closet | Room | 104 |
+| Cellar | Room | 118 |
+| Thud Stone | Stone | 120 |
+| Attic | Room | 134 |
+| Workshop | Room | 150 |
+| Split Stone | Stone | 160 |
+| Sticky Stone | Stone | 175 |
+| Gallery | Room | 182 |
+| Bounce Stone | Stone | 195 |
+| Greenhouse | Room | 198 |
+| Laundry | Room | 214 |
+| Ricochet Stone | Stone | 220 |
+| Library | Room | 230 |
+| Heavy Drop Stone | Stone | 245 |
+| Kitchen | Room | 246 |
+| Pebble | Stone | 265 |
+| Pillow | Stone | 290 |
+| Feather | Stone | 310 |
+| Spark | Stone | 335 |
+| Skip Stone | Stone | 355 |
 
-## Web
+## Coins from a chain
 
-Project → Export includes a Web preset. The renderer is already Compatibility. Thread support is off, so the page can run without cross-origin isolation headers. Export it as HTML and open `index.html` through a local server. No store SDK is included.
+One knock pays nothing. A chain of 2 pays 8, 3 pays 12, and 4 pays 16. From there the room pays 4 coins per link until 8, then less, and a chain tops out at 60 before the bonuses above. A chain of 2 is enough for the Light Stone at 4. Skip Stone stays 355, so the full set still takes more than one run.
 
-## Next
+## Room
 
-The design doc’s first three priorities are in: shop items change the throw, chains pay coins, and the shop spends them. A run is eight rooms. The attic and the workshop each change the chain, not only the paint. Leaving for the menu drops the run’s coins.
+Every room builds a new shelf layout, with its own wall, floor, light, and props. There are 18–23 loose objects and one bright spot, on the highest shelf. The floor beside the slingshot stays clear.
 
-The next step is a simple win on top of this run: finish all eight rooms, or hit a coin target, and show that clearly. The doc’s full room pool is still about 20, so another room can wait until the win feels good. Do not add bosses, character movement, or a collect-everything goal.
+Default layouts are the long shelf, side shelves, a stack, stairs, a balcony, and an alcove. Unlocked rooms are narrow shelves, low loft, floor clutter, market row, split bay, window heavy, closet, cellar, attic, workshop, gallery, greenhouse, laundry, library, and kitchen. The attic’s crates break when hit hard. The workshop’s parts spin as they fall.
 
-A smaller HUD step, if the win waits: show the equipped stone’s one-line effect under its name.
+## Saved data
+
+Coins, the equipped stone, unlocks, language, music volume, effects volume, and the best chain are saved in `user://knockroom.cfg`.
+
+A quiet loop plays in the background. The throw, hits, breaks, and chain milestones have their own sounds. Settings has language, music, and effects. The volume sliders save when you move them. Opening the panel does not zero them.
+
+## Project
+
+Godot 4.7, Compatibility renderer. The play scene is `scenes/main.tscn`. A Web export preset is in the project. This tree does not include a built HTML page.

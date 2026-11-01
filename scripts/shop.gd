@@ -56,18 +56,18 @@ func apply_language() -> void:
 		skip.text = Locale.text("shop.skip")
 	var gamble := get_node_or_null("Root/Panel/Gamble") as Button
 	if gamble:
-		gamble.text = Locale.text("shop.gamble")
-		gamble.tooltip_text = Locale.text("shop.gamble_note")
+		gamble.text = Locale.text("shop.gamble") + "\n" + Locale.text("shop.gamble_short")
+		gamble.tooltip_text = ""
 		gamble.visible = Loadout.run_index < Loadout.RUN_ROOMS
 	var double := get_node_or_null("Root/Panel/Double") as Button
 	if double:
-		double.text = Locale.text("shop.double")
-		double.tooltip_text = Locale.text("shop.double_note")
+		double.text = Locale.text("shop.double") + "\n" + Locale.text("shop.double_short")
+		double.tooltip_text = ""
 		double.visible = Loadout.run_index < Loadout.RUN_ROOMS
 	var meta := get_node_or_null("Root/Panel/Meta") as Button
 	if meta:
 		meta.text = Locale.text("shop.meta")
-		meta.tooltip_text = Locale.text("menu.meta")
+		meta.tooltip_text = ""
 	_write_sub()
 	for i in _cards.size():
 		if i < _shown.size():
@@ -78,14 +78,14 @@ func _write_sub() -> void:
 	var sub := get_node_or_null("Root/Panel/Sub") as Label
 	if sub == null:
 		return
-	var run_coins := Loadout.run_earned
+	var run_coins := Locale.coins(Loadout.run_earned)
 	if not Loadout.last_cleared:
 		if Loadout.last_lost > 0:
-			sub.text = Locale.format("shop.failed", [Loadout.last_lost, run_coins])
+			sub.text = Locale.format("shop.failed", [Locale.coins(Loadout.last_lost), run_coins])
 		else:
 			sub.text = Locale.format("shop.failed_none", [run_coins])
 	elif Loadout.last_earn + Loadout.last_bonus > 0:
-		sub.text = Locale.format("shop.earned", [Loadout.last_earn + Loadout.last_bonus, run_coins])
+		sub.text = Locale.format("shop.earned", [Locale.coins(Loadout.last_earn + Loadout.last_bonus), run_coins])
 	else:
 		sub.text = Locale.format("shop.have", [run_coins])
 
@@ -105,9 +105,9 @@ func _fill_card(card: Button, offer: Dictionary) -> void:
 	card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if afford else Control.CURSOR_ARROW
 	card.get_node("Title").text = Locale.item_name(item_id)
 	var line := card.get_node("Line") as Label
-	line.visible = false
-	line.text = ""
-	card.tooltip_text = Locale.line_for(item_id)
+	line.visible = true
+	line.text = Locale.line_for(item_id)
+	card.tooltip_text = ""
 	var tag := card.get_node("Tag") as Label
 	tag.visible = false
 	tag.text = ""
@@ -210,14 +210,14 @@ func _build_ui() -> void:
 	var frame := ColorRect.new()
 	frame.name = "Frame"
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_center(frame, 836, 360, 36.0)
+	_center(frame, 836, 400, 36.0)
 	frame.color = INK
 	root.add_child(frame)
 
 	var panel := Control.new()
 	panel.name = "Panel"
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_center(panel, 820, 344, 36.0)
+	_center(panel, 820, 384, 36.0)
 	root.add_child(panel)
 
 	var wash := ColorRect.new()
@@ -239,67 +239,19 @@ func _build_ui() -> void:
 		panel.add_child(card)
 		_cards.append(card)
 
-	var skip := Button.new()
-	skip.name = "Skip"
-	skip.text = ""
-	skip.focus_mode = Control.FOCUS_NONE
-	skip.flat = true
-	skip.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	_clear_button(skip)
-	skip.position = Vector2(24, 286)
-	skip.size = Vector2(150, 40)
-	skip.add_theme_font_size_override("font_size", 16)
-	skip.add_theme_color_override("font_color", CREAM)
-	skip.add_theme_color_override("font_hover_color", GOLD)
-	skip.add_theme_color_override("font_pressed_color", GOLD)
+	var skip := _action_button("Skip", Vector2(16, 304), Vector2(150, 64), Color(0.28, 0.16, 0.11), CREAM)
 	skip.pressed.connect(_on_skip)
 	panel.add_child(skip)
 
-	var gamble := Button.new()
-	gamble.name = "Gamble"
-	gamble.text = ""
-	gamble.focus_mode = Control.FOCUS_NONE
-	gamble.flat = true
-	gamble.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	_clear_button(gamble)
-	gamble.position = Vector2(186, 286)
-	gamble.size = Vector2(150, 40)
-	gamble.add_theme_font_size_override("font_size", 16)
-	gamble.add_theme_color_override("font_color", Color(0.96, 0.55, 0.34))
-	gamble.add_theme_color_override("font_hover_color", GOLD)
-	gamble.add_theme_color_override("font_pressed_color", GOLD)
+	var gamble := _action_button("Gamble", Vector2(176, 304), Vector2(200, 64), Color(0.40, 0.18, 0.12), Color(1.0, 0.78, 0.55))
 	gamble.pressed.connect(_on_gamble)
 	panel.add_child(gamble)
 
-	var double := Button.new()
-	double.name = "Double"
-	double.text = ""
-	double.focus_mode = Control.FOCUS_NONE
-	double.flat = true
-	double.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	_clear_button(double)
-	double.position = Vector2(348, 286)
-	double.size = Vector2(180, 40)
-	double.add_theme_font_size_override("font_size", 16)
-	double.add_theme_color_override("font_color", Color(1.0, 0.78, 0.32))
-	double.add_theme_color_override("font_hover_color", GOLD)
-	double.add_theme_color_override("font_pressed_color", GOLD)
+	var double := _action_button("Double", Vector2(386, 304), Vector2(210, 64), Color(0.42, 0.28, 0.10), Color(1.0, 0.86, 0.42))
 	double.pressed.connect(_on_double)
 	panel.add_child(double)
 
-	var meta := Button.new()
-	meta.name = "Meta"
-	meta.text = ""
-	meta.focus_mode = Control.FOCUS_NONE
-	meta.flat = true
-	meta.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	_clear_button(meta)
-	meta.position = Vector2(540, 286)
-	meta.size = Vector2(250, 40)
-	meta.add_theme_font_size_override("font_size", 16)
-	meta.add_theme_color_override("font_color", CREAM)
-	meta.add_theme_color_override("font_hover_color", GOLD)
-	meta.add_theme_color_override("font_pressed_color", GOLD)
+	var meta := _action_button("Meta", Vector2(606, 304), Vector2(198, 64), Color(0.24, 0.15, 0.10), CREAM)
 	meta.pressed.connect(_on_meta)
 	panel.add_child(meta)
 	apply_language()
@@ -312,8 +264,8 @@ func _card(slot: int) -> Button:
 	button.flat = true
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_clear_button(button)
-	button.position = Vector2(28 + slot * 260, 82)
-	button.size = Vector2(244, 188)
+	button.position = Vector2(28 + slot * 260, 80)
+	button.size = Vector2(244, 210)
 	button.custom_minimum_size = button.size
 
 	var bg := ColorRect.new()
@@ -326,8 +278,8 @@ func _card(slot: int) -> Button:
 	var glyph := Glyph.new()
 	glyph.name = "Glyph"
 	glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	glyph.position = Vector2(90, 12)
-	glyph.size = Vector2(64, 64)
+	glyph.position = Vector2(94, 8)
+	glyph.size = Vector2(56, 56)
 	glyph.custom_minimum_size = glyph.size
 	button.add_child(glyph)
 
@@ -336,17 +288,18 @@ func _card(slot: int) -> Button:
 	tag.visible = false
 	button.add_child(tag)
 
-	var title := _label("", 18, CREAM, Vector2(12, 84), Vector2(220, 44))
+	var title := _label("", 16, CREAM, Vector2(12, 66), Vector2(220, 36))
 	title.name = "Title"
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	button.add_child(title)
 
-	var line := _label("", 14, MUTED, Vector2(12, 128), Vector2(220, 20))
+	var line := _label("", 13, MUTED, Vector2(10, 102), Vector2(224, 52))
 	line.name = "Line"
-	line.visible = false
+	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	line.clip_text = true
 	button.add_child(line)
 
-	var take := _label("", 22, GOLD, Vector2(12, 132), Vector2(220, 40))
+	var take := _label("", 18, GOLD, Vector2(12, 156), Vector2(220, 40))
 	take.name = "Take"
 	button.add_child(take)
 
@@ -373,6 +326,29 @@ func _label(text: String, size: int, color: Color, pos: Vector2, box: Vector2) -
 	return label
 
 
+func refit(forced: Vector2 = Vector2(-1, -1)) -> void:
+	var frame := get_node_or_null("Root/Frame") as Control
+	var panel := get_node_or_null("Root/Panel") as Control
+	var vp := get_viewport().get_visible_rect().size
+	if forced.x > 1.0:
+		vp = forced
+	if frame == null or panel == null or vp.x < 2.0:
+		return
+	var bias := 36.0
+	var h_limit := vp.y - 16.0
+	if vp.y > vp.x:
+		bias = vp.y * 0.18
+		h_limit = vp.y * 0.42
+	_center(frame, 836.0, 400.0, bias)
+	_center(panel, 820.0, 384.0, bias)
+	var scale := minf(1.0, (vp.x - 16.0) / 836.0)
+	scale = minf(scale, h_limit / 400.0)
+	frame.pivot_offset = Vector2(418.0, 200.0)
+	panel.pivot_offset = Vector2(410.0, 192.0)
+	frame.scale = Vector2(scale, scale)
+	panel.scale = Vector2(scale, scale)
+
+
 func _center(node: Control, width: float, height: float, y_bias: float = 0.0) -> void:
 	node.anchor_left = 0.5
 	node.anchor_top = 0.5
@@ -384,6 +360,46 @@ func _center(node: Control, width: float, height: float, y_bias: float = 0.0) ->
 	node.offset_bottom = height * 0.5 + y_bias
 	node.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	node.grow_vertical = Control.GROW_DIRECTION_BOTH
+
+
+func _action_button(node_name: String, pos: Vector2, box: Vector2, bg: Color, ink: Color) -> Button:
+	var button := Button.new()
+	button.name = node_name
+	button.text = ""
+	button.focus_mode = Control.FOCUS_NONE
+	button.flat = false
+	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	button.clip_text = true
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var edge := Color(1.0, 0.84, 0.38, 0.9)
+	var normal := _action_style(bg, edge)
+	var hover := _action_style(bg.lightened(0.08), edge)
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", normal)
+	button.add_theme_stylebox_override("focus", normal)
+	button.add_theme_stylebox_override("disabled", normal)
+	button.position = pos
+	button.size = box
+	button.add_theme_font_size_override("font_size", 14)
+	button.add_theme_color_override("font_color", ink)
+	button.add_theme_color_override("font_hover_color", GOLD)
+	button.add_theme_color_override("font_pressed_color", GOLD)
+	return button
+
+
+func _action_style(bg: Color, edge: Color) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = bg
+	box.border_color = edge
+	box.set_border_width_all(2)
+	box.set_corner_radius_all(10)
+	box.content_margin_left = 8
+	box.content_margin_right = 8
+	box.content_margin_top = 4
+	box.content_margin_bottom = 4
+	return box
 
 
 func _clear_button(button: Button) -> void:

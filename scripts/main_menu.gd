@@ -10,10 +10,11 @@ signal quit_game
 const Locale := preload("res://scripts/locale.gd")
 const AudioKit := preload("res://scripts/audio_kit.gd")
 
-const INK := Color(0.07, 0.045, 0.05, 1)
-const GOLD := Color(1.0, 0.86, 0.42)
-const CREAM := Color(0.95, 0.9, 0.82)
-const MUTED := Color(0.78, 0.70, 0.62)
+const INK := Color(0.20, 0.11, 0.08, 1)
+const GOLD := Color(1.0, 0.84, 0.38)
+const CREAM := Color(0.98, 0.94, 0.86)
+const MUTED := Color(0.90, 0.80, 0.68)
+const INK_TEXT := Color(0.22, 0.12, 0.06, 1)
 
 var _title: Label
 var _tagline: Label
@@ -63,32 +64,34 @@ func _build() -> void:
 	root.add_child(art)
 
 	var plate := ColorRect.new()
+	plate.name = "Plate"
 	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	plate.color = INK
-	_center(plate, 440.0, 520.0, 24.0)
+	_center(plate, 500.0, 580.0, 16.0)
 	root.add_child(plate)
 
 	var panel := Control.new()
 	panel.name = "Panel"
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_center(panel, 420.0, 500.0, 24.0)
+	_center(panel, 480.0, 560.0, 16.0)
 	root.add_child(panel)
 
-	_title = _label("", 42, GOLD, Vector2(20, 28), Vector2(380, 52))
+	_title = _label("", 46, GOLD, Vector2(24, 28), Vector2(432, 56))
 	panel.add_child(_title)
-	_tagline = _label("", 16, MUTED, Vector2(20, 84), Vector2(380, 28))
+	_tagline = _label("", 18, MUTED, Vector2(24, 86), Vector2(432, 48))
+	_tagline.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	panel.add_child(_tagline)
 
-	_start = _button("StartGame", Vector2(50, 150))
+	_start = _button("StartGame", Vector2(40, 156), true, "play")
 	_start.pressed.connect(_on_start)
 	panel.add_child(_start)
-	_meta = _button("MetaShop", Vector2(50, 222))
+	_meta = _button("MetaShop", Vector2(40, 252), false, "coin")
 	_meta.pressed.connect(_on_meta)
 	panel.add_child(_meta)
-	_settings = _button("Settings", Vector2(50, 294))
+	_settings = _button("Settings", Vector2(40, 328), false, "gear")
 	_settings.pressed.connect(_on_settings)
 	panel.add_child(_settings)
-	_quit = _button("Quit", Vector2(50, 366))
+	_quit = _button("Quit", Vector2(40, 404), false, "x")
 	_quit.pressed.connect(_on_quit)
 	panel.add_child(_quit)
 	apply_language()
@@ -114,25 +117,47 @@ func _on_quit() -> void:
 	quit_game.emit()
 
 
-func _button(node_name: String, pos: Vector2) -> Button:
+func _button(node_name: String, pos: Vector2, primary: bool, mark_kind: String) -> Button:
 	var button := Button.new()
 	button.name = node_name
 	button.focus_mode = Control.FOCUS_NONE
-	button.flat = true
+	button.flat = false
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var empty := StyleBoxEmpty.new()
-	button.add_theme_stylebox_override("normal", empty)
-	button.add_theme_stylebox_override("hover", empty)
-	button.add_theme_stylebox_override("pressed", empty)
-	button.add_theme_stylebox_override("focus", empty)
+	var font := INK_TEXT if primary else CREAM
+	var hover_font := INK_TEXT if primary else GOLD
+	button.add_theme_stylebox_override("normal", _plate(primary, false))
+	button.add_theme_stylebox_override("hover", _plate(primary, true))
+	button.add_theme_stylebox_override("pressed", _plate(primary, false))
+	button.add_theme_stylebox_override("focus", _plate(primary, false))
 	button.position = pos
-	button.size = Vector2(320, 56)
-	button.add_theme_font_size_override("font_size", 26)
-	button.add_theme_color_override("font_color", CREAM)
-	button.add_theme_color_override("font_hover_color", GOLD)
-	button.add_theme_color_override("font_pressed_color", GOLD)
+	button.size = Vector2(400, 72) if primary else Vector2(400, 58)
+	button.add_theme_font_size_override("font_size", 32 if primary else 22)
+	button.add_theme_color_override("font_color", font)
+	button.add_theme_color_override("font_hover_color", hover_font)
+	button.add_theme_color_override("font_pressed_color", font)
+	button.add_theme_color_override("font_focus_color", font)
+	var mark := MenuMark.new()
+	mark.kind = mark_kind
+	mark.ink = font
+	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mark.position = Vector2(16, 18) if primary else Vector2(16, 14)
+	mark.size = Vector2(36, 36) if primary else Vector2(30, 30)
+	button.add_child(mark)
 	return button
+
+
+func _plate(primary: bool, hover: bool) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.set_corner_radius_all(12)
+	box.set_border_width_all(2)
+	if primary:
+		box.bg_color = Color(1.0, 0.90, 0.48) if hover else GOLD
+		box.border_color = Color(1.0, 0.96, 0.72)
+	else:
+		box.bg_color = Color(0.40, 0.24, 0.16) if hover else Color(0.30, 0.17, 0.12)
+		box.border_color = Color(0.95, 0.78, 0.42)
+	return box
 
 
 func _label(text: String, size: int, color: Color, pos: Vector2, box: Vector2) -> Label:
@@ -148,6 +173,22 @@ func _label(text: String, size: int, color: Color, pos: Vector2, box: Vector2) -
 	return label
 
 
+func refit(forced: Vector2 = Vector2(-1, -1)) -> void:
+	var plate := get_node_or_null("Root/Plate") as Control
+	var panel := get_node_or_null("Root/Panel") as Control
+	var vp := get_viewport().get_visible_rect().size
+	if forced.x > 1.0:
+		vp = forced
+	if plate == null or panel == null or vp.x < 2.0:
+		return
+	var scale := minf(1.0, (vp.x - 16.0) / 500.0)
+	scale = minf(scale, (vp.y - 16.0) / 580.0)
+	plate.pivot_offset = Vector2(250.0, 290.0)
+	panel.pivot_offset = Vector2(240.0, 280.0)
+	plate.scale = Vector2(scale, scale)
+	panel.scale = Vector2(scale, scale)
+
+
 func _center(node: Control, width: float, height: float, y_bias: float) -> void:
 	node.anchor_left = 0.5
 	node.anchor_top = 0.5
@@ -159,6 +200,33 @@ func _center(node: Control, width: float, height: float, y_bias: float) -> void:
 	node.offset_bottom = height * 0.5 + y_bias
 	node.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	node.grow_vertical = Control.GROW_DIRECTION_BOTH
+
+
+class MenuMark extends Control:
+	var kind := "play"
+	var ink := Color(0.98, 0.94, 0.86)
+
+	func _draw() -> void:
+		var center := size * 0.5
+		var radius := minf(size.x, size.y) * 0.42
+		if kind == "play":
+			draw_colored_polygon(PackedVector2Array([
+				center + Vector2(-radius * 0.45, -radius),
+				center + Vector2(-radius * 0.45, radius),
+				center + Vector2(radius * 0.85, 0.0),
+			]), ink)
+		elif kind == "coin":
+			draw_circle(center, radius, ink)
+			draw_arc(center, radius * 0.55, 0.4, TAU - 0.4, 16, Color(0.22, 0.12, 0.06), 2.0)
+		elif kind == "gear":
+			draw_circle(center, radius * 0.42, ink)
+			for step in 6:
+				var angle := float(step) * TAU / 6.0
+				var dir := Vector2(cos(angle), sin(angle))
+				draw_line(center + dir * radius * 0.42, center + dir * radius, ink, 3.0)
+		else:
+			draw_line(center + Vector2(-radius, -radius), center + Vector2(radius, radius), ink, 3.0)
+			draw_line(center + Vector2(radius, -radius), center + Vector2(-radius, radius), ink, 3.0)
 
 
 class RoomArt extends Control:
@@ -191,37 +259,34 @@ class RoomArt extends Control:
 		var s := size
 		if s.x < 10.0 or s.y < 10.0:
 			return
-		draw_rect(Rect2(Vector2.ZERO, s), Color(0.08, 0.05, 0.055))
-		draw_rect(Rect2(0, 0, s.x, 28), Color(0.05, 0.03, 0.04))
-		draw_rect(Rect2(0, 0, 26, s.y), Color(0.05, 0.03, 0.04))
-		draw_rect(Rect2(s.x - 26, 0, 26, s.y), Color(0.05, 0.03, 0.04))
-		var win := Rect2(s.x * 0.62, 64, s.x * 0.26, 200)
-		draw_rect(win.grow(10), Color(0.24, 0.15, 0.11))
-		draw_rect(win, Color(0.15, 0.22, 0.30))
-		draw_circle(win.position + Vector2(win.size.x * 0.72, 62), 26, Color(0.95, 0.91, 0.78, 0.9))
-		draw_line(Vector2(win.position.x + win.size.x * 0.5, win.position.y), Vector2(win.position.x + win.size.x * 0.5, win.end.y), Color(0.34, 0.22, 0.14), 4.0)
-		draw_line(Vector2(win.position.x, win.position.y + win.size.y * 0.55), Vector2(win.end.x, win.position.y + win.size.y * 0.55), Color(0.34, 0.22, 0.14), 4.0)
-		var lamp := Vector2(s.x * 0.22, 168)
-		draw_line(Vector2(lamp.x, 48), lamp, Color(0.38, 0.24, 0.15), 3.0)
-		draw_circle(lamp + Vector2(0, 48), 170, Color(1.0, 0.58, 0.2, 0.07))
-		draw_circle(lamp + Vector2(0, 36), 96, Color(1.0, 0.7, 0.28, 0.12))
-		draw_circle(lamp + Vector2(0, 18), 22, Color(1.0, 0.88, 0.55, 0.98))
-		draw_rect(Rect2(lamp.x - 16, lamp.y + 8, 32, 10), Color(0.42, 0.26, 0.16))
-		draw_rect(Rect2(s.x * 0.12, 300, 300, 14), Color(0.46, 0.28, 0.16))
-		draw_rect(Rect2(s.x * 0.16, 292, 18, 8), Color(0.28, 0.16, 0.12))
-		draw_circle(Vector2(s.x * 0.12 + 48, 284), 16, Color(0.32, 0.18, 0.12))
-		draw_rect(Rect2(s.x * 0.12 + 150, 252, 34, 48), Color(0.24, 0.32, 0.34))
-		draw_rect(Rect2(s.x * 0.18, 448, 420, 16), Color(0.38, 0.22, 0.14))
-		draw_rect(Rect2(s.x * 0.22, 408, 46, 40), Color(0.30, 0.18, 0.12))
-		draw_circle(Vector2(s.x * 0.18 + 120, 430), 18, Color(0.34, 0.2, 0.13))
-		draw_rect(Rect2(s.x * 0.18 + 200, 400, 28, 48), Color(0.55, 0.72, 0.7, 0.7))
-		draw_rect(Rect2(0, s.y - 92, s.x, 92), Color(0.20, 0.12, 0.09))
-		draw_line(Vector2(26, s.y - 92), Vector2(s.x - 26, s.y - 92), Color(0.55, 0.38, 0.24), 2.0)
-		draw_rect(Rect2(0, 0, s.x, 90), Color(0, 0, 0, 0.28))
-		draw_rect(Rect2(0, s.y - 120, s.x, 120), Color(0, 0, 0, 0.32))
-		draw_rect(Rect2(0, 0, 80, s.y), Color(0, 0, 0, 0.22))
-		draw_rect(Rect2(s.x - 80, 0, 80, s.y), Color(0, 0, 0, 0.22))
+		draw_rect(Rect2(Vector2.ZERO, s), Color(0.36, 0.20, 0.13))
+		draw_rect(Rect2(0, 0, s.x, 36), Color(0.22, 0.11, 0.08))
+		draw_rect(Rect2(0, 0, 28, s.y), Color(0.22, 0.11, 0.08))
+		draw_rect(Rect2(s.x - 28, 0, 28, s.y), Color(0.22, 0.11, 0.08))
+		var win := Rect2(s.x * 0.58, 72, minf(280.0, s.x * 0.28), 210)
+		draw_rect(win.grow(12), Color(0.55, 0.34, 0.18))
+		draw_rect(win, Color(0.45, 0.68, 0.86))
+		draw_circle(win.position + Vector2(win.size.x * 0.72, 54), 28, Color(0.99, 0.93, 0.72))
+		draw_line(Vector2(win.position.x + win.size.x * 0.5, win.position.y), Vector2(win.position.x + win.size.x * 0.5, win.end.y), Color(0.62, 0.40, 0.22), 6.0)
+		draw_line(Vector2(win.position.x, win.position.y + win.size.y * 0.55), Vector2(win.end.x, win.position.y + win.size.y * 0.55), Color(0.62, 0.40, 0.22), 6.0)
+		var lamp := Vector2(s.x * 0.22, 150)
+		draw_line(Vector2(lamp.x, 36), lamp, Color(0.62, 0.40, 0.22), 4.0)
+		draw_circle(lamp + Vector2(0, 16), 18, Color(1.0, 0.90, 0.55))
+		draw_rect(Rect2(lamp.x - 18, lamp.y + 6, 36, 12), Color(0.62, 0.38, 0.18))
+		draw_rect(Rect2(s.x * 0.10, 250, minf(360.0, s.x * 0.34), 16), Color(0.72, 0.46, 0.24))
+		draw_circle(Vector2(s.x * 0.10 + 46, 232), 16, Color(0.86, 0.42, 0.28))
+		draw_rect(Rect2(s.x * 0.10 + 90, 214, 28, 36), Color(0.42, 0.62, 0.58))
+		draw_circle(Vector2(s.x * 0.10 + 150, 232), 14, Color(0.95, 0.78, 0.28))
+		draw_rect(Rect2(s.x * 0.10 + 190, 206, 36, 44), Color(0.55, 0.32, 0.22))
+		draw_rect(Rect2(s.x * 0.08, s.y * 0.62, minf(460.0, s.x * 0.42), 18), Color(0.62, 0.36, 0.18))
+		draw_rect(Rect2(s.x * 0.12, s.y * 0.62 - 48, 52, 48), Color(0.48, 0.28, 0.16))
+		draw_circle(Vector2(s.x * 0.12 + 110, s.y * 0.62 - 16), 20, Color(0.78, 0.48, 0.28))
+		draw_rect(Rect2(s.x * 0.12 + 170, s.y * 0.62 - 58, 26, 58), Color(0.55, 0.82, 0.78))
+		draw_circle(Vector2(s.x * 0.12 + 240, s.y * 0.62 - 14), 12, GOLD)
+		draw_circle(Vector2(s.x * 0.12 + 262, s.y * 0.62 - 10), 12, GOLD)
+		draw_rect(Rect2(0, s.y - 88, s.x, 88), Color(0.42, 0.24, 0.14))
+		draw_line(Vector2(28, s.y - 88), Vector2(s.x - 28, s.y - 88), Color(0.86, 0.64, 0.36), 3.0)
 		for mote in _dust:
 			var p: Vector2 = mote["p"]
 			var rad: float = mote["r"]
-			draw_circle(p, rad, Color(1.0, 0.9, 0.7, 0.35))
+			draw_circle(p, rad, Color(1.0, 0.92, 0.72, 0.55))

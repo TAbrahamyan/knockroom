@@ -1,6 +1,7 @@
 extends RigidBody2D
 
 const RADIUS := 15.0
+const HIT_SCALE := 1.95
 const Loadout := preload("res://scripts/loadout.gd")
 const PropScript := preload("res://scripts/prop.gd")
 const ItemIcon := preload("res://scripts/item_icon.gd")
@@ -51,7 +52,7 @@ func _ready() -> void:
 	max_contacts_reported = 8
 	contact_monitor = true
 	continuous_cd = CCD_MODE_CAST_SHAPE
-	mass = 1.15
+	mass = 1.15 * HIT_SCALE
 	gravity_scale = 1.0
 	linear_damp = 0.16
 	angular_damp = 0.22
@@ -85,14 +86,14 @@ func _apply_loadout() -> void:
 	_marked = true
 	_shape = str(item.get("shape", ""))
 	_tint = item["tint"]
-	mass = 2.5 * float(item.get("mass", 1.0))
+	mass = 2.5 * float(item.get("mass", 1.0)) * HIT_SCALE
 	_radius = float(item.get("radius", RADIUS))
-	_impact = float(item.get("impact", 0.0))
+	_impact = float(item.get("impact", 0.0)) * HIT_SCALE
 	_blast_r = float(item.get("blast", 0.0))
-	_blast_force = float(item.get("blast_force", 0.0))
+	_blast_force = float(item.get("blast_force", 0.0)) * HIT_SCALE
 	_glass_r = float(item.get("glass", 0.0))
 	_pop_r = float(item.get("pop", 0.0))
-	_pop_lift = float(item.get("pop_lift", 0.0))
+	_pop_lift = float(item.get("pop_lift", 0.0)) * HIT_SCALE
 	_magnet_duration = float(item.get("magnet", 0.0))
 	_magnet_radius = float(item.get("magnet_radius", 0.0))
 	_magnet_pull = float(item.get("magnet_pull", 0.0))
@@ -369,7 +370,7 @@ func _shove_down(body: RigidBody2D) -> void:
 	if body.global_position.x < global_position.x:
 		side = -1.0
 	body.sleeping = false
-	body.apply_central_impulse(Vector2(side * 28.0, 240.0) * body.mass)
+	body.apply_central_impulse(Vector2(side * 28.0, 240.0) * body.mass * HIT_SCALE)
 
 
 func _try_weight(body: Node) -> void:
@@ -393,7 +394,7 @@ func _crush_down(body: RigidBody2D) -> void:
 	if not is_instance_valid(body) or body.freeze:
 		return
 	body.sleeping = false
-	body.apply_central_impulse(Vector2(0.0, 190.0) * body.mass)
+	body.apply_central_impulse(Vector2(0.0, 190.0) * body.mass * HIT_SCALE)
 
 
 func _bonus_impact(body: RigidBody2D) -> void:
@@ -412,11 +413,11 @@ func _release_effect() -> void:
 		_flash = 0.32
 		_flash_r = _blast_r
 	elif _pop_r > 0.0:
-		_shove_nearby(origin, _pop_r, 50.0, _pop_lift, false, false)
+		_shove_nearby(origin, _pop_r, 50.0 * HIT_SCALE, _pop_lift, false, false)
 		_flash = 0.28
 		_flash_r = _pop_r
 	elif _glass_r > 0.0:
-		_shove_nearby(origin, _glass_r, 110.0, 70.0, true, true)
+		_shove_nearby(origin, _glass_r, 110.0 * HIT_SCALE, 70.0 * HIT_SCALE, true, true)
 		_flash = 0.26
 		_flash_r = _glass_r
 	if _magnet_duration > 0.0:
@@ -472,7 +473,7 @@ func _pull_nearby(delta: float) -> void:
 		var dist: float = rel.length()
 		if dist < 22.0 or dist > _magnet_radius:
 			continue
-		var accel: float = _magnet_pull * (1.0 - dist / _magnet_radius)
+		var accel: float = _magnet_pull * HIT_SCALE * (1.0 - dist / _magnet_radius)
 		body.sleeping = false
 		body.apply_central_impulse((rel / dist) * body.mass * accel * delta)
 
@@ -509,7 +510,7 @@ class SplitBit extends RigidBody2D:
 		add_to_group("projectile")
 		collision_layer = 4
 		collision_mask = 3
-		mass = 1.05
+		mass = 1.05 * 1.95
 		gravity_scale = 1.0
 		linear_damp = 0.42
 		angular_damp = 0.7

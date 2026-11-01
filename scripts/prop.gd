@@ -11,7 +11,7 @@ const EDGE := Color(0.22, 0.12, 0.08, 0.8)
 const CHAIN_SPEED := 32.0
 const POP_TIME := 0.48
 ## A fast stone on one of this shelf's spots (set per room) starts the long cascade.
-const SWEET_SPEED := 1280.0
+const SWEET_SPEED := 640.0
 const AudioKit := preload("res://scripts/audio_kit.gd")
 
 @export var kind: Kind = Kind.BARREL
@@ -242,29 +242,29 @@ func wake_from(source: Node2D) -> void:
 				speed = clampf(raw, 90.0, 460.0)
 	var coeff := 0.1
 	if from_stone:
-		coeff = 0.17
+		coeff = 0.30
 	elif _heavy or _force_wake:
-		coeff = 0.2
+		coeff = 0.3
 	if kind == Kind.SHELF:
 		# A small shove and a real tip. Gravity does the falling.
 		dir = Vector2(dir.x * 0.16, 1.0).normalized()
 		if _heavy and _is_support_shelf():
 			var bias := -1.0 if _hit_x < global_position.x else 1.0
 			dir = Vector2(bias * 0.4, 1.0).normalized()
-			coeff = 0.22
+			coeff = 0.33
 		elif _heavy:
 			var bias := -1.0 if _hit_x < global_position.x else 1.0
 			dir = Vector2(bias * 0.32, 1.0).normalized()
-			coeff = 0.26
+			coeff = 0.39
 		elif _is_support_shelf():
-			coeff = 0.085 * randf_range(0.8, 1.05)
+			coeff = 0.1275 * randf_range(0.8, 1.05)
 		else:
-			coeff = 0.11 * randf_range(0.85, 1.05)
+			coeff = 0.165 * randf_range(0.85, 1.05)
 	elif kind == Kind.LAMP:
 		var horiz := dir.x if absf(dir.x) > 0.2 else 1.0
 		dir = Vector2(signf(horiz), 0.06).normalized()
 		speed = clampf(speed, 340.0, 520.0)
-		coeff = 0.36
+		coeff = 0.54
 	apply_central_impulse(dir * speed * mass * coeff)
 	if kind == Kind.SHELF and is_instance_valid(source):
 		var side := source.global_position.x - global_position.x
@@ -383,20 +383,20 @@ func _impact_wakes(source: Node2D) -> bool:
 	if source != null and source.is_in_group("projectile"):
 		var punch := _body_speed(source) * clampf(_body_mass(source) / 2.5, 0.35, 1.75)
 		if kind == Kind.SHELF:
-			return punch >= 480.0
+			return punch >= 210.0
 		if kind == Kind.LAMP:
-			return punch >= 440.0
-		return punch >= 350.0
+			return punch >= 190.0
+		return punch >= 150.0
 	if kind == Kind.SHELF:
 		if source is RigidBody2D:
-			return _body_speed(source) >= 680.0
+			return _body_speed(source) >= 300.0
 		return false
 	if source is RigidBody2D:
 		var hit_speed := _body_speed(source)
 		# A soft bump still dies. A medium hit wakes more often than before.
-		if hit_speed < 430.0:
+		if hit_speed < 180.0:
 			return false
-		if hit_speed < 720.0 and randf() > 0.72:
+		if hit_speed < 320.0 and randf() > 0.82:
 			return false
 		return true
 	return false
@@ -562,7 +562,7 @@ func _maybe_break(body: Node) -> void:
 	if body is RigidBody2D:
 		var hit := _body_speed(body) * clampf(_body_mass(body) / 2.5, 0.35, 1.75)
 		punch = maxf(punch, hit)
-	if punch < 630.0:
+	if punch < 270.0:
 		return
 	_broke = true
 	call_deferred("_split_crate")

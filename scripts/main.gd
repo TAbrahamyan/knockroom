@@ -2,7 +2,7 @@ extends Node2D
 
 ## READY: pull back, the stone flies the other way.
 ## WATCHING: the chain counts itself. SETTLED: look, then the shop, then the next room.
-## A run is eight rooms. RUN_END is the screen after the eighth shop.
+## A run is five rooms. RUN_END is the screen after the fifth shop.
 
 enum Phase { WARMUP, READY, AIMING, WATCHING, SETTLED, MENU, RUN_END }
 
@@ -97,6 +97,7 @@ var _run_best: Label
 var _run_fails: Label
 var _run_sub: Label
 var _run_back: Button
+var _run_is_record := false
 var _equipped: Label
 var _money: Label
 var _excellent: ColorRect
@@ -126,6 +127,8 @@ func _ready() -> void:
 	_build_pressure()
 	_build_run_end()
 	apply_language()
+	get_viewport().size_changed.connect(_on_viewport_resized)
+	_fit_world()
 	if Loadout.start_in_menu:
 		_enter_main_menu()
 	elif Loadout.run_show_complete:
@@ -254,8 +257,8 @@ func _finish() -> void:
 			bonus += earned
 			Loadout.run_earned += earned
 		if chain_count - need >= 4:
-			bonus += 3
-			Loadout.run_earned += 3
+			bonus += 6
+			Loadout.run_earned += 6
 			Loadout.grant_afterglow()
 			master = true
 		Loadout.mark_pass()
@@ -397,6 +400,87 @@ func _build_flash() -> void:
 	_excellent = rect
 
 
+func _on_viewport_resized() -> void:
+	_fit_world()
+
+
+func _fit_world() -> void:
+	_fit_to(get_viewport().get_visible_rect().size)
+
+
+func _fit_to(vp: Vector2) -> void:
+	if camera == null or vp.x < 2.0 or vp.y < 2.0:
+		return
+	var zoom := 1.0
+	if vp.y > vp.x:
+		zoom = vp.x / 1280.0
+		var visible_h := vp.y / zoom
+		camera.zoom = Vector2(zoom, zoom)
+		camera.position = Vector2(640.0, visible_h * 0.5 - 24.0)
+	else:
+		zoom = minf(vp.x / 1280.0, vp.y / 720.0)
+		camera.zoom = Vector2(zoom, zoom)
+		camera.position = Vector2(640.0, 360.0)
+	_refit_hud(vp)
+	if chain != null and chain.has_method("refit"):
+		chain.refit(vp)
+	if _shop != null and _shop.has_method("refit"):
+		_shop.refit(vp)
+	if _meta != null and _meta.has_method("refit"):
+		_meta.refit(vp)
+	if _settings != null and _settings.has_method("refit"):
+		_settings.refit(vp)
+	if _main_menu != null and _main_menu.has_method("refit"):
+		_main_menu.refit(vp)
+	_refit_box(_menu_panel, 460.0, 420.0, vp)
+	var run_panel: Control = null
+	if _run_end != null:
+		run_panel = _run_end.get_node_or_null("Root/Panel") as Control
+	_refit_box(run_panel, 560.0, 520.0, vp)
+
+
+func _refit_box(node: Control, design_w: float, design_h: float, vp: Vector2) -> void:
+	if node == null:
+		return
+	var scale := minf(1.0, (vp.x - 16.0) / design_w)
+	scale = minf(scale, (vp.y - 16.0) / design_h)
+	node.pivot_offset = Vector2(design_w * 0.5, design_h * 0.5)
+	node.scale = Vector2(scale, scale)
+
+
+func _refit_hud(vp: Vector2) -> void:
+	var plate_right := minf(400.0, vp.x - 156.0)
+	if plate_right < 160.0:
+		plate_right = vp.x - 8.0
+	if _room_plate:
+		_room_plate.offset_right = plate_right
+	for label in [_run_label, _rule_label, _status_label]:
+		if label:
+			label.offset_right = plate_right - 12.0
+	if _timer_pill:
+		var tight := vp.x < 800.0
+		_timer_pill.offset_top = 36.0 if tight else 64.0
+		_timer_pill.offset_bottom = 80.0 if tight else 108.0
+	if _gap_label:
+		var half := minf(160.0, vp.x * 0.42)
+		_gap_label.offset_left = -half
+		_gap_label.offset_right = half
+	if _heat_row:
+		if vp.x < 900.0:
+			_heat_row.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+			_heat_row.offset_left = -140.0
+			_heat_row.offset_right = 160.0
+			_heat_row.offset_top = -92.0
+			_heat_row.offset_bottom = -60.0
+		else:
+			_heat_row.set_anchors_preset(Control.PRESET_TOP_LEFT)
+			_heat_row.offset_left = 48.0
+			_heat_row.offset_right = 420.0
+			_heat_row.offset_top = 162.0
+			_heat_row.offset_bottom = 186.0
+	_refresh_equipped()
+
+
 func _update_shake(delta: float) -> void:
 	if _shake_time <= 0.0:
 		if _shaking:
@@ -472,6 +556,7 @@ func _build_meta() -> void:
 	_meta.closed.connect(_on_meta_closed)
 	_meta.new_room.connect(_on_meta_new_room)
 	_meta.unlocked.connect(_on_meta_unlocked)
+	_meta.equipped.connect(_on_meta_equipped)
 
 
 func _build_audio() -> void:
@@ -616,17 +701,17 @@ func _present_result(pop: bool) -> void:
 	if _result_mode == "fail":
 		var title: String = Locale.format("result.miss", [count, need])
 		if _shown_lost > 0:
-			title = Locale.format("result.miss_lost", [count, need, _shown_lost])
+			title = Locale.format("result.miss_lost", [count, need, Locale.coins(_shown_lost)])
 		chain.show_banner(title, "", "fail", 0, false)
 	elif _result_mode == "pass":
 		var total: int = _shown_pay + _shown_bonus
 		var title: String = Locale.format("result.pass_only", [count])
 		if _shown_master and total > 0:
-			title = Locale.format("result.master_pay", [count, total])
+			title = Locale.format("result.master_pay", [count, Locale.coins(total)])
 		elif _shown_master:
 			title = Locale.format("result.master_only", [count])
 		elif total > 0:
-			title = Locale.format("result.pass_pay", [count, total])
+			title = Locale.format("result.pass_pay", [count, Locale.coins(total)])
 		var kind := "pass"
 		if _shown_margin >= 4:
 			kind = "clean"
@@ -750,18 +835,18 @@ func _build_heat(hud: Node) -> void:
 	row.name = "HeatRow"
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.visible = false
-	row.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	row.offset_left = 200.0
-	row.offset_top = 48.0
-	row.offset_right = 450.0
-	row.offset_bottom = 72.0
+	row.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	row.offset_left = 48.0
+	row.offset_top = 162.0
+	row.offset_right = 420.0
+	row.offset_bottom = 186.0
 	hud.add_child(row)
 	_heat_row = row
 	var heat := Label.new()
 	heat.name = "Heat"
 	heat.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	heat.position = Vector2(0, 0)
-	heat.size = Vector2(48, 22)
+	heat.size = Vector2(64, 22)
 	heat.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	heat.add_theme_font_size_override("font_size", 12)
 	heat.add_theme_color_override("font_color", Color(0.95, 0.9, 0.82))
@@ -772,7 +857,7 @@ func _build_heat(hud: Node) -> void:
 	var track := ColorRect.new()
 	track.name = "Track"
 	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	track.position = Vector2(52, 10)
+	track.position = Vector2(70, 10)
 	track.size = Vector2(66, 3)
 	track.color = Color(0.16, 0.1, 0.08, 0.9)
 	row.add_child(track)
@@ -780,7 +865,7 @@ func _build_heat(hud: Node) -> void:
 		var pip := ColorRect.new()
 		pip.name = "Pip%d" % i
 		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		pip.position = Vector2(52 + i * 14, 6)
+		pip.position = Vector2(70 + i * 14, 6)
 		pip.size = Vector2(10, 10)
 		pip.color = Color(0.28, 0.2, 0.18, 0.9)
 		row.add_child(pip)
@@ -788,8 +873,8 @@ func _build_heat(hud: Node) -> void:
 	var best := Label.new()
 	best.name = "Best"
 	best.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	best.position = Vector2(128, 0)
-	best.size = Vector2(124, 22)
+	best.position = Vector2(150, 0)
+	best.size = Vector2(220, 22)
 	best.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	best.add_theme_font_size_override("font_size", 12)
 	best.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
@@ -870,7 +955,11 @@ func _refresh_rules() -> void:
 	if _status_label == null:
 		return
 	var bits: PackedStringArray = PackedStringArray()
-	bits.append(Locale.format("rule.run_goal", [Loadout.run_earned, Loadout.RUN_GOAL]))
+	bits.append(Locale.format("rule.run_goal", [Locale.coins(Loadout.run_earned)]))
+	if _goal_is_sweet():
+		bits.append(Locale.text("rule.goal_sweet"))
+	else:
+		bits.append(Locale.text("rule.goal_ten"))
 	if strained:
 		bits.append(Locale.text("rule.strain"))
 	if Loadout.run_debt > 0:
@@ -998,7 +1087,7 @@ func _build_corner_menu() -> void:
 
 	var wash := ColorRect.new()
 	wash.set_anchors_preset(Control.PRESET_FULL_RECT)
-	wash.color = Color(0.10, 0.12, 0.15, 0.98)
+	wash.color = Color(0.18, 0.11, 0.08, 0.98)
 	wash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(wash)
 
@@ -1026,7 +1115,7 @@ func _build_corner_menu() -> void:
 	plate.offset_left = 48.0
 	plate.offset_top = 28.0
 	plate.offset_right = 400.0
-	plate.offset_bottom = 118.0
+	plate.offset_bottom = 156.0
 	plate.mouse_filter = Control.MOUSE_FILTER_STOP
 	var plate_style := StyleBoxFlat.new()
 	plate_style.bg_color = Color(0.05, 0.03, 0.04, 0.78)
@@ -1088,8 +1177,8 @@ func _build_corner_menu() -> void:
 	status.offset_left = 60.0
 	status.offset_top = 82.0
 	status.offset_right = 388.0
-	status.offset_bottom = 112.0
-	status.autowrap_mode = TextServer.AUTOWRAP_OFF
+	status.offset_bottom = 150.0
+	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status.add_theme_font_size_override("font_size", 13)
 	status.add_theme_color_override("font_color", Color(0.95, 0.88, 0.74))
 	status.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.04, 0.9))
@@ -1151,7 +1240,7 @@ func _add_menu_button(panel: Control, node_name: String, pos: Vector2, handler: 
 	var button := Button.new()
 	button.name = node_name
 	button.focus_mode = Control.FOCUS_NONE
-	button.flat = true
+	button.flat = false
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var empty := StyleBoxEmpty.new()
@@ -1161,8 +1250,21 @@ func _add_menu_button(panel: Control, node_name: String, pos: Vector2, handler: 
 	button.add_theme_stylebox_override("focus", empty)
 	button.position = pos
 	button.size = Vector2(380, 52)
+	var bg := Color(0.30, 0.17, 0.12)
+	var edge := Color(1.0, 0.84, 0.38)
+	var box := StyleBoxFlat.new()
+	box.bg_color = bg
+	box.border_color = edge
+	box.set_border_width_all(2)
+	box.set_corner_radius_all(10)
+	var hover := box.duplicate() as StyleBoxFlat
+	hover.bg_color = bg.lightened(0.08)
+	button.add_theme_stylebox_override("normal", box)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", box)
+	button.add_theme_stylebox_override("focus", box)
 	button.add_theme_font_size_override("font_size", 22)
-	button.add_theme_color_override("font_color", Color(0.95, 0.9, 0.82))
+	button.add_theme_color_override("font_color", Color(0.98, 0.94, 0.86))
 	button.add_theme_color_override("font_hover_color", Color(1.0, 0.86, 0.42))
 	button.add_theme_color_override("font_pressed_color", Color(1.0, 0.86, 0.42))
 	button.pressed.connect(handler)
@@ -1278,6 +1380,13 @@ func _on_meta_closed() -> void:
 
 func _on_meta_unlocked(_id: String) -> void:
 	_refresh_money(true)
+	if _run_end != null and _run_end.visible:
+		_sync_run_end()
+
+
+func _on_meta_equipped(_id: String) -> void:
+	_refresh_equipped()
+	_refresh_money(false)
 
 
 func _on_meta_new_room() -> void:
@@ -1363,9 +1472,10 @@ func _refresh_money(punch: bool) -> void:
 func _refresh_equipped() -> void:
 	if _equipped == null:
 		return
-	if Loadout.item_id == "":
+	if Loadout.item_id == "" or get_viewport().get_visible_rect().size.x < 720.0:
 		_equipped.visible = false
-		_equipped.text = ""
+		if Loadout.item_id == "":
+			_equipped.text = ""
 		return
 	_equipped.visible = true
 	_equipped.text = Locale.format("equipped", [Locale.item_name(Loadout.item_id)])
@@ -1458,7 +1568,7 @@ func _show_chain_readout(show_readout: bool) -> void:
 func _build_run_end() -> void:
 	var layer := CanvasLayer.new()
 	layer.name = "RunEnd"
-	layer.layer = 60
+	layer.layer = 52
 	layer.visible = false
 	add_child(layer)
 	_run_end = layer
@@ -1469,7 +1579,7 @@ func _build_run_end() -> void:
 	layer.add_child(root)
 	var dim := ColorRect.new()
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(0.04, 0.03, 0.05, 0.84)
+	dim.color = Color(0.08, 0.05, 0.04, 0.96)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	root.add_child(dim)
 	var panel := Panel.new()
@@ -1479,45 +1589,51 @@ func _build_run_end() -> void:
 	panel.anchor_right = 0.5
 	panel.anchor_bottom = 0.5
 	panel.offset_left = -280.0
-	panel.offset_top = -210.0
+	panel.offset_top = -260.0
 	panel.offset_right = 280.0
-	panel.offset_bottom = 210.0
+	panel.offset_bottom = 260.0
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.10, 0.08, 0.09, 0.98)
+	style.bg_color = Color(0.24, 0.14, 0.09, 0.98)
+	style.border_color = Color(1.0, 0.84, 0.38)
+	style.set_border_width_all(2)
 	style.set_corner_radius_all(12)
 	panel.add_theme_stylebox_override("panel", style)
 	root.add_child(panel)
 	_run_title = _run_line(panel, "Title", Vector2(20, 8), 32, Color(1.0, 0.86, 0.42))
 	_run_title.visible = false
-	_run_cleared = _run_line(panel, "Cleared", Vector2(20, 36), 40, Color(0.98, 0.94, 0.86))
-	_run_best = _run_line(panel, "Best", Vector2(20, 100), 28, Color(0.98, 0.94, 0.86))
-	_run_earned = _run_line(panel, "Earned", Vector2(20, 156), 28, Color(1.0, 0.86, 0.42))
-	_run_fails = _run_line(panel, "Fails", Vector2(20, 216), 24, Color(0.96, 0.55, 0.38))
+	_run_cleared = _run_line(panel, "Cleared", Vector2(20, 24), 36, Color(0.98, 0.94, 0.86))
+	_run_best = _run_line(panel, "Best", Vector2(20, 84), 26, Color(0.98, 0.94, 0.86))
+	_run_best.size = Vector2(520, 64)
+	_run_earned = _run_line(panel, "Earned", Vector2(20, 156), 72, Color(1.0, 0.86, 0.42))
+	_run_earned.size = Vector2(520, 84)
+	_run_fails = _run_line(panel, "Fails", Vector2(20, 248), 22, Color(0.96, 0.55, 0.38))
 	_run_goal = _run_line(panel, "Goal", Vector2(20, 8), 18, Color(1.0, 0.86, 0.42))
 	_run_goal.visible = false
-	_run_summary = _run_line(panel, "Summary", Vector2(20, 8), 16, Color(0.9, 0.84, 0.74))
+	_run_summary = _run_line(panel, "Summary", Vector2(20, 300), 22, Color(0.95, 0.88, 0.72))
 	_run_summary.visible = false
 	_run_summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_run_summary.size = Vector2(520, 72)
 	_run_sub = _run_line(panel, "Sub", Vector2(20, 8), 16, Color(0.78, 0.7, 0.62))
 	_run_sub.visible = false
 	_run_back = Button.new()
 	_run_back.name = "BackToMenu"
 	_run_back.focus_mode = Control.FOCUS_NONE
-	_run_back.flat = true
 	_run_back.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_run_back.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var empty := StyleBoxEmpty.new()
-	_run_back.add_theme_stylebox_override("normal", empty)
-	_run_back.add_theme_stylebox_override("hover", empty)
-	_run_back.add_theme_stylebox_override("pressed", empty)
-	_run_back.add_theme_stylebox_override("focus", empty)
-	_run_back.position = Vector2(20, 292)
-	_run_back.size = Vector2(520, 52)
+	var back_box := StyleBoxFlat.new()
+	back_box.bg_color = Color(1.0, 0.84, 0.38)
+	back_box.set_corner_radius_all(12)
+	_run_back.add_theme_stylebox_override("normal", back_box)
+	_run_back.add_theme_stylebox_override("hover", back_box)
+	_run_back.add_theme_stylebox_override("pressed", back_box)
+	_run_back.add_theme_stylebox_override("focus", back_box)
+	_run_back.position = Vector2(20, 400)
+	_run_back.size = Vector2(520, 56)
 	_run_back.add_theme_font_size_override("font_size", 22)
-	_run_back.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
-	_run_back.add_theme_color_override("font_hover_color", Color(1.0, 0.94, 0.7))
-	_run_back.add_theme_color_override("font_pressed_color", Color(1.0, 0.94, 0.7))
+	_run_back.add_theme_color_override("font_color", Color(0.22, 0.12, 0.06))
+	_run_back.add_theme_color_override("font_hover_color", Color(0.22, 0.12, 0.06))
+	_run_back.add_theme_color_override("font_pressed_color", Color(0.22, 0.12, 0.06))
 	_run_back.pressed.connect(_on_run_menu)
 	panel.add_child(_run_back)
 
@@ -1542,8 +1658,8 @@ func _sync_run_end() -> void:
 	if _run_goal:
 		_run_goal.visible = false
 	if _run_summary:
-		_run_summary.visible = false
-		_run_summary.text = ""
+		_run_summary.visible = true
+		_run_summary.text = Loadout.next_goal_line()
 	if _run_sub:
 		_run_sub.visible = false
 		_run_sub.text = ""
@@ -1551,6 +1667,7 @@ func _sync_run_end() -> void:
 	if _run_earned:
 		_run_earned.visible = true
 		_run_earned.text = Locale.coins(banked)
+		_run_earned.add_theme_font_size_override("font_size", 48)
 	var cleared := Loadout.RUN_ROOMS - Loadout.run_fails
 	if cleared < 0:
 		cleared = 0
@@ -1560,6 +1677,8 @@ func _sync_run_end() -> void:
 	if _run_best:
 		_run_best.visible = true
 		_run_best.text = Locale.format("run.best", [Loadout.run_best])
+		if _run_is_record and Loadout.run_best > 0:
+			_run_best.text += "\n" + Locale.text("run.new_best")
 		if Loadout.run_best >= 10:
 			_run_best.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
 		else:
@@ -1568,15 +1687,15 @@ func _sync_run_end() -> void:
 	if _run_fails:
 		_run_fails.visible = missed
 		if missed:
-			_run_fails.text = Locale.format("run.fails", [Loadout.run_fails])
+			if Loadout.run_fails == 1:
+				_run_fails.text = Locale.text("run.fail_one")
+			else:
+				_run_fails.text = Locale.format("run.fails", [Loadout.run_fails])
 		else:
 			_run_fails.text = ""
 	if _run_back:
 		_run_back.text = Locale.text("run.menu")
-		if missed:
-			_run_back.position.y = 292.0
-		else:
-			_run_back.position.y = 228.0
+		_run_back.position.y = 400.0
 
 
 func _show_run_end() -> void:
@@ -1600,11 +1719,16 @@ func _show_run_end() -> void:
 	chain.set_hint("")
 	_randomize_room()
 	_freeze_room()
+	_run_is_record = Loadout.note_best()
 	Loadout.bank_run()
 	_sync_run_end()
 	_refresh_money(false)
+	if _run_is_record:
+		AudioKit.play_excellent()
 	if _run_end:
 		_run_end.visible = true
+	if _meta and _meta.has_method("open_shop"):
+		_meta.open_shop()
 
 
 func _on_run_menu() -> void:
@@ -2443,7 +2567,7 @@ func _pick_sweet_spots(upper) -> void:
 
 
 func _roll_layout(wide, high, extra) -> Array:
-	# Room 1 stays on the default shelves. Owned rooms join rooms 2–8.
+	# Room 1 stays on the default shelves. Owned rooms join rooms 2–5.
 	var names: Array = ["long", "sides", "stack_l", "stack_r", "stairs", "balcony", "alcove"]
 	if Loadout.run_index > 1:
 		var extras: Array = ["low_loft", "split_bay", "narrow", "floor_clutter", "window_heavy", "market", "closet", "cellar", "attic", "workshop", "gallery", "greenhouse", "laundry", "library", "kitchen"]

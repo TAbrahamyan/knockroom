@@ -15,14 +15,16 @@ static var music_volume := 40
 static var sfx_volume := 70
 ## Session only. A reload returns to the menu when this is still true.
 static var start_in_menu := true
-## A run is eight rooms. These survive a scene reload. The save file does not store them.
-const RUN_ROOMS := 8
+## A run is five rooms. These survive a scene reload. The save file does not store them.
+const RUN_ROOMS := 5
 ## Coins still in the run, after debt, that count as a won run on Run Complete.
 const RUN_GOAL := 24
 static var run_active := false
 static var run_index := 1
 static var run_earned := 0
 static var run_best := 0
+## Highest chain across finished runs. Written with the purse. A quit does not clear it.
+static var best_ever := 0
 static var run_show_complete := false
 ## True after Run Complete has moved run_earned into the purse. Abandon never sets this.
 static var run_banked := false
@@ -59,7 +61,7 @@ const CATALOG: Array = [
 		"line": "Slow throw. A heavy downward hit.",
 		"shape": "heavy",
 		"tint": Color(0.38, 0.34, 0.32),
-		"price": 16,
+		"price": 12,
 		"speed": 0.6,
 		"mass": 2.35,
 		"bounce": 0.02,
@@ -72,7 +74,7 @@ const CATALOG: Array = [
 		"line": "Light. A short knock.",
 		"shape": "light",
 		"tint": Color(0.92, 0.88, 0.78),
-		"price": 8,
+		"price": 4,
 		"speed": 1.08,
 		"mass": 0.55,
 		"bounce": 0.05,
@@ -84,7 +86,7 @@ const CATALOG: Array = [
 		"line": "A small bounce and a weak hit.",
 		"shape": "spring",
 		"tint": Color(0.42, 0.82, 0.38),
-		"price": 9,
+		"price": 5,
 		"speed": 1.0,
 		"mass": 0.62,
 		"bounce": 0.28,
@@ -96,7 +98,7 @@ const CATALOG: Array = [
 		"line": "Pops nearby props on impact.",
 		"shape": "blast",
 		"tint": Color(0.95, 0.32, 0.16),
-		"price": 22,
+		"price": 16,
 		"mass": 1.15,
 		"blast": 146.0,
 		"blast_force": 320.0,
@@ -107,7 +109,7 @@ const CATALOG: Array = [
 		"line": "Tugs nearby props after a hit.",
 		"shape": "magnet",
 		"tint": Color(0.38, 0.58, 0.96),
-		"price": 19,
+		"price": 14,
 		"mass": 1.05,
 		"magnet": 0.85,
 		"magnet_radius": 176.0,
@@ -119,7 +121,7 @@ const CATALOG: Array = [
 		"line": "A little wider. Still a light hit.",
 		"shape": "wide",
 		"tint": Color(0.96, 0.74, 0.22),
-		"price": 10,
+		"price": 6,
 		"speed": 0.96,
 		"mass": 0.78,
 		"radius": 18.0,
@@ -130,7 +132,7 @@ const CATALOG: Array = [
 		"line": "Shatters bottles near the hit.",
 		"shape": "glass",
 		"tint": Color(0.55, 0.86, 0.94),
-		"price": 12,
+		"price": 8,
 		"mass": 0.85,
 		"glass": 64.0,
 	},
@@ -140,7 +142,7 @@ const CATALOG: Array = [
 		"line": "The hit throws props upward.",
 		"shape": "pop",
 		"tint": Color(0.98, 0.48, 0.18),
-		"price": 12,
+		"price": 8,
 		"speed": 1.02,
 		"mass": 0.9,
 		"pop": 100.0,
@@ -153,7 +155,7 @@ const CATALOG: Array = [
 		"line": "Stops where it lands.",
 		"shape": "cork",
 		"tint": Color(0.73, 0.50, 0.30),
-		"price": 9,
+		"price": 5,
 		"speed": 0.86,
 		"mass": 0.7,
 		"bounce": 0.0,
@@ -166,7 +168,7 @@ const CATALOG: Array = [
 		"line": "Small and fast. Flies far.",
 		"shape": "needle",
 		"tint": Color(0.86, 0.91, 0.96),
-		"price": 10,
+		"price": 6,
 		"speed": 1.15,
 		"mass": 0.26,
 		"radius": 8.0,
@@ -180,7 +182,7 @@ const CATALOG: Array = [
 		"line": "The first hit shoves harder.",
 		"shape": "thud",
 		"tint": Color(0.55, 0.36, 0.28),
-		"price": 12,
+		"price": 8,
 		"speed": 0.88,
 		"mass": 0.95,
 		"bounce": 0.02,
@@ -194,7 +196,7 @@ const CATALOG: Array = [
 		"line": "The first hit breaks it into two smaller stones.",
 		"shape": "split",
 		"tint": Color(0.95, 0.55, 0.72),
-		"price": 13,
+		"price": 9,
 		"speed": 0.96,
 		"mass": 1.05,
 		"radius": 16.0,
@@ -209,7 +211,7 @@ const CATALOG: Array = [
 		"line": "Sticks to the first thing it hits, then they fall together.",
 		"shape": "sticky",
 		"tint": Color(0.62, 0.78, 0.36),
-		"price": 13,
+		"price": 9,
 		"speed": 0.94,
 		"mass": 1.15,
 		"bounce": 0.02,
@@ -223,7 +225,7 @@ const CATALOG: Array = [
 		"line": "Rebounds a lot. The direct hit stays light.",
 		"shape": "bounce",
 		"tint": Color(0.38, 0.82, 0.96),
-		"price": 15,
+		"price": 10,
 		"speed": 1.0,
 		"mass": 0.62,
 		"radius": 14.0,
@@ -239,7 +241,7 @@ const CATALOG: Array = [
 		"line": "Bounces harder off walls and shelves.",
 		"shape": "ricochet",
 		"tint": Color(0.96, 0.78, 0.28),
-		"price": 16,
+		"price": 12,
 		"speed": 1.02,
 		"mass": 0.78,
 		"radius": 14.0,
@@ -254,7 +256,7 @@ const CATALOG: Array = [
 		"line": "After the first hit it drops faster and knocks downward.",
 		"shape": "drop",
 		"tint": Color(0.45, 0.34, 0.28),
-		"price": 18,
+		"price": 13,
 		"speed": 0.78,
 		"mass": 1.85,
 		"bounce": 0.02,
@@ -268,7 +270,7 @@ const CATALOG: Array = [
 		"line": "Small and quick. A short knock.",
 		"shape": "pebble",
 		"tint": Color(0.78, 0.74, 0.66),
-		"price": 9,
+		"price": 5,
 		"speed": 1.14,
 		"mass": 0.5,
 		"radius": 10.0,
@@ -282,7 +284,7 @@ const CATALOG: Array = [
 		"line": "Big and slow. A soft wide hit.",
 		"shape": "pillow",
 		"tint": Color(0.95, 0.62, 0.68),
-		"price": 10,
+		"price": 6,
 		"speed": 0.76,
 		"mass": 0.95,
 		"radius": 22.0,
@@ -297,7 +299,7 @@ const CATALOG: Array = [
 		"line": "Light. Lifts what it hits.",
 		"shape": "feather",
 		"tint": Color(0.96, 0.94, 0.86),
-		"price": 12,
+		"price": 8,
 		"speed": 1.06,
 		"mass": 0.48,
 		"radius": 12.0,
@@ -313,7 +315,7 @@ const CATALOG: Array = [
 		"line": "A small pop around the hit.",
 		"shape": "spark",
 		"tint": Color(0.98, 0.72, 0.22),
-		"price": 13,
+		"price": 9,
 		"speed": 0.98,
 		"mass": 0.85,
 		"radius": 14.0,
@@ -327,7 +329,7 @@ const CATALOG: Array = [
 		"line": "Fast. Kicks off walls.",
 		"shape": "skip",
 		"tint": Color(0.42, 0.78, 0.62),
-		"price": 15,
+		"price": 10,
 		"speed": 1.16,
 		"mass": 0.52,
 		"radius": 12.0,
@@ -338,7 +340,8 @@ const CATALOG: Array = [
 	},
 ]
 
-## Permanent unlocks. A full clear pays up to 20. Cheapest first in the shop.
+## Permanent unlocks. A strong chain pays well. Late stones still take several runs.
+## kind is "stone" or "room". The shop sorts this list by cost.
 ## kind is "stone" or "room". The shop sorts this list by cost.
 const META: Array = [
 	{
@@ -346,8 +349,8 @@ const META: Array = [
 		"kind": "stone",
 		"name": "Cork Stone",
 		"line": "Stops where it lands.",
-		"blurb": "Throw shop, 8 coins",
-		"cost": 40,
+		"blurb": "Between throws, 5 coins",
+		"cost": 24,
 		"shape": "cork",
 		"tint": Color(0.73, 0.50, 0.30),
 	},
@@ -356,8 +359,8 @@ const META: Array = [
 		"kind": "room",
 		"name": "Narrow Shelves",
 		"line": "Short planks with a tall drop between them.",
-		"blurb": "Next rooms can roll this",
-		"cost": 36,
+		"blurb": "Joins the mix from room 2",
+		"cost": 18,
 		"shape": "narrow",
 		"tint": Color(0.72, 0.78, 0.86),
 	},
@@ -366,8 +369,8 @@ const META: Array = [
 		"kind": "room",
 		"name": "Low Loft",
 		"line": "Both shelves sit close to the floor.",
-		"blurb": "Next rooms can roll this",
-		"cost": 46,
+		"blurb": "Joins the mix from room 2",
+		"cost": 32,
 		"shape": "loft",
 		"tint": Color(0.86, 0.72, 0.42),
 	},
@@ -376,8 +379,8 @@ const META: Array = [
 		"kind": "stone",
 		"name": "Needle Stone",
 		"line": "Small and fast. Flies far.",
-		"blurb": "Throw shop, 9 coins",
-		"cost": 80,
+		"blurb": "Between throws, 6 coins",
+		"cost": 78,
 		"shape": "needle",
 		"tint": Color(0.86, 0.91, 0.96),
 	},
@@ -386,8 +389,8 @@ const META: Array = [
 		"kind": "room",
 		"name": "Floor Clutter",
 		"line": "A small high shelf. Almost everything sits on the floor.",
-		"blurb": "Next rooms can roll this",
-		"cost": 66,
+		"blurb": "Joins the mix from room 2",
+		"cost": 44,
 		"shape": "clutter",
 		"tint": Color(0.78, 0.58, 0.36),
 	},
@@ -396,8 +399,8 @@ const META: Array = [
 		"kind": "room",
 		"name": "Market Row",
 		"line": "A long low counter with the stock lined up on it.",
-		"blurb": "Next rooms can roll this",
-		"cost": 72,
+		"blurb": "Joins the mix from room 2",
+		"cost": 54,
 		"shape": "market",
 		"tint": Color(0.84, 0.62, 0.28),
 	},
@@ -406,8 +409,8 @@ const META: Array = [
 		"kind": "room",
 		"name": "Split Bay",
 		"line": "Two shelves far apart, one much higher than the other.",
-		"blurb": "Next rooms can roll this",
-		"cost": 78,
+		"blurb": "Joins the mix from room 2",
+		"cost": 66,
 		"shape": "bay",
 		"tint": Color(0.55, 0.72, 0.84),
 	},
@@ -426,8 +429,8 @@ const META: Array = [
 		"kind": "stone",
 		"name": "Thud Stone",
 		"line": "The first hit shoves harder.",
-		"blurb": "Throw shop, 10 coins",
-		"cost": 140,
+		"blurb": "Between throws, 8 coins",
+		"cost": 120,
 		"shape": "thud",
 		"tint": Color(0.55, 0.36, 0.28),
 	},
@@ -695,23 +698,23 @@ static func stone_radius() -> float:
 
 
 static func payout_for(chain_count: int) -> int:
-	# One knock pays nothing. Medium and good chains pay a bit faster.
-	# A full clear tops out at 20.
+	# One knock pays nothing. A decent chain pays enough to shop after the run.
+	# The longest chains top out at 60 so the last stones still take more than one run.
 	if chain_count <= 1:
 		return 0
 	if chain_count == 2:
-		return 4
-	if chain_count == 3:
-		return 6
-	if chain_count == 4:
 		return 8
+	if chain_count == 3:
+		return 12
+	if chain_count == 4:
+		return 16
 	if chain_count < 8:
-		return chain_count + 4
+		return chain_count * 4
 	if chain_count < 12:
-		return 13 + (chain_count - 8) / 2
+		return 32 + (chain_count - 8) * 2
 	if chain_count < 16:
-		return 16 + (chain_count - 12) / 2
-	return mini(18 + (chain_count - 16) / 2, 20)
+		return 42 + (chain_count - 12)
+	return mini(48 + (chain_count - 16), 60)
 
 
 ## Coins added on the next clear for the heat already banked. Heat 0 pays nothing.
@@ -740,13 +743,11 @@ static func note_room(chain_count: int, pay: int) -> void:
 		run_best = chain_count
 
 
-## Rooms 1–2 need 2. Rooms 3–5 need 3. Rooms 6–8 need 4.
+## Rooms 1–3 need 2. Rooms 4–5 need 3.
 ## A failed room strains the next one by 1, and the need never goes past 4.
 static func chain_need() -> int:
 	var need := 2
-	if run_index >= 6:
-		need = 4
-	elif run_index >= 3:
+	if run_index >= 4:
 		need = 3
 	if run_strain:
 		need = mini(need + 1, 4)
@@ -833,7 +834,7 @@ static func begin_run() -> void:
 	_clear_run_risk()
 
 
-## Shop pick or skip. Room 8 ends the run. Earlier rooms move the index forward.
+## Shop pick or skip. Room 5 ends the run. Earlier rooms move the index forward.
 static func advance_run() -> void:
 	if run_index >= RUN_ROOMS:
 		run_show_complete = true
@@ -907,43 +908,89 @@ static func throw_pool() -> Array:
 	return pool
 
 
-## Three cards. Base stones are always eligible. Owned unlocks are mixed in
-## and cost nothing to equip. Locked stones stay out. With no unlocks, this
-## is three base stones.
+## Three cards from the stones you still pay for. A stone you already
+## unlocked, and the one on the slingshot, are not offered again.
+## Equip an owned stone from the meta shop. Locked stones stay out.
 static func throw_offers(count: int) -> Array:
 	var base: Array = []
-	var extras: Array = []
 	for offer in CATALOG:
 		var item: Dictionary = offer
 		var gate := str(item.get("unlock", ""))
-		if gate == "":
-			var plain: Dictionary = item.duplicate()
-			base.append(plain)
-		elif owns(gate):
-			var copy: Dictionary = item.duplicate()
-			copy["owned_stone"] = true
-			copy["price"] = 0
-			extras.append(copy)
-	var picks: Array = []
-	if extras.is_empty():
-		base.shuffle()
-		var n := mini(count, base.size())
-		for i in n:
-			picks.append(base[i])
-		return picks
-	extras.shuffle()
+		var id := str(item["id"])
+		if gate != "":
+			continue
+		if id == item_id:
+			continue
+		base.append(item.duplicate())
+	if base.is_empty():
+		for offer in CATALOG:
+			var item: Dictionary = offer
+			if str(item.get("unlock", "")) == "":
+				base.append(item.duplicate())
 	base.shuffle()
-	picks.append(extras[0])
-	var room := count - 1
-	var bi := 0
-	while room > 0 and bi < base.size():
-		picks.append(base[bi])
-		bi += 1
-		room -= 1
-	if extras.size() > 1 and picks.size() >= 3 and randf() < 0.55:
-		picks[1] = extras[1]
-	picks.shuffle()
+	var picks: Array = []
+	var n := mini(count, base.size())
+	for i in n:
+		picks.append(base[i])
 	return picks
+
+
+## Names the cheapest locked unlock the purse cannot buy yet.
+## Owned items are skipped. Something you can already buy is not repeated here.
+static func next_goal_line() -> String:
+	var locked: Array = []
+	for offer in META:
+		var item: Dictionary = offer
+		if owns(str(item["id"])):
+			continue
+		locked.append(item)
+	if locked.is_empty():
+		return Locale.text("goal.done")
+	locked.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["cost"]) < int(b["cost"]))
+	var target: Dictionary = {}
+	for offer in locked:
+		var item: Dictionary = offer
+		if int(item["cost"]) > money:
+			target = item
+			break
+	if target.is_empty():
+		return Locale.text("goal.enough")
+	var id := str(target["id"])
+	var kind := str(target.get("kind", "stone"))
+	var display := Locale.room_name(id) if kind == "room" else Locale.item_name(id)
+	var gap := int(target["cost"]) - money
+	if Locale.code == "ru":
+		return Locale.format("goal.need", [Locale.coins(gap), display])
+	return Locale.format("goal.need", [gap, display])
+
+
+static func next_goal_short() -> String:
+	var best_id := ""
+	var best_cost := 0
+	for offer in META:
+		var item: Dictionary = offer
+		var id := str(item["id"])
+		if owns(id):
+			continue
+		var cost := int(item["cost"])
+		if best_id == "" or cost < best_cost:
+			best_id = id
+			best_cost = cost
+	if best_id == "":
+		return ""
+	var tag := Locale.short_for(best_id)
+	var gap := best_cost - money
+	if gap <= 0:
+		return ""
+	return "+%d  %s" % [gap, tag]
+
+
+## True the first time this run's best chain beats the saved record. A miss-only run does not count.
+static func note_best() -> bool:
+	if run_best <= 0 or run_best <= best_ever:
+		return false
+	best_ever = run_best
+	return true
 
 
 static func meta_offer(id: String) -> Dictionary:
@@ -979,6 +1026,7 @@ static func save_game() -> void:
 	cfg.set_value("settings", "language", Locale.code)
 	cfg.set_value("settings", "music", music_volume)
 	cfg.set_value("settings", "sfx", sfx_volume)
+	cfg.set_value("settings", "best_ever", best_ever)
 	cfg.save(SAVE_PATH)
 
 
@@ -1002,3 +1050,4 @@ static func load_game() -> void:
 	Locale.set_code(str(cfg.get_value("settings", "language", "ru")))
 	music_volume = int(cfg.get_value("settings", "music", 40))
 	sfx_volume = int(cfg.get_value("settings", "sfx", 70))
+	best_ever = int(cfg.get_value("settings", "best_ever", 0))
