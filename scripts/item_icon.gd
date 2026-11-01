@@ -153,6 +153,25 @@ static func draw(canvas: CanvasItem, center: Vector2, radius: float, shape: Stri
 			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.75, inner * 0.28), Vector2(inner * 1.5, inner * 0.16)), tint)
 			canvas.draw_rect(Rect2(center + Vector2(inner * 0.15, -inner * 0.45), Vector2(inner * 0.42, inner * 0.12)), tint.darkened(0.08))
 			canvas.draw_circle(center + Vector2(-inner * 0.28, -inner * 0.05), inner * 0.18, tint.lightened(0.12))
+		"pantry":
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.22, -inner * 0.55), Vector2(inner * 0.44, inner * 0.12)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.72, inner * 0.28), Vector2(inner * 0.4, inner * 0.12)), tint.darkened(0.08))
+			canvas.draw_rect(Rect2(center + Vector2(inner * 0.28, inner * 0.36), Vector2(inner * 0.4, inner * 0.12)), tint.darkened(0.08))
+		"porch":
+			canvas.draw_rect(Rect2(center + Vector2(inner * 0.28, -inner * 0.55), Vector2(inner * 0.36, inner * 0.12)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.08, -inner * 0.12), Vector2(inner * 0.36, inner * 0.12)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.62, inner * 0.32), Vector2(inner * 0.36, inner * 0.12)), tint)
+		"bath":
+			canvas.draw_rect(Rect2(center + Vector2(inner * 0.05, -inner * 0.48), Vector2(inner * 0.62, inner * 0.12)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.62, inner * 0.22), Vector2(inner * 0.55, inner * 0.28)), tint.lightened(0.12))
+		"hall":
+			canvas.draw_rect(Rect2(center + Vector2(inner * 0.2, -inner * 0.55), Vector2(inner * 0.4, inner * 0.12)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.62, -inner * 0.08), Vector2(inner * 0.42, inner * 0.12)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(inner * 0.12, inner * 0.38), Vector2(inner * 0.4, inner * 0.12)), tint.darkened(0.08))
+		"study":
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.7, -inner * 0.5), Vector2(inner * 0.28, inner * 0.12)), tint)
+			canvas.draw_rect(Rect2(center + Vector2(-inner * 0.66, -inner * 0.1), Vector2(inner * 0.32, inner * 0.12)), tint.darkened(0.08))
+			canvas.draw_rect(Rect2(center + Vector2(inner * 0.05, inner * 0.32), Vector2(inner * 0.55, inner * 0.14)), tint)
 		_:
 			canvas.draw_circle(center, inner * 0.62, tint)
 

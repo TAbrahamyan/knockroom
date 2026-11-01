@@ -615,6 +615,56 @@ const META: Array = [
 		"tint": Color(0.93, 0.84, 0.68),
 	},
 	{
+		"id": "pantry",
+		"kind": "room",
+		"name": "Pantry",
+		"line": "A high middle shelf with two low wings.",
+		"blurb": "Next rooms can roll this",
+		"cost": 268,
+		"shape": "pantry",
+		"tint": Color(0.72, 0.48, 0.22),
+	},
+	{
+		"id": "porch",
+		"kind": "room",
+		"name": "Porch",
+		"line": "Three steps down toward the door.",
+		"blurb": "Next rooms can roll this",
+		"cost": 312,
+		"shape": "porch",
+		"tint": Color(0.62, 0.7, 0.58),
+	},
+	{
+		"id": "bath",
+		"kind": "room",
+		"name": "Bathroom",
+		"line": "A high rail and a low tub.",
+		"blurb": "Next rooms can roll this",
+		"cost": 348,
+		"shape": "bath",
+		"tint": Color(0.7, 0.84, 0.88),
+	},
+	{
+		"id": "hall",
+		"kind": "room",
+		"name": "Hall",
+		"line": "Shelves zigzag down the wall.",
+		"blurb": "Next rooms can roll this",
+		"cost": 392,
+		"shape": "hall",
+		"tint": Color(0.55, 0.62, 0.48),
+	},
+	{
+		"id": "study",
+		"kind": "room",
+		"name": "Study",
+		"line": "A desk and two shelves on the left.",
+		"blurb": "Next rooms can roll this",
+		"cost": 438,
+		"shape": "study",
+		"tint": Color(0.48, 0.32, 0.22),
+	},
+	{
 		"id": "skip_stone",
 		"kind": "stone",
 		"name": "Skip Stone",
@@ -699,32 +749,42 @@ static func stone_radius() -> float:
 
 static func payout_for(chain_count: int) -> int:
 	# One knock pays nothing. A decent chain pays enough to shop after the run.
-	# The longest chains top out at 60 so the last stones still take more than one run.
+	# The old table topped out at 60. Players receive 30% less, so the cap is 42.
+	var full := 0
 	if chain_count <= 1:
 		return 0
 	if chain_count == 2:
-		return 8
-	if chain_count == 3:
-		return 12
-	if chain_count == 4:
-		return 16
-	if chain_count < 8:
-		return chain_count * 4
-	if chain_count < 12:
-		return 32 + (chain_count - 8) * 2
-	if chain_count < 16:
-		return 42 + (chain_count - 12)
-	return mini(48 + (chain_count - 16), 60)
+		full = 8
+	elif chain_count == 3:
+		full = 12
+	elif chain_count == 4:
+		full = 16
+	elif chain_count < 8:
+		full = chain_count * 4
+	elif chain_count < 12:
+		full = 32 + (chain_count - 8) * 2
+	elif chain_count < 16:
+		full = 42 + (chain_count - 12)
+	else:
+		full = mini(48 + (chain_count - 16), 60)
+	return receive_coins(full)
+
+
+## Flat bonuses use the same 30% cut as the chain table. Round half up.
+static func receive_coins(amount: int) -> int:
+	if amount <= 0:
+		return 0
+	return (amount * 7 + 5) / 10
 
 
 ## Coins added on the next clear for the heat already banked. Heat 0 pays nothing.
 static func heat_bonus() -> int:
 	if run_heat >= 5:
-		return 3
+		return receive_coins(3)
 	if run_heat >= 3:
-		return 2
+		return receive_coins(2)
 	if run_heat >= 1:
-		return 1
+		return receive_coins(1)
 	return 0
 
 

@@ -12,11 +12,11 @@ Hold the left mouse button, pull back from the slingshot, and release. The stone
 
 Rooms 1–3 need a chain of 2. Rooms 4–5 need a chain of 3. A miss does not end the run. It cuts about 6% of the coins earned so far in that run, and the next room needs one more link, up to 4. Four misses in a row add 1 debt, taken once when the run ends. A clear removes the extra link.
 
-Beating the need by 4 or more is a great clear: a gold banner, 6 extra coins, and one faster throw next room. Risk, from the throw shop, adds 3 coins on the next clear and raises a miss cut to 12%. Double adds a second copy of that room’s payout on a clear and raises a miss cut to 18%. Both are hidden on room 5, because there is no next room. Skip leaves the stone you have and still advances.
+Beating the need by 4 or more is a great clear: a gold banner, 4 extra coins, and one faster throw next room. Risk, from the throw shop, adds 2 coins on the next clear and raises a miss cut to 12%. Double adds a second copy of that room’s payout on a clear and raises a miss cut to 18%. Both are hidden on room 5, because there is no next room. Skip leaves the stone you have and still advances.
 
-Odd rooms also pay 2 coins for hitting the bright spot. Even rooms pay 2 coins for a chain of 10. The plate says which one is active. The clock is about 78 seconds, or about 66 after two misses in a row. It pauses in the shop and the menus. If it hits zero before the throw, that throw is a little softer.
+Odd rooms also pay 1 coin for hitting the bright spot. Even rooms pay 1 coin for a chain of 10. The plate says which one is active. The clock is about 78 seconds, or about 66 after two misses in a row. It pauses in the shop and the menus. If it hits zero before the throw, that throw is a little softer.
 
-A streak of clears fills five marks. The next clear pays 1, 2, or 3 extra coins from that streak. A miss cools it by one. The best chain of the run sits beside those marks.
+A streak of clears fills five marks. The next clear pays 1 or 2 extra coins from that streak. A miss cools it by one. The best chain of the run sits beside those marks.
 
 Coins on the plate are this run only. The number in the corner, and in the meta shop, is the saved purse. The throw shop and the meta shop spend the purse, not the coins still inside the run. After room 5 the run banks once, debt is paid out of the run first, and Run Complete shows the rooms cleared, the best chain, the coins added, and the misses. The meta shop opens on top of that screen.
 
@@ -59,7 +59,7 @@ Stones you buy in the meta shop are not sold again. Equip one from that shop, in
 
 ## Meta shop
 
-The main menu, the pause menu, and the throw shop open the same shop. Rows are grouped as Buy, Close (40 coins or fewer short), Later, and Yours. The price sits inside the row. A shortfall shows how many coins are missing and a fill bar. The line under the title is the next unlock you cannot afford yet. It does not repeat something you already own, and it does not repeat something already sitting in Buy.
+The main menu, the pause menu, and the throw shop open the same shop. Stones and rooms are separate tabs. Inside a tab, rows are grouped as Buy, Close (40 coins or fewer short), Later, and Yours. The price sits inside the row. A shortfall shows how many coins are missing and a fill bar. The line under the list is the next unlock you cannot afford yet. It does not repeat something you already own, and it does not repeat something already sitting in Buy. The owned count in the corner counts both tabs.
 
 Coins spent here come from the saved purse. Unlocks stay after you close the game. Owned rooms join the random mix from room 2. Room 1 uses only the default layouts.
 
@@ -89,20 +89,25 @@ Coins spent here come from the saved purse. Unlocks stay after you close the gam
 | Heavy Drop Stone | Stone | 245 |
 | Kitchen | Room | 246 |
 | Pebble | Stone | 265 |
+| Pantry | Room | 268 |
 | Pillow | Stone | 290 |
 | Feather | Stone | 310 |
+| Porch | Room | 312 |
 | Spark | Stone | 335 |
+| Bathroom | Room | 348 |
 | Skip Stone | Stone | 355 |
+| Hall | Room | 392 |
+| Study | Room | 438 |
 
 ## Coins from a chain
 
-One knock pays nothing. A chain of 2 pays 8, 3 pays 12, and 4 pays 16. From there the room pays 4 coins per link until 8, then less, and a chain tops out at 60 before the bonuses above. A chain of 2 is enough for the Light Stone at 4. Skip Stone stays 355, so the full set still takes more than one run.
+One knock pays nothing. A chain of 2 pays 6, 3 pays 8, and 4 pays 11. From there the room pays about 3 coins per link until 8, then less, and a chain tops out at 42 before the bonuses above. That is 30% less than the earlier table, rounded. A chain of 2 is still enough for the Light Stone at 4. Skip Stone stays 355, and the Study is 438, so the full set still takes more than one run.
 
 ## Room
 
 Every room builds a new shelf layout, with its own wall, floor, light, and props. There are 18–23 loose objects and one bright spot, on the highest shelf. The floor beside the slingshot stays clear.
 
-Default layouts are the long shelf, side shelves, a stack, stairs, a balcony, and an alcove. Unlocked rooms are narrow shelves, low loft, floor clutter, market row, split bay, window heavy, closet, cellar, attic, workshop, gallery, greenhouse, laundry, library, and kitchen. The attic’s crates break when hit hard. The workshop’s parts spin as they fall.
+Default layouts are the long shelf, side shelves, a stack, stairs, a balcony, and an alcove. Unlocked rooms are narrow shelves, low loft, floor clutter, market row, split bay, window heavy, closet, cellar, attic, workshop, gallery, greenhouse, laundry, library, kitchen, pantry, porch, bathroom, hall, and study. The attic’s crates break when hit hard. The workshop’s parts spin as they fall.
 
 ## Saved data
 

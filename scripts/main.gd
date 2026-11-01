@@ -251,14 +251,16 @@ func _finish() -> void:
 			bonus += heat_pay
 			Loadout.run_earned += heat_pay
 		if gambled:
-			bonus += 3
-			Loadout.run_earned += 3
+			var gamble_pay := Loadout.receive_coins(3)
+			bonus += gamble_pay
+			Loadout.run_earned += gamble_pay
 		if doubled and earned > 0:
 			bonus += earned
 			Loadout.run_earned += earned
 		if chain_count - need >= 4:
-			bonus += 6
-			Loadout.run_earned += 6
+			var master_pay := Loadout.receive_coins(6)
+			bonus += master_pay
+			Loadout.run_earned += master_pay
 			Loadout.grant_afterglow()
 			master = true
 		Loadout.mark_pass()
@@ -272,8 +274,9 @@ func _finish() -> void:
 		Loadout.mark_fail()
 		_look = maxf(_look, 2.4)
 	if goal_sweet or goal_ten:
-		bonus += 2
-		Loadout.run_earned += 2
+		var goal_pay := Loadout.receive_coins(2)
+		bonus += goal_pay
+		Loadout.run_earned += goal_pay
 	Loadout.run_gamble = false
 	Loadout.run_double = false
 	Loadout.last_bonus = bonus
@@ -1880,6 +1883,16 @@ func _material_color(id: String) -> Color:
 			return Color(0.55, 0.34, 0.2)
 		"kitchen":
 			return Color(0.9, 0.78, 0.52)
+		"pantry":
+			return Color(0.72, 0.46, 0.22)
+		"porch":
+			return Color(0.58, 0.68, 0.48)
+		"bath":
+			return Color(0.72, 0.86, 0.9)
+		"hall":
+			return Color(0.5, 0.6, 0.42)
+		"study":
+			return Color(0.48, 0.3, 0.18)
 		_:
 			return Color(0.72, 0.5, 0.28)
 
@@ -2012,6 +2025,36 @@ func _room_style(id: String) -> Dictionary:
 				"mix": [0, 0, 4, 1, 0, 0, 4, 1, 0, 3],
 				"wood": Color(0.86, 0.8, 0.68),
 				"lip": Color(0.95, 0.7, 0.42, 0.95),
+			}
+		"pantry":
+			return {
+				"mix": [4, 4, 0, 1, 4, 0, 1, 4, 0, 1],
+				"wood": Color(0.58, 0.36, 0.16),
+				"lip": Color(0.82, 0.58, 0.28, 0.95),
+			}
+		"porch":
+			return {
+				"mix": [0, 0, 3, 0, 2, 0, 3, 1, 0, 2],
+				"wood": Color(0.55, 0.62, 0.42),
+				"lip": Color(0.78, 0.86, 0.58, 0.95),
+			}
+		"bath":
+			return {
+				"mix": [4, 4, 1, 4, 1, 4, 0, 4, 1, 4],
+				"wood": Color(0.78, 0.86, 0.9),
+				"lip": Color(0.62, 0.78, 0.86, 0.95),
+			}
+		"hall":
+			return {
+				"mix": [3, 3, 2, 0, 3, 2, 3, 0, 2, 3],
+				"wood": Color(0.46, 0.52, 0.36),
+				"lip": Color(0.7, 0.78, 0.52, 0.95),
+			}
+		"study":
+			return {
+				"mix": [3, 1, 3, 1, 3, 3, 1, 2, 3, 1],
+				"wood": Color(0.4, 0.24, 0.14),
+				"lip": Color(0.68, 0.46, 0.26, 0.95),
 			}
 		_:
 			return {
@@ -2573,12 +2616,12 @@ func _roll_layout(wide, high, extra) -> Array:
 	# Room 1 stays on the default shelves. Owned rooms join rooms 2–5.
 	var names: Array = ["long", "sides", "stack_l", "stack_r", "stairs", "balcony", "alcove"]
 	if Loadout.run_index > 1:
-		var extras: Array = ["low_loft", "split_bay", "narrow", "floor_clutter", "window_heavy", "market", "closet", "cellar", "attic", "workshop", "gallery", "greenhouse", "laundry", "library", "kitchen"]
+		var extras: Array = ["low_loft", "split_bay", "narrow", "floor_clutter", "window_heavy", "market", "closet", "cellar", "attic", "workshop", "gallery", "greenhouse", "laundry", "library", "kitchen", "pantry", "porch", "bath", "hall", "study"]
 		for id in extras:
 			if Loadout.owns(str(id)):
 				names.append(id)
 	var pick := str(names[randi() % names.size()])
-	if extra == null and (pick == "sides" or pick == "stairs" or pick == "gallery" or pick == "greenhouse" or pick == "laundry" or pick == "library" or pick == "kitchen"):
+	if extra == null and (pick == "sides" or pick == "stairs" or pick == "gallery" or pick == "greenhouse" or pick == "laundry" or pick == "library" or pick == "kitchen" or pick == "pantry" or pick == "porch" or pick == "hall" or pick == "study"):
 		pick = "long"
 	layout_name = pick
 	match pick:
@@ -2624,6 +2667,16 @@ func _roll_layout(wide, high, extra) -> Array:
 			return _layout_library(high, extra, wide)
 		"kitchen":
 			return _layout_kitchen(high, extra, wide)
+		"pantry":
+			return _layout_pantry(high, extra, wide)
+		"porch":
+			return _layout_porch(high, extra, wide)
+		"bath":
+			return _layout_bath(high, wide)
+		"hall":
+			return _layout_hall(high, extra, wide)
+		"study":
+			return _layout_study(high, extra, wide)
 		_:
 			return _layout_long(wide)
 
@@ -2852,6 +2905,92 @@ func _layout_library(top, mid, table) -> Array:
 	_use_shelf(table, randf_range(620.0, 780.0), randf_range(460.0, 492.0), tw)
 	_keep_stacked(top, mid, 108.0)
 	return [top, mid, table]
+
+
+func _layout_pantry(left_shelf, right_shelf, center_shelf) -> Array:
+	# A short high board in the middle, and two lower wings.
+	var ww := randf_range(160.0, 200.0)
+	var cw := randf_range(180.0, 230.0)
+	var y_mid := randf_range(220.0, 240.0)
+	_use_shelf(center_shelf, randf_range(720.0, 860.0), y_mid, cw)
+	_use_shelf(left_shelf, randf_range(400.0, 520.0), y_mid + randf_range(150.0, 180.0), ww)
+	var ry := y_mid + randf_range(168.0, 200.0)
+	var rw := ww
+	var rx := randf_range(980.0, 1100.0)
+	if ry > 455.0:
+		rx = maxf(rx, 430.0 + rw * 0.5)
+	_use_shelf(right_shelf, rx, ry, rw)
+	_keep_x_apart([left_shelf, center_shelf, right_shelf], 48.0)
+	return [left_shelf, right_shelf, center_shelf]
+
+
+func _layout_porch(top, mid, bot) -> Array:
+	# Three treads stepping down to the left, toward the door.
+	var w1 := randf_range(150.0, 190.0)
+	var w2 := randf_range(154.0, 196.0)
+	var w3 := randf_range(158.0, 200.0)
+	var g1 := randf_range(88.0, 118.0)
+	var g2 := randf_range(88.0, 118.0)
+	var span := w1 + g1 + w2 + g2 + w3
+	var right_edge := randf_range(980.0, 1180.0)
+	if right_edge - span < 430.0:
+		right_edge = 430.0 + span
+	if right_edge > 1210.0:
+		right_edge = 1210.0
+	var x1 := right_edge - w1 * 0.5
+	var x2 := x1 - w1 * 0.5 - g1 - w2 * 0.5
+	var x3 := x2 - w2 * 0.5 - g2 - w3 * 0.5
+	var y1 := randf_range(220.0, 238.0)
+	var y2 := y1 + randf_range(100.0, 124.0)
+	var y3 := minf(y2 + randf_range(100.0, 124.0), 490.0)
+	if y3 > 455.0:
+		x3 = maxf(x3, 430.0 + w3 * 0.5)
+	_use_shelf(top, x1, y1, w1)
+	_use_shelf(mid, x2, y2, w2)
+	_use_shelf(bot, x3, y3, w3)
+	_keep_x_apart([bot, mid, top], 60.0)
+	return [top, mid, bot]
+
+
+func _layout_bath(rail, tub) -> Array:
+	# One long rail high on the right, and a short tub low on the left.
+	var rw := randf_range(420.0, 520.0)
+	var tw := randf_range(200.0, 260.0)
+	var ry := randf_range(224.0, 248.0)
+	var ty := randf_range(462.0, 492.0)
+	var rx := randf_range(860.0, 1020.0)
+	var tx := maxf(randf_range(500.0, 680.0), 430.0 + tw * 0.5)
+	_use_shelf(rail, rx, ry, rw)
+	_use_shelf(tub, tx, ty, tw)
+	return [rail, tub]
+
+
+func _layout_hall(top, mid, low) -> Array:
+	# Zigzag the other way from the gallery. High on the right, mid on the left, low on the right.
+	var w1 := randf_range(170.0, 210.0)
+	var w2 := randf_range(180.0, 230.0)
+	var w3 := randf_range(160.0, 200.0)
+	_use_shelf(top, randf_range(960.0, 1100.0), randf_range(220.0, 238.0), w1)
+	_use_shelf(mid, randf_range(460.0, 640.0), randf_range(330.0, 362.0), w2)
+	var ly := randf_range(458.0, 488.0)
+	var lx := maxf(randf_range(900.0, 1080.0), 430.0 + w3 * 0.5)
+	_use_shelf(low, lx, ly, w3)
+	return [top, mid, low]
+
+
+func _layout_study(top, mid, desk) -> Array:
+	# Two short boards stacked on the left, and a desk on the right.
+	var sw := randf_range(150.0, 190.0)
+	var dw := randf_range(240.0, 320.0)
+	var cx := randf_range(470.0, 600.0)
+	var y1 := randf_range(222.0, 240.0)
+	_use_shelf(top, cx, y1, sw)
+	_use_shelf(mid, cx + randf_range(-12.0, 12.0), y1 + randf_range(118.0, 146.0), sw + 18.0)
+	var dy := randf_range(468.0, 496.0)
+	var dx := maxf(randf_range(960.0, 1100.0), 430.0 + dw * 0.5)
+	_use_shelf(desk, dx, dy, dw)
+	_keep_stacked(top, mid, 108.0)
+	return [top, mid, desk]
 
 
 func _layout_kitchen(upper, mid, counter) -> Array:
@@ -3293,6 +3432,16 @@ func _pick_window(hook: Vector2) -> Rect2:
 		return Rect2(360.0, 62.0, 200.0, 100.0)
 	if layout_name == "closet":
 		return Rect2(1108.0, 48.0, 42.0, 210.0)
+	if layout_name == "pantry":
+		return Rect2(520.0, 58.0, 160.0, 90.0)
+	if layout_name == "porch":
+		return Rect2(80.0, 70.0, 280.0, 160.0)
+	if layout_name == "bath":
+		return Rect2(180.0, 64.0, 220.0, 140.0)
+	if layout_name == "hall":
+		return Rect2(640.0, 72.0, 180.0, 110.0)
+	if layout_name == "study":
+		return Rect2(980.0, 56.0, 150.0, 120.0)
 	var win_w := randf_range(228.0, 340.0)
 	var win_h := randf_range(108.0, 146.0)
 	var win_x := randf_range(56.0, 1224.0 - win_w)

@@ -120,7 +120,7 @@ func _paint_structure() -> void:
 
 func _paint_floor() -> void:
 	var floor := _floor_color()
-	var tiled := layout_id == "stairs" or layout_id == "workshop" or layout_id == "split_bay" or layout_id == "window_heavy" or layout_id == "balcony" or layout_id == "narrow"
+	var tiled := layout_id == "stairs" or layout_id == "workshop" or layout_id == "split_bay" or layout_id == "window_heavy" or layout_id == "balcony" or layout_id == "narrow" or layout_id == "bath" or layout_id == "porch"
 	draw_rect(Rect2(0, 640, 1280, 80), floor.darkened(0.12))
 	draw_rect(Rect2(0, 640, 1280, 4), Color(0, 0, 0, 0.28))
 	if tiled:
@@ -279,6 +279,34 @@ func _paint_mood() -> void:
 			draw_rect(Rect2(980, 70, 180, 120), Color(0.72, 0.86, 0.92))
 			draw_rect(Rect2(1068, 70, 4, 120), Color(0.9, 0.92, 0.9))
 			draw_rect(Rect2(980, 128, 180, 4), Color(0.9, 0.92, 0.9))
+		"pantry":
+			draw_rect(Rect2(360, 120, 560, 28), Color(0.42, 0.24, 0.1, 0.85))
+			for i in 7:
+				draw_rect(Rect2(390.0 + float(i) * 72.0, 148.0, 28.0, 46.0), Color(0.62, 0.38, 0.16, 0.9))
+			draw_rect(Rect2(80, 420, 1120, 16), Color(0.36, 0.2, 0.08, 0.55))
+		"porch":
+			draw_rect(Rect2(32, 36, 1216, 180), Color(0.55, 0.72, 0.58, 0.35))
+			draw_rect(Rect2(120, 80, 18, 420), Color(0.42, 0.3, 0.16))
+			draw_rect(Rect2(1140, 80, 18, 420), Color(0.42, 0.3, 0.16))
+			draw_rect(Rect2(120, 80, 1038, 14), Color(0.5, 0.36, 0.18))
+		"bath":
+			for row in 8:
+				for col in 14:
+					draw_rect(Rect2(80.0 + float(col) * 80.0, 80.0 + float(row) * 60.0, 74.0, 54.0), Color(0.78, 0.88, 0.9, 0.35))
+			draw_rect(Rect2(160, 430, 280, 90), Color(0.86, 0.92, 0.94, 0.85))
+			draw_rect(Rect2(180, 450, 240, 50), Color(0.62, 0.78, 0.84, 0.9))
+		"hall":
+			draw_rect(Rect2(48, 200, 1184, 10), Color(0.28, 0.34, 0.2, 0.8))
+			for i in 6:
+				draw_rect(Rect2(140.0 + float(i) * 180.0, 168.0, 16.0, 28.0), Color(0.36, 0.28, 0.16))
+				draw_rect(Rect2(128.0 + float(i) * 180.0, 210.0, 40.0, 56.0), Color(0.42, 0.32, 0.22, 0.75))
+		"study":
+			for i in 10:
+				var spine := Color(0.36, 0.2, 0.12) if i % 2 == 0 else Color(0.55, 0.42, 0.22)
+				draw_rect(Rect2(90.0 + float(i) * 28.0, 90.0, 18.0, 110.0), spine)
+			draw_rect(Rect2(860, 360, 280, 16), Color(0.42, 0.26, 0.14))
+			draw_rect(Rect2(900, 300, 18, 76), Color(0.28, 0.16, 0.1))
+			draw_rect(Rect2(1080, 300, 18, 76), Color(0.28, 0.16, 0.1))
 		_:
 			pass
 
@@ -341,6 +369,16 @@ func _glass_color() -> Color:
 			return Color(0.72, 0.52, 0.32)
 		"kitchen":
 			return Color(0.96, 0.9, 0.72)
+		"pantry":
+			return Color(0.72, 0.48, 0.24)
+		"porch":
+			return Color(0.7, 0.84, 0.62)
+		"bath":
+			return Color(0.82, 0.92, 0.94)
+		"hall":
+			return Color(0.62, 0.72, 0.48)
+		"study":
+			return Color(0.55, 0.38, 0.24)
 		_:
 			return GLASS
 
@@ -373,6 +411,16 @@ func _peg_color() -> Color:
 			return Color(0.36, 0.22, 0.12)
 		"kitchen":
 			return Color(0.72, 0.64, 0.5)
+		"pantry":
+			return Color(0.46, 0.28, 0.14)
+		"porch":
+			return Color(0.48, 0.4, 0.22)
+		"bath":
+			return Color(0.7, 0.78, 0.82)
+		"hall":
+			return Color(0.4, 0.36, 0.22)
+		"study":
+			return Color(0.36, 0.22, 0.12)
 		_:
 			return WOOD_DARK
 
@@ -405,6 +453,16 @@ func _board_color() -> Color:
 			return Color(0.4, 0.26, 0.14)
 		"kitchen":
 			return Color(0.78, 0.7, 0.54)
+		"pantry":
+			return Color(0.52, 0.32, 0.16)
+		"porch":
+			return Color(0.58, 0.62, 0.4)
+		"bath":
+			return Color(0.74, 0.84, 0.88)
+		"hall":
+			return Color(0.5, 0.56, 0.38)
+		"study":
+			return Color(0.42, 0.26, 0.14)
 		_:
 			return BOARD
 
@@ -453,6 +511,16 @@ func _floor_color() -> Color:
 			return Color(0.32, 0.2, 0.12)
 		"kitchen":
 			return Color(0.72, 0.68, 0.6)
+		"pantry":
+			return Color(0.4, 0.24, 0.12)
+		"porch":
+			return Color(0.48, 0.52, 0.36)
+		"bath":
+			return Color(0.72, 0.82, 0.86)
+		"hall":
+			return Color(0.36, 0.4, 0.26)
+		"study":
+			return Color(0.3, 0.18, 0.1)
 		_:
 			return FLOOR
 
@@ -485,6 +553,16 @@ func _floor_line() -> Color:
 			return Color(0.55, 0.36, 0.2)
 		"kitchen":
 			return Color(0.86, 0.72, 0.48)
+		"pantry":
+			return Color(0.62, 0.4, 0.2)
+		"porch":
+			return Color(0.7, 0.74, 0.48)
+		"bath":
+			return Color(0.82, 0.9, 0.94)
+		"hall":
+			return Color(0.58, 0.66, 0.42)
+		"study":
+			return Color(0.52, 0.34, 0.18)
 		_:
 			return Color(0.62, 0.44, 0.28)
 
@@ -533,5 +611,15 @@ func _wall_color() -> Color:
 			return Color(0.48, 0.34, 0.24)
 		"kitchen":
 			return Color(0.94, 0.9, 0.82)
+		"pantry":
+			return Color(0.58, 0.38, 0.2)
+		"porch":
+			return Color(0.72, 0.78, 0.58)
+		"bath":
+			return Color(0.84, 0.9, 0.92)
+		"hall":
+			return Color(0.55, 0.62, 0.46)
+		"study":
+			return Color(0.42, 0.3, 0.22)
 		_:
 			return WALL

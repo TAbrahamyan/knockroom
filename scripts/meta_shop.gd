@@ -30,6 +30,9 @@ var _title: Label
 var _sub: Label
 var _back: Button
 var _fresh: Button
+var _tab_stones: Button
+var _tab_rooms: Button
+var _tab := "stone"
 var _note_id := ""
 
 
@@ -60,6 +63,7 @@ func apply_language() -> void:
 		_fresh.visible = not (Loadout.run_active and not Loadout.start_in_menu)
 		if _back:
 			_back.position = Vector2(160, 564) if _fresh.visible else Vector2(322, 564)
+	_paint_tabs()
 	if visible or _coins != null:
 		_refresh()
 	_write_note()
@@ -89,6 +93,8 @@ func _refresh() -> void:
 	var buckets: Array = [[], [], [], []]
 	for offer in offers:
 		var item: Dictionary = offer
+		if str(item.get("kind", "stone")) != _tab:
+			continue
 		buckets[_shop_rank(item)].append(item)
 	var titles: Array = [
 		Locale.text("meta.now"),
@@ -286,6 +292,41 @@ func _pulse_buy() -> void:
 		pop.tween_property(_coins, "scale", Vector2.ONE, 0.18)
 
 
+func _on_tab(kind: String) -> void:
+	if not visible or _tab == kind:
+		return
+	AudioKit.play_click()
+	_tab = kind
+	_paint_tabs()
+	var scroll := get_node_or_null("Root/Panel/List") as ScrollContainer
+	if scroll:
+		scroll.scroll_vertical = 0
+	_refresh()
+
+
+func _paint_tabs() -> void:
+	if _tab_stones:
+		_tab_stones.text = Locale.text("meta.stones")
+		_paint_tab(_tab_stones, _tab == "stone")
+	if _tab_rooms:
+		_tab_rooms.text = Locale.text("meta.rooms")
+		_paint_tab(_tab_rooms, _tab == "room")
+
+
+func _paint_tab(button: Button, on: bool) -> void:
+	var bg := GOLD if on else Color(0.24, 0.14, 0.10)
+	var edge := Color(1.0, 0.96, 0.72) if on else Color(0.46, 0.32, 0.2)
+	var font := INK_TEXT if on else CREAM
+	var box := _row_box(bg, edge)
+	button.add_theme_stylebox_override("normal", box)
+	button.add_theme_stylebox_override("hover", _row_box(bg.lightened(0.08), edge))
+	button.add_theme_stylebox_override("pressed", box)
+	button.add_theme_stylebox_override("focus", box)
+	button.add_theme_color_override("font_color", font)
+	button.add_theme_color_override("font_hover_color", font)
+	button.add_theme_color_override("font_pressed_color", font)
+
+
 func _on_back() -> void:
 	if not visible:
 		return
@@ -357,10 +398,26 @@ func _build_ui() -> void:
 	_status.visible = false
 	panel.add_child(_status)
 
+	_tab_stones = _text_button("", false)
+	_tab_stones.name = "TabStones"
+	_tab_stones.position = Vector2(28, 82)
+	_tab_stones.size = Vector2(200, 40)
+	_tab_stones.add_theme_font_size_override("font_size", 18)
+	_tab_stones.pressed.connect(_on_tab.bind("stone"))
+	panel.add_child(_tab_stones)
+
+	_tab_rooms = _text_button("", false)
+	_tab_rooms.name = "TabRooms"
+	_tab_rooms.position = Vector2(240, 82)
+	_tab_rooms.size = Vector2(200, 40)
+	_tab_rooms.add_theme_font_size_override("font_size", 18)
+	_tab_rooms.pressed.connect(_on_tab.bind("room"))
+	panel.add_child(_tab_rooms)
+
 	var scroll := ScrollContainer.new()
 	scroll.name = "List"
-	scroll.position = Vector2(20, 84)
-	scroll.size = Vector2(844, 358)
+	scroll.position = Vector2(20, 132)
+	scroll.size = Vector2(844, 360)
 	scroll.clip_contents = true
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -372,7 +429,7 @@ func _build_ui() -> void:
 	list.add_theme_constant_override("separation", 8)
 	scroll.add_child(list)
 
-	_note = _label("", 16, GOLD, Vector2(28, 456), Vector2(828, 40))
+	_note = _label("", 16, GOLD, Vector2(28, 502), Vector2(828, 52))
 	_note.name = "Note"
 	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	panel.add_child(_note)
