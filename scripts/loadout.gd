@@ -963,10 +963,55 @@ static func throw_pool() -> Array:
 	return pool
 
 
-## Three cards from the stones you still pay for. A stone you already
-## unlocked, and the one on the slingshot, are not offered again.
-## Equip an owned stone from the meta shop. Locked stones stay out.
+## Stones already in the backpack. Buying one once keeps it here.
+static func backpack_stones() -> Array:
+	var rows: Array = []
+	for offer in CATALOG:
+		var item: Dictionary = offer
+		if not owns(str(item["id"])):
+			continue
+		var copy: Dictionary = item.duplicate()
+		copy["owned_stone"] = true
+		rows.append(copy)
+	return rows
+
+
+## Rooms and stones the player has bought. Rooms stay out of the throw shop.
+static func backpack_entries() -> Array:
+	var rows: Array = []
+	for id in owned:
+		var stone := find(str(id))
+		if not stone.is_empty():
+			rows.append({"id": str(id), "kind": "stone"})
+			continue
+		var meta := meta_offer(str(id))
+		if meta.is_empty():
+			continue
+		rows.append({"id": str(id), "kind": str(meta.get("kind", "stone"))})
+	return rows
+
+
+## Puts a bought throw-shop stone into the backpack. A second buy does nothing.
+static func keep_stone(id: String) -> void:
+	if id == "" or owns(id):
+		return
+	if find(id).is_empty():
+		return
+	owned.append(id)
+	save_game()
+
+
+## Three stones from the backpack, chosen at random, to take for free.
+## With an empty backpack, three stones from the shop that are still for sale.
 static func throw_offers(count: int) -> Array:
+	var bag := backpack_stones()
+	if not bag.is_empty():
+		bag.shuffle()
+		var picks: Array = []
+		var n := mini(count, bag.size())
+		for i in n:
+			picks.append(bag[i])
+		return picks
 	var base: Array = []
 	for offer in CATALOG:
 		var item: Dictionary = offer
@@ -974,7 +1019,7 @@ static func throw_offers(count: int) -> Array:
 		var id := str(item["id"])
 		if gate != "":
 			continue
-		if id == item_id:
+		if owns(id) or id == item_id:
 			continue
 		base.append(item.duplicate())
 	if base.is_empty():
@@ -1106,3 +1151,7 @@ static func load_game() -> void:
 	music_volume = int(cfg.get_value("settings", "music", 40))
 	sfx_volume = int(cfg.get_value("settings", "sfx", 70))
 	best_ever = int(cfg.get_value("settings", "best_ever", 0))
+	# A throw-shop buy used to equip the stone without keeping it.
+	if item_id != "" and not owns(item_id) and not find(item_id).is_empty():
+		owned.append(item_id)
+		save_game()

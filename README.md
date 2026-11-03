@@ -1,6 +1,6 @@
 # Knockroom
 
-Five rooms, one throw each. Pull the stone back and it flies the other way. Whatever it knocks down joins the chain. Coins from the run are paid when the run ends. The shop between rooms rents a stone for the next throw. A separate shop keeps permanent unlocks.
+Five rooms, one throw each. Pull the stone back and it flies the other way. Whatever it knocks down joins the chain. Coins from the run are paid when the run ends. The shop between rooms lets you pick a stone you already bought, or buy one if your backpack is empty. A separate shop sells stones and rooms. A purchase leaves that shop and stays in the backpack.
 
 Open the project in Godot 4.7 and run `scenes/main.tscn`. The game opens on the main menu. The first launch with no save is Russian. Settings switches between Russian and English.
 
@@ -12,13 +12,13 @@ Hold the left mouse button, pull back from the slingshot, and release. The stone
 
 Every room needs a chain of 5. Fewer than 5 pays nothing for that room. A miss does not end the run. It cuts about 6% of the coins earned so far in that run. Four misses in a row add 1 debt, taken once when the run ends.
 
-Beating the need by 4 or more is a great clear: a gold banner, 1 extra coin, and one faster throw next room. Risk, from the throw shop, adds 1 coin on the next clear and raises a miss cut to 12%. Double adds a second copy of that room’s payout on a clear and raises a miss cut to 18%. Both are hidden on room 5, because there is no next room. Skip leaves the stone you have and still advances.
+Beating the need by 4 or more is a great clear: a gold banner, 1 extra coin, and one faster throw next room. Between rooms the only choice is a stone, or Next room. After room 5 the run ends at once.
 
 The clock is 30 seconds, or 24 after two misses in a row. It pauses in the shop and the menus. If it hits zero before the throw, that throw is a little softer.
 
 A streak of clears fills five marks. The next clear pays 1 extra coin when all five are full. A miss cools it by one. The best chain of the run sits beside those marks.
 
-Coins on the plate are this run only. The number in the corner, and in the meta shop, is the saved purse. The throw shop and the meta shop spend the purse, not the coins still inside the run. After room 5 the run banks once, debt is paid out of the run first, and Run Complete shows the rooms cleared, the best chain, the coins added, and the misses. The meta shop opens on top of that screen.
+Coins on the plate are this run only. The number in the corner, and in the meta shop, is the saved purse. The throw shop and the meta shop spend the purse, not the coins still inside the run. After room 5 the run banks once, debt is paid out of the run first, and a short result shows the rooms cleared, the best chain, the coins added, and the misses. Main menu leaves that screen.
 
 Main Menu during a run ends it and drops the coins that were not banked yet. There is no Restart Room.
 
@@ -26,7 +26,7 @@ The window fits landscape and portrait. In the editor the play window stays 1280
 
 ## Stones between rooms
 
-The throw shop shows three stones you pay for each time you take them. These eight are always the pool. The stone already on the slingshot is left out of the three, so the shop does not sell you the one you are holding. Take one you can afford, or skip.
+Between rooms you pick from the stones in your backpack. The game offers three of them at random, and taking one is free. A stone you buy stays in the backpack and is not sold again. With an empty backpack, the throw shop offers three of these eight stones for sale. The stone already on the slingshot is left out of that sale.
 
 | Stone | Price | What it does |
 | --- | --- | --- |
@@ -39,7 +39,7 @@ The throw shop shows three stones you pay for each time you take them. These eig
 | Magnet Stone | 14 | Pulls nearby things in after a hit |
 | Blast Stone | 16 | Shoves everything nearby |
 
-Stones you buy in the meta shop are not sold again. Equip one from that shop, in Yours, for free. The button says Take. The stone already with you says With you. Rooms you own stay marked Owned.
+Stones and rooms you buy in the meta shop leave that list and show up in the backpack on the Settings screen. A price you cannot pay yet says how many more coins you need. Owned stones are offered in the throw shop, and the button says Equip.
 
 | Stone | What it does |
 | --- | --- |
@@ -59,7 +59,7 @@ Stones you buy in the meta shop are not sold again. Equip one from that shop, in
 
 ## Meta shop
 
-The main menu, the pause menu, and the throw shop open the same shop. Stones and rooms are separate tabs. Inside a tab, rows are grouped as Buy, Close (40 coins or fewer short), Later, and Yours. The price sits inside the row. A shortfall shows how many coins are missing and a fill bar. The line under the list is the next unlock you cannot afford yet. It does not repeat something you already own, and it does not repeat something already sitting in Buy. The owned count in the corner counts both tabs.
+The main menu, the pause menu, and the throw shop open the same shop. Stones and rooms are separate tabs. Inside a tab, rows you have not bought are grouped as Buy, Close, and Later. Bought stones and rooms are not listed there. They are in the backpack. The price sits inside the row. A shortfall says how many more coins you need, with a fill bar. The line under the list is the next unlock you cannot afford yet. It does not repeat something you already own, and it does not repeat something already sitting in Buy. The owned count in the corner counts both tabs.
 
 Coins spent here come from the saved purse. Unlocks stay after you close the game. Owned rooms join the random mix from room 2. Room 1 uses only the default layouts.
 

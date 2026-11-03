@@ -69,12 +69,21 @@ func apply_language() -> void:
 	_write_note()
 
 
+func _meta_owned_count() -> int:
+	var count := 0
+	for offer in Loadout.META:
+		var item: Dictionary = offer
+		if Loadout.owns(str(item["id"])):
+			count += 1
+	return count
+
+
 func _refresh() -> void:
 	if _coins == null:
 		return
 	var offers := Loadout.meta_sorted()
 	_coins.text = Loadout.coins(Loadout.money)
-	_owned.text = Locale.format("meta.owned_count", [Loadout.owned.size(), offers.size()])
+	_owned.text = Locale.format("meta.owned_count", [_meta_owned_count(), offers.size()])
 	var can_buy := 0
 	for offer in offers:
 		var item: Dictionary = offer
@@ -94,6 +103,8 @@ func _refresh() -> void:
 	for offer in offers:
 		var item: Dictionary = offer
 		if str(item.get("kind", "stone")) != _tab:
+			continue
+		if Loadout.owns(str(item["id"])):
 			continue
 		buckets[_shop_rank(item)].append(item)
 	var titles: Array = [

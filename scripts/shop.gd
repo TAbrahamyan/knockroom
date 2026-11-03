@@ -50,24 +50,22 @@ func show_offers() -> void:
 func apply_language() -> void:
 	var title := get_node_or_null("Root/Panel/Title") as Label
 	if title:
-		title.text = Locale.text("shop.title")
+		var from_bag := false
+		if not _shown.is_empty():
+			from_bag = _shown[0].get("owned_stone", false) == true
+		title.text = Locale.text("shop.bag_title") if from_bag else Locale.text("shop.title")
 	var skip := get_node_or_null("Root/Panel/Skip") as Button
 	if skip:
 		skip.text = Locale.text("shop.skip")
 	var gamble := get_node_or_null("Root/Panel/Gamble") as Button
 	if gamble:
-		gamble.text = Locale.text("shop.gamble") + "\n" + Locale.text("shop.gamble_short")
-		gamble.tooltip_text = ""
-		gamble.visible = Loadout.run_index < Loadout.RUN_ROOMS
+		gamble.visible = false
 	var double := get_node_or_null("Root/Panel/Double") as Button
 	if double:
-		double.text = Locale.text("shop.double") + "\n" + Locale.text("shop.double_short")
-		double.tooltip_text = ""
-		double.visible = Loadout.run_index < Loadout.RUN_ROOMS
+		double.visible = false
 	var meta := get_node_or_null("Root/Panel/Meta") as Button
 	if meta:
-		meta.text = Locale.text("shop.meta")
-		meta.tooltip_text = ""
+		meta.visible = false
 	_write_sub()
 	for i in _cards.size():
 		if i < _shown.size():
@@ -210,14 +208,14 @@ func _build_ui() -> void:
 	var frame := ColorRect.new()
 	frame.name = "Frame"
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_center(frame, 836, 400, 36.0)
+	_center(frame, 836, 392, 36.0)
 	frame.color = INK
 	root.add_child(frame)
 
 	var panel := Control.new()
 	panel.name = "Panel"
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_center(panel, 820, 384, 36.0)
+	_center(panel, 820, 376, 36.0)
 	root.add_child(panel)
 
 	var wash := ColorRect.new()
@@ -239,7 +237,7 @@ func _build_ui() -> void:
 		panel.add_child(card)
 		_cards.append(card)
 
-	var skip := _action_button("Skip", Vector2(16, 304), Vector2(150, 64), Color(0.28, 0.16, 0.11), CREAM)
+	var skip := _action_button("Skip", Vector2(250, 300), Vector2(320, 56), Color(0.28, 0.16, 0.11), CREAM)
 	skip.pressed.connect(_on_skip)
 	panel.add_child(skip)
 
@@ -339,12 +337,12 @@ func refit(forced: Vector2 = Vector2(-1, -1)) -> void:
 	if vp.y > vp.x:
 		bias = vp.y * 0.18
 		h_limit = vp.y * 0.42
-	_center(frame, 836.0, 400.0, bias)
-	_center(panel, 820.0, 384.0, bias)
+	_center(frame, 836.0, 392.0, bias)
+	_center(panel, 820.0, 376.0, bias)
 	var scale := minf(1.0, (vp.x - 16.0) / 836.0)
-	scale = minf(scale, h_limit / 400.0)
-	frame.pivot_offset = Vector2(418.0, 200.0)
-	panel.pivot_offset = Vector2(410.0, 192.0)
+	scale = minf(scale, h_limit / 392.0)
+	frame.pivot_offset = Vector2(418.0, 196.0)
+	panel.pivot_offset = Vector2(410.0, 188.0)
 	frame.scale = Vector2(scale, scale)
 	panel.scale = Vector2(scale, scale)
 

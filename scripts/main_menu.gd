@@ -24,7 +24,9 @@ var _settings: Button
 var _quit: Button
 var _tab_play: Button
 var _tab_rules: Button
-var _help: Label
+var _help: Control
+var _help_lead: Label
+var _help_body: Label
 var _page := "play"
 
 
@@ -44,6 +46,34 @@ func hide_menu() -> void:
 	visible = false
 
 
+func _rules_line(parent: Control, font_size: int, color: Color, spacing: int) -> Label:
+	var line := Label.new()
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	line.custom_minimum_size = Vector2(448, 0)
+	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	line.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	line.add_theme_font_size_override("font_size", font_size)
+	line.add_theme_color_override("font_color", color)
+	line.add_theme_constant_override("line_spacing", spacing)
+	parent.add_child(line)
+	return line
+
+
+func _apply_rules_copy(lead: Label, body: Label) -> void:
+	if lead == null or body == null:
+		return
+	var raw := Locale.text("help.body")
+	var split_at := raw.find("\n\n")
+	if split_at < 0:
+		lead.text = raw
+		body.text = ""
+		return
+	lead.text = raw.substr(0, split_at)
+	body.text = raw.substr(split_at + 2)
+
+
 func apply_language() -> void:
 	if _title == null:
 		return
@@ -57,8 +87,7 @@ func apply_language() -> void:
 		_tab_play.text = Locale.text("menu.tab_play")
 	if _tab_rules:
 		_tab_rules.text = Locale.text("menu.tab_rules")
-	if _help:
-		_help.text = Locale.text("help.body")
+	_apply_rules_copy(_help_lead, _help_body)
 	_paint_tabs()
 
 
@@ -121,13 +150,17 @@ func _build() -> void:
 	_quit.pressed.connect(_on_quit)
 	panel.add_child(_quit)
 
-	_help = _label("", 16, CREAM, Vector2(28, 200), Vector2(424, 330))
-	_help.name = "Help"
-	_help.visible = false
-	_help.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_help.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	panel.add_child(_help)
+	var help := VBoxContainer.new()
+	help.name = "Help"
+	help.visible = false
+	help.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	help.position = Vector2(16, 206)
+	help.size = Vector2(448, 300)
+	help.add_theme_constant_override("separation", 20)
+	panel.add_child(help)
+	_help = help
+	_help_lead = _rules_line(help, 22, GOLD, 4)
+	_help_body = _rules_line(help, 15, CREAM, 12)
 	apply_language()
 	_show_page("play")
 
