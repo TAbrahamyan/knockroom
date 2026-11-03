@@ -82,8 +82,6 @@ func _write_sub() -> void:
 			sub.text = Locale.format("shop.failed", [Locale.coins(Loadout.last_lost), run_coins])
 		else:
 			sub.text = Locale.format("shop.failed_none", [run_coins])
-	elif Loadout.last_earn + Loadout.last_bonus > 0:
-		sub.text = Locale.format("shop.earned", [Locale.coins(Loadout.last_earn + Loadout.last_bonus), run_coins])
 	else:
 		sub.text = Locale.format("shop.have", [run_coins])
 
