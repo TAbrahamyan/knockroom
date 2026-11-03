@@ -33,14 +33,14 @@ const EN := {
 	"shop.failed_none": "Miss. The run has %s.",
 	"shop.skip": "Next room",
 	"shop.gamble": "Risk",
-	"shop.gamble_short": "+1 coin if you clear",
-	"shop.gamble_note": "Clear the next room for 1 extra coin. A miss loses more.",
+	"shop.gamble_short": "+100K if you clear",
+	"shop.gamble_note": "Clear the next room for 100K extra. A miss loses more.",
 	"shop.double": "Double",
 	"shop.double_short": "Double coins if you clear",
 	"shop.double_note": "Next room pays double if you clear it. A miss loses more.",
 	"shop.meta": "Shop",
-	"shop.buy": "Buy · %d",
-	"shop.need": "Need %d",
+	"shop.buy": "Buy · %s",
+	"shop.need": "Need %s",
 	"shop.equip": "Equip",
 	"shop.owned": "Owned",
 	"coins.one": "1 coin",
@@ -213,19 +213,19 @@ const EN := {
 	"tag.bath": "Tub",
 	"tag.hall": "Zigzag",
 	"tag.study": "Desk",
-	"blurb.cork_stone": "Between throws · 5 coins",
-	"blurb.needle_stone": "Between throws · 6 coins",
-	"blurb.thud_stone": "Between throws · 8 coins",
-	"blurb.split_stone": "Between throws · 9 coins",
-	"blurb.sticky_stone": "Between throws · 9 coins",
-	"blurb.bounce_stone": "Between throws · 10 coins",
-	"blurb.ricochet_stone": "Between throws · 12 coins",
-	"blurb.heavy_drop": "Between throws · 13 coins",
-	"blurb.pebble_stone": "Between throws · 5 coins",
-	"blurb.pillow_stone": "Between throws · 6 coins",
-	"blurb.feather_stone": "Between throws · 8 coins",
-	"blurb.spark_stone": "Between throws · 9 coins",
-	"blurb.skip_stone": "Between throws · 10 coins",
+	"blurb.cork_stone": "Between throws · 500K",
+	"blurb.needle_stone": "Between throws · 600K",
+	"blurb.thud_stone": "Between throws · 800K",
+	"blurb.split_stone": "Between throws · 900K",
+	"blurb.sticky_stone": "Between throws · 900K",
+	"blurb.bounce_stone": "Between throws · 1M",
+	"blurb.ricochet_stone": "Between throws · 1.2M",
+	"blurb.heavy_drop": "Between throws · 1.3M",
+	"blurb.pebble_stone": "Between throws · 500K",
+	"blurb.pillow_stone": "Between throws · 600K",
+	"blurb.feather_stone": "Between throws · 800K",
+	"blurb.spark_stone": "Between throws · 900K",
+	"blurb.skip_stone": "Between throws · 1M",
 	"blurb.room_pool": "Joins the random mix from room 2.",
 	"run.progress": "Room %d of %d",
 	"run.title": "Run complete",
@@ -242,7 +242,7 @@ const EN := {
 	"rule.goal_sweet": "The bright spot pays 1 more",
 	"rule.goal_ten": "A chain of 10 pays 1 more",
 	"rule.goal_done": "Bonus",
-	"rule.gamble": "A clear pays 1 more",
+	"rule.gamble": "A clear pays 100K more",
 	"rule.debt": "You owe %d when the run ends",
 	"rule.run_goal": "%s this run",
 	"rule.close": "Need %d more",
@@ -291,7 +291,7 @@ const EN := {
 	"result.bonus_heat": "Streak %s",
 	"result.bonus_double": "Double %s",
 	"result.bonus_clean": "Clean %s",
-	"goal.need": "%d more coins for %s",
+	"goal.need": "%s more for %s",
 	"goal.ready": "You can buy %s",
 	"goal.enough": "You can afford everything still locked.",
 	"goal.done": "You own everything.",
@@ -325,14 +325,14 @@ const RU := {
 	"shop.failed_none": "Промах. В забеге %s.",
 	"shop.skip": "Дальше",
 	"shop.gamble": "Риск",
-	"shop.gamble_short": "+1 монета, если пройдёшь",
-	"shop.gamble_note": "Следующая комната даст 1 монету сверху, если пройдёшь. Промах заберёт больше.",
+	"shop.gamble_short": "+100K, если пройдёшь",
+	"shop.gamble_note": "Следующая комната даст 100K сверху, если пройдёшь. Промах заберёт больше.",
 	"shop.double": "Удвоить",
 	"shop.double_short": "Вдвое больше, если пройдёшь",
 	"shop.double_note": "Следующая комната платит вдвое, если пройдёшь. Промах заберёт больше.",
 	"shop.meta": "Магазин",
-	"shop.buy": "Купить · %d",
-	"shop.need": "Нужно %d",
+	"shop.buy": "Купить · %s",
+	"shop.need": "Ещё %s",
 	"shop.equip": "Взять",
 	"shop.owned": "Есть",
 	"coins.one": "1 монета",
@@ -505,19 +505,19 @@ const RU := {
 	"tag.bath": "Ванна",
 	"tag.hall": "Зигзаг",
 	"tag.study": "Стол",
-	"blurb.cork_stone": "Между бросками · 5 монет",
-	"blurb.needle_stone": "Между бросками · 6 монет",
-	"blurb.thud_stone": "Между бросками · 8 монет",
-	"blurb.split_stone": "Между бросками · 9 монет",
-	"blurb.sticky_stone": "Между бросками · 9 монет",
-	"blurb.bounce_stone": "Между бросками · 10 монет",
-	"blurb.ricochet_stone": "Между бросками · 12 монет",
-	"blurb.heavy_drop": "Между бросками · 13 монет",
-	"blurb.pebble_stone": "Между бросками · 5 монет",
-	"blurb.pillow_stone": "Между бросками · 6 монет",
-	"blurb.feather_stone": "Между бросками · 8 монет",
-	"blurb.spark_stone": "Между бросками · 9 монет",
-	"blurb.skip_stone": "Между бросками · 10 монет",
+	"blurb.cork_stone": "Между бросками · 500K",
+	"blurb.needle_stone": "Между бросками · 600K",
+	"blurb.thud_stone": "Между бросками · 800K",
+	"blurb.split_stone": "Между бросками · 900K",
+	"blurb.sticky_stone": "Между бросками · 900K",
+	"blurb.bounce_stone": "Между бросками · 1M",
+	"blurb.ricochet_stone": "Между бросками · 1.2M",
+	"blurb.heavy_drop": "Между бросками · 1.3M",
+	"blurb.pebble_stone": "Между бросками · 500K",
+	"blurb.pillow_stone": "Между бросками · 600K",
+	"blurb.feather_stone": "Между бросками · 800K",
+	"blurb.spark_stone": "Между бросками · 900K",
+	"blurb.skip_stone": "Между бросками · 1M",
 	"blurb.room_pool": "Со 2-й комнаты входит в случайный набор.",
 	"run.progress": "Комната %d из %d",
 	"run.title": "Забег",
@@ -534,7 +534,7 @@ const RU := {
 	"rule.goal_sweet": "Яркая точка даст ещё 1 монету",
 	"rule.goal_ten": "Цепь из 10 даст ещё 1 монету",
 	"rule.goal_done": "Бонус",
-	"rule.gamble": "За проход ещё 1 монета",
+	"rule.gamble": "За проход ещё 100K",
 	"rule.debt": "В конце спишется долг %d",
 	"rule.run_goal": "%s в этом забеге",
 	"rule.close": "Ещё %d в цепи",
@@ -611,21 +611,29 @@ static func format(key: String, args: Array) -> String:
 
 
 static func coins(amount: int) -> String:
-	if code == "ru":
-		var n := absi(amount) % 100
-		var n1 := n % 10
-		if n > 10 and n < 20:
-			return text("coins.many") % amount
-		if n1 == 1:
-			if amount == 1:
-				return text("coins.one")
-			return text("coins.many_one") % amount
-		if n1 >= 2 and n1 <= 4:
-			return text("coins.few") % amount
-		return text("coins.many") % amount
-	if amount == 1:
-		return text("coins.one")
-	return text("coins.many") % amount
+	var n := amount
+	var sign := ""
+	if n < 0:
+		sign = "-"
+		n = -n
+	if n < 1000:
+		return sign + str(n)
+	if n < 1000000:
+		return sign + _compact(n, 1000, "K")
+	return sign + _compact(n, 1000000, "M")
+
+
+static func _compact(n: int, unit: int, suffix: String) -> String:
+	var whole := n / unit
+	var rem := n % unit
+	if rem == 0:
+		return str(whole) + suffix
+	var parts := (rem * 100) / unit
+	var tenths := parts / 10
+	var hundredths := parts % 10
+	if hundredths == 0:
+		return "%d.%d%s" % [whole, tenths, suffix]
+	return "%d.%d%d%s" % [whole, tenths, hundredths, suffix]
 
 
 static func item_name(id: String) -> String:

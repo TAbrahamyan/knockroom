@@ -90,7 +90,7 @@ func _write_sub() -> void:
 
 func _fill_card(card: Button, offer: Dictionary) -> void:
 	var owned_flag: bool = offer.get("owned_stone", false) == true
-	var price := int(offer["price"])
+	var price := Loadout.coin_value(int(offer["price"]))
 	var afford := true if owned_flag else Loadout.can_afford(price)
 	var item_id := str(offer["id"])
 	card.set_meta("item_id", item_id)
@@ -116,10 +116,13 @@ func _fill_card(card: Button, offer: Dictionary) -> void:
 		take.text = Locale.text("shop.equip")
 		take.add_theme_color_override("font_color", GOLD)
 	elif afford:
-		take.text = Locale.format("shop.buy", [price])
+		take.text = Locale.format("shop.buy", [Loadout.coins(price)])
 		take.add_theme_color_override("font_color", GOLD)
 	else:
-		take.text = Locale.format("shop.need", [price])
+		var gap := price - Loadout.money
+		if gap < 0:
+			gap = 0
+		take.text = Locale.format("shop.need", [Loadout.coins(gap)])
 		take.add_theme_color_override("font_color", MUTED)
 	var glyph = card.get_node("Glyph")
 	glyph.tint = offer["tint"]

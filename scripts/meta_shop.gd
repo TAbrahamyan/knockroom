@@ -89,7 +89,7 @@ func _refresh() -> void:
 		var item: Dictionary = offer
 		if Loadout.owns(str(item["id"])):
 			continue
-		if Loadout.can_afford(int(item["cost"])):
+		if Loadout.can_afford(Loadout.coin_value(int(item["cost"]))):
 			can_buy += 1
 	if _status:
 		_status.text = "" if can_buy <= 0 else "● %d" % can_buy
@@ -181,16 +181,17 @@ func _shop_before(a: Dictionary, b: Dictionary) -> bool:
 func _shop_rank(offer: Dictionary) -> int:
 	if Loadout.owns(str(offer["id"])):
 		return 3
-	if Loadout.can_afford(int(offer["cost"])):
+	var cost := Loadout.coin_value(int(offer["cost"]))
+	if Loadout.can_afford(cost):
 		return 0
-	if int(offer["cost"]) - Loadout.money <= 40:
+	if cost - Loadout.money <= Loadout.coin_value(40):
 		return 1
 	return 2
 
 
 func _fill_row(row: Button, offer: Dictionary) -> void:
 	var id := str(offer["id"])
-	var cost := int(offer["cost"])
+	var cost := Loadout.coin_value(int(offer["cost"]))
 	var have := Loadout.owns(id)
 	var afford := Loadout.can_afford(cost)
 	var kind := str(offer.get("kind", "stone"))
@@ -206,7 +207,7 @@ func _fill_row(row: Button, offer: Dictionary) -> void:
 		tone = "owned"
 	elif afford:
 		tone = "buy"
-	elif gap > 0 and gap <= 40:
+	elif gap > 0 and gap <= Loadout.coin_value(40):
 		tone = "close"
 	_paint_row(row, tone)
 	var kind_label := row.get_node("Kind") as Label
@@ -239,7 +240,7 @@ func _fill_row(row: Button, offer: Dictionary) -> void:
 		take.text = Locale.text("meta.owned")
 		take.add_theme_color_override("font_color", OWNED_INK)
 	elif afford:
-		take.text = Locale.format("shop.buy", [cost])
+		take.text = Locale.format("shop.buy", [Loadout.coins(cost)])
 		take.add_theme_color_override("font_color", INK_TEXT)
 	else:
 		take.text = Locale.format("meta.short", [Loadout.coins(gap)])

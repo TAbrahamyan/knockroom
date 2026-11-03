@@ -10,13 +10,13 @@ A run is 5 rooms. The plate under the corner menu shows the room number, the cha
 
 Hold the left mouse button, pull back from the slingshot, and release. The stone flies the opposite way. Touch uses the same drag. When the room settles, a banner says whether the room was cleared, the chain length, and the coins gained or lost. Then the throw shop offers three stones.
 
-Every room needs a chain of 5. Fewer than 5 pays nothing for that room. A miss does not end the run. It cuts about 6% of the coins earned so far in that run. Four misses in a row add 1 debt, taken once when the run ends.
+Every room needs a chain of 5. Fewer than 5 pays nothing for that room. A miss does not end the run. It cuts about 6% of the coins earned so far in that run. Four misses in a row add 100K of debt, taken once when the run ends.
 
-Beating the need by 4 or more is a great clear: a gold banner, 1 extra coin, and one faster throw next room. Between rooms the only choice is a stone, or Next room. After room 5 the run ends at once.
+Beating the need by 4 or more is a great clear: a gold banner, 100K extra, and one faster throw next room. Between rooms the only choice is a stone, or Next room. After room 5 the run ends at once.
 
 The clock is 30 seconds, or 24 after two misses in a row. It pauses in the shop and the menus. If it hits zero before the throw, that throw is a little softer.
 
-A streak of clears fills five marks. The next clear pays 1 extra coin when all five are full. A miss cools it by one. The best chain of the run sits beside those marks.
+A streak of clears fills five marks. The next clear pays 100K extra when all five are full. A miss cools it by one. The best chain of the run sits beside those marks.
 
 Coins on the plate are this run only. The number in the corner, and in the meta shop, is the saved purse. The throw shop and the meta shop spend the purse, not the coins still inside the run. After room 5 the run banks once, debt is paid out of the run first, and a short result shows the rooms cleared, the best chain, the coins added, and the misses. Main menu leaves that screen.
 
@@ -30,14 +30,14 @@ Between rooms you pick from the stones in your backpack. The game offers three o
 
 | Stone | Price | What it does |
 | --- | --- | --- |
-| Light Stone | 4 | Light. Knocks only nearby things |
-| Spring Stone | 5 | Bounces. The hit is weak |
-| Wide Stone | 6 | Wider, and still a light hit |
-| Glass Charm | 8 | Breaks bottles near the hit |
-| High Pop | 8 | Throws things upward |
-| Heavy Stone | 12 | Slow, and it hits downward hard |
-| Magnet Stone | 14 | Pulls nearby things in after a hit |
-| Blast Stone | 16 | Shoves everything nearby |
+| Light Stone | 400K | Light. Knocks only nearby things |
+| Spring Stone | 500K | Bounces. The hit is weak |
+| Wide Stone | 600K | Wider, and still a light hit |
+| Glass Charm | 800K | Breaks bottles near the hit |
+| High Pop | 800K | Throws things upward |
+| Heavy Stone | 1.2M | Slow, and it hits downward hard |
+| Magnet Stone | 1.4M | Pulls nearby things in after a hit |
+| Blast Stone | 1.6M | Shoves everything nearby |
 
 Stones and rooms you buy in the meta shop leave that list and show up in the backpack on the Settings screen. A price you cannot pay yet says how many more coins you need. Owned stones are offered in the throw shop, and the button says Equip.
 
@@ -65,43 +65,43 @@ Coins spent here come from the saved purse. Unlocks stay after you close the gam
 
 | Unlock | Kind | Cost |
 | --- | --- | --- |
-| Narrow Shelves | Room | 18 |
-| Cork Stone | Stone | 24 |
-| Low Loft | Room | 32 |
-| Floor Clutter | Room | 44 |
-| Market Row | Room | 54 |
-| Split Bay | Room | 66 |
-| Needle Stone | Stone | 78 |
-| Window Heavy | Room | 88 |
-| Closet | Room | 104 |
-| Cellar | Room | 118 |
-| Thud Stone | Stone | 120 |
-| Attic | Room | 134 |
-| Workshop | Room | 150 |
-| Split Stone | Stone | 160 |
-| Sticky Stone | Stone | 175 |
-| Gallery | Room | 182 |
-| Bounce Stone | Stone | 195 |
-| Greenhouse | Room | 198 |
-| Laundry | Room | 214 |
-| Ricochet Stone | Stone | 220 |
-| Library | Room | 230 |
-| Heavy Drop Stone | Stone | 245 |
-| Kitchen | Room | 246 |
-| Pebble | Stone | 265 |
-| Pantry | Room | 268 |
-| Pillow | Stone | 290 |
-| Feather | Stone | 310 |
-| Porch | Room | 312 |
-| Spark | Stone | 335 |
-| Bathroom | Room | 348 |
-| Skip Stone | Stone | 355 |
-| Hall | Room | 392 |
-| Study | Room | 438 |
+| Narrow Shelves | Room | 1.8M |
+| Cork Stone | Stone | 2.4M |
+| Low Loft | Room | 3.2M |
+| Floor Clutter | Room | 4.4M |
+| Market Row | Room | 5.4M |
+| Split Bay | Room | 6.6M |
+| Needle Stone | Stone | 7.8M |
+| Window Heavy | Room | 8.8M |
+| Closet | Room | 10.4M |
+| Cellar | Room | 11.8M |
+| Thud Stone | Stone | 12M |
+| Attic | Room | 13.4M |
+| Workshop | Room | 15M |
+| Split Stone | Stone | 16M |
+| Sticky Stone | Stone | 17.5M |
+| Gallery | Room | 18.2M |
+| Bounce Stone | Stone | 19.5M |
+| Greenhouse | Room | 19.8M |
+| Laundry | Room | 21.4M |
+| Ricochet Stone | Stone | 22M |
+| Library | Room | 23M |
+| Heavy Drop Stone | Stone | 24.5M |
+| Kitchen | Room | 24.6M |
+| Pebble | Stone | 26.5M |
+| Pantry | Room | 26.8M |
+| Pillow | Stone | 29M |
+| Feather | Stone | 31M |
+| Porch | Room | 31.2M |
+| Spark | Stone | 33.5M |
+| Bathroom | Room | 34.8M |
+| Skip Stone | Stone | 35.5M |
+| Hall | Room | 39.2M |
+| Study | Room | 43.8M |
 
 ## Coins from a chain
 
-One knock pays nothing. A chain of 5 pays 4, 6 pays 5, 8 pays 7, and 10 pays 8. A chain tops out at 13 before the small bonuses above. That is 70% less than the previous payouts, rounded, for each room and for the run total those rooms add up to. A chain under 5 pays nothing. Skip Stone stays 355, and the Study is 438, so the full set still takes more than one run.
+One knock pays nothing. A chain of 5 pays 400K, 6 pays 500K, 8 pays 700K, and 10 pays 800K. A chain tops out at 1.3M before the small bonuses above. That is the same payout share as before, shown in short form. A chain under 5 pays nothing. Skip Stone stays 35.5M, and the Study is 43.8M, so the full set still takes more than one run.
 
 ## Room
 

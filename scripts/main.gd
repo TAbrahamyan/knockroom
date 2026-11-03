@@ -751,8 +751,8 @@ func _present_result(pop: bool) -> void:
 		if _shown_margin >= 4:
 			kind = "clean"
 		var pay := 0
-		if pop:
-			pay = _shown_pay
+		if pop and total > 0:
+			pay = total
 		chain.show_banner(title, "", kind, pay, pop)
 	_hint_key = ""
 	chain.set_hint("")
@@ -1560,7 +1560,7 @@ func _build_money() -> void:
 	label.offset_bottom = 32.0
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 18)
+	label.add_theme_font_size_override("font_size", 22)
 	label.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
 	label.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.04, 0.9))
 	label.add_theme_constant_override("outline_size", 5)

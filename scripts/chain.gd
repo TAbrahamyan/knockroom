@@ -296,11 +296,53 @@ func _floater(at: Vector2, chain_count: int) -> void:
 
 
 func _coin_popup(earned: int) -> void:
-	var pop := CoinPop.new()
-	pop.z_index = 24
-	pop.amount = earned
-	add_child(pop)
-	pop.global_position = Vector2(640, 320)
+	var root := get_node_or_null("UI/Root") as Control
+	if root == null:
+		return
+	_drop_coin_pop()
+	var bar := ColorRect.new()
+	bar.name = "CoinPop"
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.z_index = 20
+	bar.color = Color(1.0, 0.82, 0.28)
+	bar.position = Vector2(250, 318)
+	bar.size = Vector2(780, 96)
+	bar.pivot_offset = bar.size * 0.5
+	root.add_child(bar)
+	var pop := Label.new()
+	pop.name = "CoinPopText"
+	pop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pop.z_index = 21
+	pop.text = "+" + Locale.coins(earned)
+	pop.position = bar.position
+	pop.size = bar.size
+	pop.pivot_offset = bar.size * 0.5
+	pop.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pop.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	pop.add_theme_font_size_override("font_size", 64)
+	pop.add_theme_color_override("font_color", Color(0.22, 0.08, 0.02))
+	root.add_child(pop)
+	var tween := create_tween()
+	tween.tween_property(bar, "scale", Vector2(1.08, 1.08), 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(pop, "scale", Vector2(1.08, 1.08), 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.chain().tween_property(bar, "scale", Vector2.ONE, 0.1)
+	tween.parallel().tween_property(pop, "scale", Vector2.ONE, 0.1)
+	tween.chain().tween_interval(1.6)
+	tween.tween_property(bar, "modulate:a", 0.0, 0.22)
+	tween.parallel().tween_property(pop, "modulate:a", 0.0, 0.22)
+	tween.chain().tween_callback(_drop_coin_pop)
+
+
+func _drop_coin_pop() -> void:
+	var root := get_node_or_null("UI/Root")
+	if root == null:
+		return
+	var bar := root.get_node_or_null("CoinPop")
+	if bar:
+		bar.queue_free()
+	var pop := root.get_node_or_null("CoinPopText")
+	if pop:
+		pop.queue_free()
 
 
 func _shake_for(chain_count: int) -> float:
@@ -380,33 +422,4 @@ class Floater extends Node2D:
 		draw_string(font, at, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, size, tint)
 
 
-class CoinPop extends Node2D:
-	const LIFE := 1.15
-	var age := 0.0
-	var amount := 0
 
-	func _process(delta: float) -> void:
-		age += delta
-		position.y -= 58.0 * delta
-		position.x += 18.0 * delta
-		var pop := 1.0
-		if age < 0.16:
-			pop = lerpf(0.4, 1.4, age / 0.16)
-		elif age < 0.3:
-			pop = lerpf(1.4, 1.0, (age - 0.16) / 0.14)
-		scale = Vector2.ONE * pop
-		modulate.a = 1.0 if age < 0.5 else clampf(1.0 - (age - 0.5) / (LIFE - 0.5), 0.0, 1.0)
-		if age >= LIFE:
-			queue_free()
-		else:
-			queue_redraw()
-
-	func _draw() -> void:
-		draw_circle(Vector2(-30, -8), 20.0, Color(0.92, 0.68, 0.16, 0.95))
-		draw_circle(Vector2(-30, -8), 13.0, Color(1.0, 0.92, 0.52))
-		var font := ThemeDB.fallback_font
-		if font == null:
-			return
-		var text := "+%d" % amount
-		draw_string(font, Vector2(-4, 8) + Vector2(2, 3), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 40, Color(0.08, 0.04, 0.02, 0.92))
-		draw_string(font, Vector2(-4, 8), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 40, Color(1.0, 0.9, 0.42))

@@ -677,6 +677,14 @@ const META: Array = [
 ]
 
 const SAVE_PATH := "user://knockroom.cfg"
+## One old coin. Prices, payouts, debt, and a saved purse from before this scale use it once.
+const COIN_SCALE := 100000
+
+
+static func coin_value(raw: int) -> int:
+	if raw <= 0:
+		return 0
+	return raw * COIN_SCALE
 
 
 static func equip(id: String, display_name: String, tint: Color = Color(1.0, 0.86, 0.42)) -> void:
@@ -709,7 +717,7 @@ static func price_of(id: String) -> int:
 	var item := find(id)
 	if item.is_empty():
 		return 0
-	return int(item["price"])
+	return coin_value(int(item["price"]))
 
 
 static func speed_scale() -> float:
@@ -770,12 +778,13 @@ static func payout_for(chain_count: int) -> int:
 	return receive_coins(full)
 
 
-## 70% less than the previous payout. Round half up. A 1-coin bonus can become 0.
+## 70% less than the previous payout, then the purse scale. A 1-coin bonus can become 0.
 static func receive_coins(amount: int) -> int:
 	if amount <= 0:
 		return 0
 	var previous := (amount * 7 + 5) / 10
-	return (previous * 3 + 5) / 10
+	var cut := (previous * 3 + 5) / 10
+	return coin_value(cut)
 
 
 ## Coins added on the next clear for the heat already banked. Heat 0 pays nothing.
@@ -816,7 +825,7 @@ static func take_run_cut(percent: int) -> int:
 		return 0
 	var lost := (run_earned * percent) / 100
 	if lost < 1:
-		lost = 1
+		lost = mini(COIN_SCALE, run_earned)
 	if lost > run_earned:
 		lost = run_earned
 	run_earned -= lost
@@ -871,7 +880,7 @@ static func accept_gamble() -> void:
 ## Moves this run's coins into the purse once. Debt is paid first. Later calls do not add them again.
 static func bank_run() -> void:
 	if not run_banked:
-		var debt := mini(run_debt, run_earned)
+		var debt := mini(coin_value(run_debt), run_earned)
 		run_debt_paid = debt
 		run_earned -= debt
 		money += run_earned
@@ -1050,7 +1059,7 @@ static func next_goal_line() -> String:
 	var target: Dictionary = {}
 	for offer in locked:
 		var item: Dictionary = offer
-		if int(item["cost"]) > money:
+		if coin_value(int(item["cost"])) > money:
 			target = item
 			break
 	if target.is_empty():
@@ -1058,10 +1067,8 @@ static func next_goal_line() -> String:
 	var id := str(target["id"])
 	var kind := str(target.get("kind", "stone"))
 	var display := Locale.room_name(id) if kind == "room" else Locale.item_name(id)
-	var gap := int(target["cost"]) - money
-	if Locale.code == "ru":
-		return Locale.format("goal.need", [Locale.coins(gap), display])
-	return Locale.format("goal.need", [gap, display])
+	var gap := coin_value(int(target["cost"])) - money
+	return Locale.format("goal.need", [Locale.coins(gap), display])
 
 
 static func next_goal_short() -> String:
@@ -1072,7 +1079,7 @@ static func next_goal_short() -> String:
 		var id := str(item["id"])
 		if owns(id):
 			continue
-		var cost := int(item["cost"])
+		var cost := coin_value(int(item["cost"]))
 		if best_id == "" or cost < best_cost:
 			best_id = id
 			best_cost = cost
@@ -1082,7 +1089,7 @@ static func next_goal_short() -> String:
 	var gap := best_cost - money
 	if gap <= 0:
 		return ""
-	return "+%d  %s" % [gap, tag]
+	return "+%s  %s" % [Locale.coins(gap), tag]
 
 
 ## True the first time this run's best chain beats the saved record. A miss-only run does not count.
@@ -1107,7 +1114,7 @@ static func unlock(id: String) -> bool:
 	var item := meta_offer(id)
 	if item.is_empty():
 		return false
-	var cost := int(item["cost"])
+	var cost := coin_value(int(item["cost"]))
 	if not can_afford(cost):
 		return false
 	money -= cost
@@ -1119,6 +1126,7 @@ static func unlock(id: String) -> bool:
 static func save_game() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("purse", "coins", money)
+	cfg.set_value("purse", "coin_scale", COIN_SCALE)
 	cfg.set_value("purse", "item_id", item_id)
 	cfg.set_value("purse", "item_name", item_name)
 	cfg.set_value("purse", "tint", item_tint)
@@ -1135,6 +1143,13 @@ static func load_game() -> void:
 	if cfg.load(SAVE_PATH) != OK:
 		return
 	money = int(cfg.get_value("purse", "coins", 0))
+	var stored_scale := int(cfg.get_value("purse", "coin_scale", 1))
+	if stored_scale < 1:
+		stored_scale = 1
+	var scaled_purse := false
+	if stored_scale != COIN_SCALE and COIN_SCALE % stored_scale == 0:
+		money *= COIN_SCALE / stored_scale
+		scaled_purse = true
 	item_id = str(cfg.get_value("purse", "item_id", ""))
 	item_name = str(cfg.get_value("purse", "item_name", ""))
 	var tint = cfg.get_value("purse", "tint", Color(1.0, 0.86, 0.42))
@@ -1152,6 +1167,9 @@ static func load_game() -> void:
 	sfx_volume = int(cfg.get_value("settings", "sfx", 70))
 	best_ever = int(cfg.get_value("settings", "best_ever", 0))
 	# A throw-shop buy used to equip the stone without keeping it.
+	var kept_stone := false
 	if item_id != "" and not owns(item_id) and not find(item_id).is_empty():
 		owned.append(item_id)
+		kept_stone = true
+	if scaled_purse or kept_stone:
 		save_game()
