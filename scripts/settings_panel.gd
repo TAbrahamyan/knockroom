@@ -28,8 +28,6 @@ var _sfx: HSlider
 var _music_value: Label
 var _sfx_value: Label
 var _arm_volume := false
-var _tab_settings: Button
-var _tab_bag: Button
 var _bag_scroll: ScrollContainer
 var _bag_rows: VBoxContainer
 var _bag_empty: Label
@@ -55,6 +53,13 @@ func open_panel() -> void:
 	_arm_volume = true
 
 
+func open_bag() -> void:
+	_arm_volume = false
+	_show_page("bag")
+	apply_language()
+	visible = true
+
+
 func close_panel() -> void:
 	if not visible:
 		return
@@ -73,15 +78,10 @@ func apply_language() -> void:
 	_close.text = Locale.text("settings.close")
 	_lang_en.text = Locale.text("lang.en")
 	_lang_ru.text = Locale.text("lang.ru")
-	if _tab_settings:
-		_tab_settings.text = Locale.text("settings.title")
-	if _tab_bag:
-		_tab_bag.text = Locale.text("settings.bag")
 	if _bag_empty:
 		_bag_empty.text = Locale.text("settings.bag_empty")
 	_mark_language()
 	_fill_bag()
-	_paint_tabs()
 
 
 func _build() -> void:
@@ -119,54 +119,48 @@ func _build() -> void:
 
 	_title = _label("", 32, GOLD, Vector2(28, 12), Vector2(520, 40))
 	panel.add_child(_title)
-	_tab_settings = _tab_button("TabSettings", Vector2(28, 58))
-	_tab_settings.pressed.connect(_on_tab_settings)
-	panel.add_child(_tab_settings)
-	_tab_bag = _tab_button("TabBag", Vector2(292, 58))
-	_tab_bag.pressed.connect(_on_tab_bag)
-	panel.add_child(_tab_bag)
-	_language = _label("", 16, MUTED, Vector2(28, 112), Vector2(520, 24))
+	_language = _label("", 16, MUTED, Vector2(28, 68), Vector2(520, 24))
 	_language.name = "Language"
 	_language.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	panel.add_child(_language)
 
-	_lang_en = _lang_button("LangEn", Vector2(28, 144))
+	_lang_en = _lang_button("LangEn", Vector2(28, 100))
 	_lang_en.pressed.connect(_on_lang.bind("en"))
 	panel.add_child(_lang_en)
-	_lang_ru = _lang_button("LangRu", Vector2(292, 144))
+	_lang_ru = _lang_button("LangRu", Vector2(292, 100))
 	_lang_ru.pressed.connect(_on_lang.bind("ru"))
 	panel.add_child(_lang_ru)
 
 	var music_mark := SettingMark.new()
 	music_mark.name = "MusicMark"
 	music_mark.kind = "music"
-	music_mark.position = Vector2(28, 214)
+	music_mark.position = Vector2(28, 176)
 	music_mark.size = Vector2(28, 28)
 	panel.add_child(music_mark)
-	_music_label = _label("", 18, CREAM, Vector2(64, 214), Vector2(320, 28))
+	_music_label = _label("", 18, CREAM, Vector2(64, 176), Vector2(320, 28))
 	_music_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	panel.add_child(_music_label)
-	_music = _slider(Vector2(28, 248))
+	_music = _slider(Vector2(28, 210))
 	_music.set_value_no_signal(float(Loadout.music_volume))
 	_music.value_changed.connect(_on_music)
 	panel.add_child(_music)
-	_music_value = _label("0", 18, GOLD, Vector2(460, 242), Vector2(88, 32))
+	_music_value = _label("0", 18, GOLD, Vector2(460, 204), Vector2(88, 32))
 	panel.add_child(_music_value)
 
 	var sfx_mark := SettingMark.new()
 	sfx_mark.name = "SfxMark"
 	sfx_mark.kind = "sfx"
-	sfx_mark.position = Vector2(28, 300)
+	sfx_mark.position = Vector2(28, 262)
 	sfx_mark.size = Vector2(28, 28)
 	panel.add_child(sfx_mark)
-	_sfx_label = _label("", 18, CREAM, Vector2(64, 300), Vector2(320, 28))
+	_sfx_label = _label("", 18, CREAM, Vector2(64, 262), Vector2(320, 28))
 	_sfx_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	panel.add_child(_sfx_label)
-	_sfx = _slider(Vector2(28, 334))
+	_sfx = _slider(Vector2(28, 296))
 	_sfx.set_value_no_signal(float(Loadout.sfx_volume))
 	_sfx.value_changed.connect(_on_sfx)
 	panel.add_child(_sfx)
-	_sfx_value = _label("0", 18, GOLD, Vector2(460, 328), Vector2(88, 32))
+	_sfx_value = _label("0", 18, GOLD, Vector2(460, 290), Vector2(88, 32))
 	panel.add_child(_sfx_value)
 
 	_close = Button.new()
@@ -255,20 +249,6 @@ func _on_sfx(value: float) -> void:
 	AudioKit.apply_saved()
 
 
-func _on_tab_settings() -> void:
-	if _page == "settings":
-		return
-	AudioKit.play_click()
-	_show_page("settings")
-
-
-func _on_tab_bag() -> void:
-	if _page == "bag":
-		return
-	AudioKit.play_click()
-	_show_page("bag")
-
-
 func _show_page(page: String) -> void:
 	_page = page
 	var bag := page == "bag"
@@ -291,7 +271,6 @@ func _show_page(page: String) -> void:
 	if _sfx_value:
 		_sfx_value.visible = not bag
 	_fill_bag()
-	_paint_tabs()
 	if _title:
 		_title.text = Locale.text("settings.bag") if bag else Locale.text("settings.title")
 
@@ -376,23 +355,6 @@ func _bag_card(id: String, kind: String) -> Panel:
 	name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	card.add_child(name)
 	return card
-
-
-func _paint_tabs() -> void:
-	_paint_lang(_tab_settings, _page == "settings")
-	_paint_lang(_tab_bag, _page == "bag")
-
-
-func _tab_button(node_name: String, pos: Vector2) -> Button:
-	var button := Button.new()
-	button.name = node_name
-	button.focus_mode = Control.FOCUS_NONE
-	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	button.position = pos
-	button.size = Vector2(256, 44)
-	button.add_theme_font_size_override("font_size", 18)
-	button.add_theme_color_override("font_color", CREAM)
-	return button
 
 
 func _mark_language() -> void:

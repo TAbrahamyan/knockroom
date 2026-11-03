@@ -5,6 +5,7 @@ extends CanvasLayer
 signal start_game
 signal open_meta
 signal open_settings
+signal open_bag
 signal quit_game
 
 const Locale := preload("res://scripts/locale.gd")
@@ -20,6 +21,7 @@ var _title: Label
 var _tagline: Label
 var _start: Button
 var _meta: Button
+var _bag: Button
 var _settings: Button
 var _quit: Button
 var _tab_play: Button
@@ -81,6 +83,8 @@ func apply_language() -> void:
 	_tagline.text = Locale.text("menu.tagline")
 	_start.text = Locale.text("menu.start")
 	_meta.text = Locale.text("menu.meta")
+	if _bag:
+		_bag.text = Locale.text("settings.bag")
 	_settings.text = Locale.text("menu.settings")
 	_quit.text = Locale.text("menu.quit")
 	if _tab_play:
@@ -108,13 +112,13 @@ func _build() -> void:
 	plate.name = "Plate"
 	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	plate.color = INK
-	_center(plate, 500.0, 580.0, 16.0)
+	_center(plate, 500.0, 648.0, 16.0)
 	root.add_child(plate)
 
 	var panel := Control.new()
 	panel.name = "Panel"
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_center(panel, 480.0, 560.0, 16.0)
+	_center(panel, 480.0, 628.0, 16.0)
 	root.add_child(panel)
 
 	_title = _label("", 46, GOLD, Vector2(24, 28), Vector2(432, 56))
@@ -137,16 +141,19 @@ func _build() -> void:
 		for child in tab.get_children():
 			child.visible = false
 
-	_start = _button("StartGame", Vector2(40, 204), true, "play")
+	_start = _button("StartGame", Vector2(40, 198), true, "play")
 	_start.pressed.connect(_on_start)
 	panel.add_child(_start)
-	_meta = _button("MetaShop", Vector2(40, 288), false, "coin")
+	_meta = _button("MetaShop", Vector2(40, 278), false, "coin")
 	_meta.pressed.connect(_on_meta)
 	panel.add_child(_meta)
-	_settings = _button("Settings", Vector2(40, 358), false, "gear")
+	_bag = _button("Backpack", Vector2(40, 344), false, "bag")
+	_bag.pressed.connect(_on_bag)
+	panel.add_child(_bag)
+	_settings = _button("Settings", Vector2(40, 410), false, "gear")
 	_settings.pressed.connect(_on_settings)
 	panel.add_child(_settings)
-	_quit = _button("Quit", Vector2(40, 428), false, "x")
+	_quit = _button("Quit", Vector2(40, 476), false, "x")
 	_quit.pressed.connect(_on_quit)
 	panel.add_child(_quit)
 
@@ -190,6 +197,8 @@ func _show_page(page: String) -> void:
 		_start.visible = not rules
 	if _meta:
 		_meta.visible = not rules
+	if _bag:
+		_bag.visible = not rules
 	if _settings:
 		_settings.visible = not rules
 	if _quit:
@@ -228,6 +237,11 @@ func _on_meta() -> void:
 func _on_settings() -> void:
 	AudioKit.play_click()
 	open_settings.emit()
+
+
+func _on_bag() -> void:
+	AudioKit.play_click()
+	open_bag.emit()
 
 
 func _on_quit() -> void:
@@ -300,9 +314,9 @@ func refit(forced: Vector2 = Vector2(-1, -1)) -> void:
 	if plate == null or panel == null or vp.x < 2.0:
 		return
 	var scale := minf(1.0, (vp.x - 16.0) / 500.0)
-	scale = minf(scale, (vp.y - 16.0) / 580.0)
-	plate.pivot_offset = Vector2(250.0, 290.0)
-	panel.pivot_offset = Vector2(240.0, 280.0)
+	scale = minf(scale, (vp.y - 16.0) / 648.0)
+	plate.pivot_offset = Vector2(250.0, 324.0)
+	panel.pivot_offset = Vector2(240.0, 314.0)
 	plate.scale = Vector2(scale, scale)
 	panel.scale = Vector2(scale, scale)
 
@@ -336,6 +350,11 @@ class MenuMark extends Control:
 		elif kind == "coin":
 			draw_circle(center, radius, ink)
 			draw_arc(center, radius * 0.55, 0.4, TAU - 0.4, 16, Color(0.22, 0.12, 0.06), 2.0)
+		elif kind == "bag":
+			draw_rect(Rect2(center + Vector2(-radius * 0.85, -radius * 0.2), Vector2(radius * 1.7, radius * 1.15)), ink, false, 2.5)
+			draw_line(center + Vector2(-radius * 0.4, -radius * 0.2), center + Vector2(-radius * 0.4, -radius * 0.7), ink, 2.5)
+			draw_line(center + Vector2(radius * 0.4, -radius * 0.2), center + Vector2(radius * 0.4, -radius * 0.7), ink, 2.5)
+			draw_line(center + Vector2(-radius * 0.4, -radius * 0.7), center + Vector2(radius * 0.4, -radius * 0.7), ink, 2.5)
 		elif kind == "gear":
 			draw_circle(center, radius * 0.42, ink)
 			for step in 6:

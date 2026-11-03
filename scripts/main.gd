@@ -97,6 +97,9 @@ var _run_goal: Label
 var _run_cleared: Label
 var _run_summary: Label
 var _run_end: CanvasLayer
+var _time_up: CanvasLayer
+var _time_label: Label
+var _time_back: Button
 var _run_title: Label
 var _run_earned: Label
 var _run_best: Label
@@ -132,6 +135,7 @@ func _ready() -> void:
 	_build_flash()
 	_build_pressure()
 	_build_run_end()
+	_build_time_up()
 	apply_language()
 	get_viewport().size_changed.connect(_on_viewport_resized)
 	_fit_world()
@@ -157,6 +161,8 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		return
 	if _main_menu != null and _main_menu.visible:
+		return
+	if _time_up != null and _time_up.visible:
 		return
 	if phase == Phase.RUN_END or (_run_end != null and _run_end.visible):
 		return
@@ -458,6 +464,10 @@ func _fit_to(vp: Vector2) -> void:
 	if _run_end != null:
 		run_panel = _run_end.get_node_or_null("Root/Panel") as Control
 	_refit_box(run_panel, 560.0, 400.0, vp)
+	var time_panel: Control = null
+	if _time_up != null:
+		time_panel = _time_up.get_node_or_null("Root/Panel") as Control
+	_refit_box(time_panel, 560.0, 240.0, vp)
 
 
 func _refit_box(node: Control, design_w: float, design_h: float, vp: Vector2) -> void:
@@ -621,6 +631,7 @@ func _build_main_menu() -> void:
 	_main_menu.start_game.connect(_begin_round)
 	_main_menu.open_meta.connect(_open_meta)
 	_main_menu.open_settings.connect(_open_settings)
+	_main_menu.open_bag.connect(_open_bag)
 	_main_menu.quit_game.connect(_quit_game)
 
 
@@ -639,6 +650,8 @@ func _enter_main_menu() -> void:
 		_menu_button.visible = false
 	if _run_end:
 		_run_end.visible = false
+	if _time_up:
+		_time_up.visible = false
 	_set_room_plate(false)
 	if _main_menu:
 		_main_menu.show_menu()
@@ -661,6 +674,8 @@ func _begin_round() -> void:
 	_shop_open = false
 	if _run_end:
 		_run_end.visible = false
+	if _time_up:
+		_time_up.visible = false
 	_set_room_plate(true)
 	_show_chain_readout(true)
 	if _menu_button:
@@ -709,6 +724,14 @@ func _open_settings() -> void:
 	thrower.aiming = false
 	thrower.can_aim = false
 	_settings.open_panel()
+
+
+func _open_bag() -> void:
+	if _settings == null:
+		return
+	thrower.aiming = false
+	thrower.can_aim = false
+	_settings.open_bag()
 
 
 func _on_settings_closed() -> void:
@@ -779,9 +802,8 @@ func _tick_timer(delta: float) -> void:
 			if phase == Phase.READY:
 				_set_hint("hint.warn")
 		if _timer_left <= 0.0 and not _late:
-			_late = true
-			Loadout.soft_throw = true
-			_set_hint("hint.late")
+			_on_time_up()
+			return
 	_sync_timer_label()
 	var edge := 0.0
 	if _timer_on or _late:
@@ -792,6 +814,18 @@ func _tick_timer(delta: float) -> void:
 	if phase == Phase.MENU or phase == Phase.RUN_END or _shop_open:
 		edge = 0.0
 	_paint_edges(edge)
+
+
+func _on_time_up() -> void:
+	if _reloading or _late:
+		return
+	_late = true
+	_timer_on = false
+	thrower.aiming = false
+	thrower.can_aim = false
+	var lost := Loadout.cut_purse(10)
+	Loadout.abandon_run()
+	_show_time_up(lost)
 
 
 func _sync_timer_label() -> void:
@@ -920,33 +954,8 @@ func _build_heat(hud: Node) -> void:
 
 
 func _refresh_heat() -> void:
-	if _heat_row == null:
-		return
-	var show := Loadout.run_active and phase != Phase.MENU and phase != Phase.RUN_END
-	_heat_row.visible = show
-	if not show:
-		return
-	if _heat_label:
-		_heat_label.text = Locale.text("rule.heat")
-		var warm := Loadout.run_heat >= 3
-		var heat_ink := Color(1.0, 0.82, 0.32) if warm else Color(0.95, 0.9, 0.82)
-		_heat_label.add_theme_color_override("font_color", heat_ink)
-	var n := Loadout.run_heat
-	for i in _heat_pips.size():
-		if i < n and n >= 3:
-			_heat_pips[i].color = Color(1.0, 0.78, 0.22, 1)
-		elif i < n:
-			_heat_pips[i].color = Color(0.92, 0.48, 0.24, 1)
-		else:
-			_heat_pips[i].color = Color(0.32, 0.24, 0.22, 0.9)
-	if _best_label:
-		if Loadout.run_best > 0:
-			_best_label.text = Locale.format("rule.best", [Loadout.run_best])
-			var gold := Loadout.run_best >= 10
-			var best_ink := Color(1.0, 0.86, 0.42) if gold else Color(0.95, 0.9, 0.82)
-			_best_label.add_theme_color_override("font_color", best_ink)
-		else:
-			_best_label.text = ""
+	if _heat_row:
+		_heat_row.visible = false
 
 
 func _refresh_gap() -> void:
@@ -1164,15 +1173,15 @@ func _build_corner_menu() -> void:
 	progress.name = "RunProgress"
 	progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	progress.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	progress.offset_left = 60.0
-	progress.offset_top = 32.0
-	progress.offset_right = 608.0
-	progress.offset_bottom = 54.0
+	progress.offset_left = 52.0
+	progress.offset_top = 4.0
+	progress.offset_right = 640.0
+	progress.offset_bottom = 48.0
 	progress.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	progress.add_theme_font_size_override("font_size", 15)
-	progress.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
-	progress.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.04, 0.9))
-	progress.add_theme_constant_override("outline_size", 4)
+	progress.add_theme_font_size_override("font_size", 28)
+	progress.add_theme_color_override("font_color", Color(1.0, 0.94, 0.72))
+	progress.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.04, 0.95))
+	progress.add_theme_constant_override("outline_size", 6)
 	hud.add_child(progress)
 	_run_label = progress
 	var rule := Label.new()
@@ -1657,7 +1666,7 @@ func _set_room_plate(show_plate: bool) -> void:
 	if _status_label:
 		_status_label.visible = false
 	if _heat_row:
-		_heat_row.visible = show_plate
+		_heat_row.visible = false
 
 
 func _refresh_run_label() -> void:
@@ -1838,6 +1847,107 @@ func _show_run_end() -> void:
 		AudioKit.play_excellent()
 	if _run_end:
 		_run_end.visible = true
+
+
+func _build_time_up() -> void:
+	var layer := CanvasLayer.new()
+	layer.name = "TimeUp"
+	layer.layer = 60
+	layer.visible = false
+	add_child(layer)
+	_time_up = layer
+	var root := Control.new()
+	root.name = "Root"
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(root)
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.08, 0.05, 0.04, 0.72)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(dim)
+	var panel := Panel.new()
+	panel.name = "Panel"
+	panel.anchor_left = 0.5
+	panel.anchor_top = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_bottom = 0.5
+	panel.offset_left = -280.0
+	panel.offset_top = -120.0
+	panel.offset_right = 280.0
+	panel.offset_bottom = 120.0
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.24, 0.14, 0.09, 0.98)
+	style.border_color = Color(1.0, 0.84, 0.38)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(12)
+	panel.add_theme_stylebox_override("panel", style)
+	root.add_child(panel)
+	var label := _run_line(panel, "Message", Vector2(40, 28), 32, Color(0.98, 0.94, 0.86))
+	label.size = Vector2(480, 88)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_time_label = label
+	var button := Button.new()
+	button.name = "ToMenu"
+	button.focus_mode = Control.FOCUS_NONE
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(1.0, 0.84, 0.38)
+	box.set_corner_radius_all(12)
+	button.add_theme_stylebox_override("normal", box)
+	button.add_theme_stylebox_override("hover", box)
+	button.add_theme_stylebox_override("pressed", box)
+	button.add_theme_stylebox_override("focus", box)
+	button.position = Vector2(40, 148)
+	button.size = Vector2(480, 56)
+	button.add_theme_font_size_override("font_size", 22)
+	button.add_theme_color_override("font_color", Color(0.22, 0.12, 0.06))
+	button.add_theme_color_override("font_hover_color", Color(0.22, 0.12, 0.06))
+	button.add_theme_color_override("font_pressed_color", Color(0.22, 0.12, 0.06))
+	button.pressed.connect(_on_time_menu)
+	panel.add_child(button)
+	_time_back = button
+
+
+func _show_time_up(lost: int) -> void:
+	phase = Phase.RUN_END
+	thrower.aiming = false
+	thrower.can_aim = false
+	thrower.flying = false
+	if _shop:
+		_shop.visible = false
+	_shop_open = false
+	if _menu_button:
+		_menu_button.visible = false
+	if _menu_panel:
+		_menu_panel.visible = false
+	_set_room_plate(false)
+	_show_chain_readout(false)
+	_hint_key = ""
+	chain.hide_banner()
+	chain.set_hint("")
+	_freeze_room()
+	_refresh_money(false)
+	if _time_label:
+		if lost > 0:
+			_time_label.text = Locale.format("time.up_lost", [Locale.coins(lost)])
+		else:
+			_time_label.text = Locale.text("time.up")
+	if _time_back:
+		_time_back.text = Locale.text("run.menu")
+	if _time_up:
+		_time_up.visible = true
+
+
+func _on_time_menu() -> void:
+	if _reloading:
+		return
+	AudioKit.play_click()
+	Loadout.start_in_menu = true
+	_reset()
 
 
 func _on_run_menu() -> void:

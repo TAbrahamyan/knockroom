@@ -52,6 +52,18 @@ static var last_cleared := true
 ## Set when the room timer expires. The next launch is softer.
 static var soft_throw := false
 
+
+## Ten percent of the saved purse, rounded down. An empty purse loses nothing.
+## A cut that rounds to 0 also loses nothing. The caller saves.
+static func cut_purse(percent: int) -> int:
+	if money <= 0 or percent <= 0:
+		return 0
+	var lost := (money * percent) / 100
+	if lost <= 0:
+		return 0
+	money -= lost
+	return lost
+
 ## speed scales the launch. mass scales the stone's 2.5 base.
 ## impact is extra hit speed on the first body. The rest are on-hit effects.
 const CATALOG: Array = [
