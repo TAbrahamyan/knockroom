@@ -23,7 +23,8 @@ var flying := false
 
 
 func _process(_delta: float) -> void:
-	queue_redraw()
+	if can_aim or aiming:
+		queue_redraw()
 
 
 func _unhandled_input(event: InputEvent) -> void:

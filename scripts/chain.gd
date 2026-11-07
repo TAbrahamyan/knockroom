@@ -36,25 +36,19 @@ func _ready() -> void:
 
 
 func _place_banner() -> void:
-	result.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	result.offset_left = -300.0
-	result.offset_top = 168.0
-	result.offset_right = 300.0
-	result.offset_bottom = 292.0
 	result.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	result.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	result.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	result.clip_text = false
 	result.z_index = 2
+	number.offset_left = -180.0
+	number.offset_right = 180.0
+	number.offset_top = 8.0
+	number.offset_bottom = 148.0
 	var parent := result.get_parent()
 	var wash := ColorRect.new()
 	wash.name = "ResultWash"
 	wash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wash.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	wash.offset_left = -320.0
-	wash.offset_top = 160.0
-	wash.offset_right = 320.0
-	wash.offset_bottom = 300.0
 	wash.color = Color(0.05, 0.03, 0.04, 0.0)
 	wash.visible = false
 	wash.z_index = 1
@@ -72,25 +66,62 @@ func _place_banner() -> void:
 	lip.color = Color(1, 0.86, 0.35, 0)
 	wash.add_child(lip)
 	_lip = lip
+	_layout_banner(get_viewport().get_visible_rect().size)
+
+
+func _banner_half(width: float) -> float:
+	return minf(340.0, maxf(140.0, (width - 48.0) * 0.42))
+
+
+func _pin_center(node: Control, half: float, top: float, bottom: float) -> void:
+	# Anchors first. Offsets are measured from the parent center, so a wide
+	# window keeps the banner under the chain number.
+	node.anchor_left = 0.5
+	node.anchor_right = 0.5
+	node.anchor_top = 0.0
+	node.anchor_bottom = 0.0
+	node.offset_left = -half
+	node.offset_right = half
+	node.offset_top = top
+	node.offset_bottom = bottom
+	node.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	node.grow_vertical = Control.GROW_DIRECTION_END
+
+
+func _layout_banner(vp: Vector2) -> void:
+	if result == null or vp.x < 2.0:
+		return
+	var half := _banner_half(vp.x)
+	var extra := 36.0 if vp.x < 720.0 else 0.0
+	_pin_center(result, half, 168.0, 292.0 + extra)
+	if _wash:
+		_pin_center(_wash, half + 8.0, 160.0, 300.0 + extra)
+	_layout_coin_pop(half)
+
+
+func _layout_coin_pop(half: float) -> void:
+	var root := get_node_or_null("UI/Root")
+	if root == null:
+		return
+	var bar := root.get_node_or_null("CoinPop") as Control
+	var pop := root.get_node_or_null("CoinPopText") as Control
+	if bar == null or pop == null:
+		return
+	var top := 316.0
+	if _wash:
+		top = _wash.offset_bottom + 16.0
+	_pin_center(bar, half + 8.0, top, top + 96.0)
+	_pin_center(pop, half + 8.0, top, top + 96.0)
+	var pivot := Vector2(half + 8.0, 48.0)
+	bar.pivot_offset = pivot
+	pop.pivot_offset = pivot
 
 
 func refit(forced: Vector2 = Vector2(-1, -1)) -> void:
 	var vp := get_viewport().get_visible_rect().size
 	if forced.x > 1.0:
 		vp = forced
-	if result == null or vp.x < 2.0:
-		return
-	var half := minf(300.0, maxf(110.0, (vp.x - 24.0) * 0.5))
-	result.offset_left = -half
-	result.offset_right = half
-	var extra := 48.0 if vp.x < 720.0 else 0.0
-	result.offset_top = 168.0
-	result.offset_bottom = 292.0 + extra
-	if _wash:
-		_wash.offset_left = -(half + 16.0)
-		_wash.offset_right = half + 16.0
-		_wash.offset_top = 160.0
-		_wash.offset_bottom = 300.0 + extra
+	_layout_banner(vp)
 
 
 func apply_language() -> void:
@@ -203,7 +234,9 @@ func celebrate_master() -> void:
 
 
 func _play_result() -> void:
-	result.pivot_offset = result.size * 0.5
+	var half := _banner_half(get_viewport().get_visible_rect().size.x)
+	var height := result.offset_bottom - result.offset_top
+	result.pivot_offset = Vector2(half, height * 0.5)
 	var peak := 1.06
 	if _banner_kind == "clean":
 		peak = 1.22
@@ -267,7 +300,9 @@ func _write_result() -> void:
 
 
 func _punch() -> void:
-	number.pivot_offset = number.size * 0.5
+	var width := number.offset_right - number.offset_left
+	var height := number.offset_bottom - number.offset_top
+	number.pivot_offset = Vector2(width * 0.5, height * 0.5)
 	var peak := 1.18
 	if _master_pop:
 		peak = 1.58
@@ -305,23 +340,18 @@ func _coin_popup(earned: int) -> void:
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bar.z_index = 20
 	bar.color = Color(1.0, 0.82, 0.28)
-	bar.position = Vector2(250, 318)
-	bar.size = Vector2(780, 96)
-	bar.pivot_offset = bar.size * 0.5
 	root.add_child(bar)
 	var pop := Label.new()
 	pop.name = "CoinPopText"
 	pop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pop.z_index = 21
 	pop.text = "+" + Locale.coins(earned)
-	pop.position = bar.position
-	pop.size = bar.size
-	pop.pivot_offset = bar.size * 0.5
 	pop.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	pop.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	pop.add_theme_font_size_override("font_size", 64)
 	pop.add_theme_color_override("font_color", Color(0.22, 0.08, 0.02))
 	root.add_child(pop)
+	_layout_coin_pop(_banner_half(get_viewport().get_visible_rect().size.x))
 	var tween := create_tween()
 	tween.tween_property(bar, "scale", Vector2(1.08, 1.08), 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.parallel().tween_property(pop, "scale", Vector2(1.08, 1.08), 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -416,7 +446,6 @@ class Floater extends Node2D:
 		if font == null:
 			return
 		var size := 68 if big else 56
-		draw_circle(Vector2(0, -8), 26.0 if big else 21.0, Color(tint.r, tint.g, tint.b, 0.28))
 		var at := Vector2(-30, 0)
 		draw_string(font, at + Vector2(2, 3), "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0.08, 0.04, 0.02, 0.92))
 		draw_string(font, at, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, size, tint)

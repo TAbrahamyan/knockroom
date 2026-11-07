@@ -71,6 +71,8 @@ var _timer_pill: Panel
 var _timer_style: StyleBoxFlat
 var _room_plate: Panel
 var _edges: Array[ColorRect] = []
+var _edge_alpha := -1.0
+var _shown_second := -1
 var _timer_left := 52.0
 var _timer_on := false
 var _late := false
@@ -783,6 +785,7 @@ func _present_result(pop: bool) -> void:
 
 func _arm_timer() -> void:
 	_timer_left = SHAKY_TIME if Loadout.run_streak >= 2 else ROOM_TIME
+	_shown_second = -1
 	_timer_on = true
 	_late = false
 	_warned = false
@@ -833,37 +836,43 @@ func _sync_timer_label() -> void:
 		return
 	var show := phase == Phase.READY or phase == Phase.AIMING or phase == Phase.WATCHING or phase == Phase.SETTLED
 	var visible_now := show and not _shop_open
-	_timer_label.visible = visible_now
-	if _timer_pill:
+	if _timer_label.visible != visible_now:
+		_timer_label.visible = visible_now
+	if _timer_pill and _timer_pill.visible != visible_now:
 		_timer_pill.visible = visible_now
 	var warn := _timer_left <= WARN_TIME
-	if _late:
-		_timer_label.text = Locale.format("rule.time", [0])
-		_timer_label.add_theme_color_override("font_color", Color(1.0, 0.55, 0.42))
-	else:
-		var seconds := int(ceil(_timer_left))
+	var seconds := 0 if _late else int(ceil(_timer_left))
+	if seconds != _shown_second:
+		_shown_second = seconds
 		_timer_label.text = Locale.format("rule.time", [seconds])
-		if warn:
+		if _late:
+			_timer_label.add_theme_color_override("font_color", Color(1.0, 0.55, 0.42))
+		elif warn:
 			_timer_label.add_theme_color_override("font_color", Color(1.0, 0.82, 0.28))
 		else:
 			_timer_label.add_theme_color_override("font_color", Color(0.98, 0.94, 0.86))
-	if _timer_style:
-		if _late:
-			_timer_style.bg_color = Color(0.55, 0.1, 0.08, 0.96)
-		elif warn:
-			_timer_style.bg_color = Color(0.42, 0.12, 0.08, 0.94)
-		else:
-			_timer_style.bg_color = Color(0.08, 0.05, 0.05, 0.9)
+		if _timer_style:
+			if _late:
+				_timer_style.bg_color = Color(0.55, 0.1, 0.08, 0.96)
+			elif warn:
+				_timer_style.bg_color = Color(0.42, 0.12, 0.08, 0.94)
+			else:
+				_timer_style.bg_color = Color(0.08, 0.05, 0.05, 0.9)
 	var beat := 1.0
 	if _late or (_timer_on and warn):
 		beat = 1.0 + 0.1 * absf(sin(_pulse * 5.0))
+	var beat_v := Vector2(beat, beat)
 	if _timer_pill:
-		_timer_pill.scale = Vector2(beat, beat)
-	else:
-		_timer_label.scale = Vector2(beat, beat)
+		if _timer_pill.scale != beat_v:
+			_timer_pill.scale = beat_v
+	elif _timer_label.scale != beat_v:
+		_timer_label.scale = beat_v
 
 
 func _paint_edges(alpha: float) -> void:
+	if is_equal_approx(alpha, _edge_alpha):
+		return
+	_edge_alpha = alpha
 	for edge in _edges:
 		var tint := edge.color
 		tint.a = alpha

@@ -39,6 +39,8 @@ var _stagger: Array = []
 var _stagger_gap := 0.0
 
 var _anchor: Node2D
+var _rope_at := Vector2.ZERO
+var _rope_rot := 0.0
 ## 0 pot, 1 bottle, 2 crate, 3 box, 4 glass jar. Physics stays a circle or a box.
 var look := 0
 var fragile := false
@@ -54,10 +56,11 @@ func _ready() -> void:
 	add_to_group("prop")
 	collision_layer = 2
 	collision_mask = 7
-	max_contacts_reported = 12
-	contact_monitor = true
+	max_contacts_reported = 4
 	can_sleep = true
-	continuous_cd = CCD_MODE_CAST_SHAPE if kind == Kind.SHELF or kind == Kind.LAMP else CCD_MODE_DISABLED
+	continuous_cd = CCD_MODE_DISABLED
+	# Loose props report hits themselves. Shelves and lamps arm that when they wake.
+	contact_monitor = kind != Kind.SHELF and kind != Kind.LAMP
 	_build_collision()
 	_apply_material()
 	if kind == Kind.SHELF or kind == Kind.LAMP:
@@ -65,8 +68,25 @@ func _ready() -> void:
 	if kind == Kind.LAMP and not rope_anchor.is_empty():
 		_anchor = get_node_or_null(rope_anchor) as Node2D
 	body_entered.connect(_on_body_entered)
-	set_process(kind == Kind.LAMP)
+	set_process(false)
 	queue_redraw()
+
+
+func _settle() -> void:
+	contact_monitor = false
+	continuous_cd = CCD_MODE_DISABLED
+	sleeping = true
+
+
+func _arm_physics() -> void:
+	contact_monitor = true
+	max_contacts_reported = 6 if kind == Kind.SHELF else 4
+	if kind == Kind.SHELF:
+		continuous_cd = CCD_MODE_CAST_RAY
+	else:
+		continuous_cd = CCD_MODE_DISABLED
+	if kind == Kind.LAMP:
+		set_process(true)
 
 
 func is_shelf() -> bool:
@@ -79,6 +99,7 @@ func park_shelf() -> void:
 	collision_layer = 0
 	collision_mask = 0
 	freeze = true
+	_settle()
 	if is_in_group("prop"):
 		remove_from_group("prop")
 	set_sweet_spots([], [])
@@ -218,6 +239,7 @@ func wake_from(source: Node2D) -> void:
 		return
 	awakened = true
 	_dusted = false
+	_arm_physics()
 	freeze = false
 	sleeping = false
 	_join_chain()
@@ -619,6 +641,8 @@ func _body_speed(body: Node) -> float:
 func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	# Kept across the contact, because the solver zeroes a hard hit before wake_from.
 	_recent_speed = maxf(state.linear_velocity.length(), _recent_speed * 0.85)
+	if kind == Kind.LAMP and _recent_speed > 12.0:
+		set_process(true)
 
 
 func crack_open() -> void:
@@ -706,8 +730,8 @@ func _shatter() -> void:
 	if parent == null:
 		return
 	var glass := Color(0.82, 0.98, 0.94) if look == 1 else Color(1.0, 0.94, 0.72)
-	_burst(glass, 14, 220.0, true, 140.0)
-	_burst(Color(0.78, 0.7, 0.58), 4, 80.0, false, -140.0)
+	_burst(glass, 8, 220.0, true, 140.0)
+	_burst(Color(0.78, 0.7, 0.58), 3, 80.0, false, -140.0)
 	var round := get_tree().get_first_node_in_group("round")
 	if round and round.has_method("add_shake"):
 		round.add_shake(4.2, 0)
@@ -717,6 +741,7 @@ func _shatter() -> void:
 	collision_mask = 0
 	visible = false
 	freeze = true
+	_settle()
 	for i in 5:
 		var bit := GlassBit.new()
 		var dir := Vector2.from_angle(float(i) / 5.0 * TAU + randf_range(-0.25, 0.25))
@@ -744,14 +769,21 @@ func _process(delta: float) -> void:
 		while _stagger_gap <= 0.0 and not _stagger.is_empty():
 			_kick_next_stagger()
 			_stagger_gap += 0.11
-	var redraw := kind == Kind.LAMP
+	var redraw := false
 	if flash > 0.0:
 		flash = maxf(0.0, flash - delta / POP_TIME)
 		redraw = true
+	if kind == Kind.LAMP:
+		var moved := global_position.distance_squared_to(_rope_at) > 0.2 or absf(rotation - _rope_rot) > 0.004
+		if moved:
+			_rope_at = global_position
+			_rope_rot = rotation
+			redraw = true
 	if redraw:
 		queue_redraw()
 	var busy := _lower_wait >= 0.0 or not _stagger.is_empty() or not _below.is_empty()
-	if not busy and flash == 0.0 and kind != Kind.LAMP:
+	var swinging := kind == Kind.LAMP and _recent_speed > 12.0
+	if not busy and flash == 0.0 and not swinging:
 		set_process(false)
 
 
@@ -1156,9 +1188,9 @@ class GlassBit extends RigidBody2D:
 		linear_damp = 0.4
 		angular_damp = 0.85
 		can_sleep = true
-		continuous_cd = CCD_MODE_CAST_RAY
+		continuous_cd = CCD_MODE_DISABLED
 		contact_monitor = true
-		max_contacts_reported = 4
+		max_contacts_reported = 2
 		var shape_node := CollisionShape2D.new()
 		var circle := CircleShape2D.new()
 		circle.radius = 5.0
@@ -1205,9 +1237,9 @@ class CrateBit extends RigidBody2D:
 		linear_damp = 0.35
 		angular_damp = 0.2
 		can_sleep = true
-		continuous_cd = CCD_MODE_CAST_RAY
+		continuous_cd = CCD_MODE_DISABLED
 		contact_monitor = true
-		max_contacts_reported = 4
+		max_contacts_reported = 2
 		var shape_node := CollisionShape2D.new()
 		var rect := RectangleShape2D.new()
 		rect.size = Vector2(16, 18)
