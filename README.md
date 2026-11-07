@@ -30,16 +30,16 @@ Between rooms you pick from the stones in your backpack. The game offers three o
 
 | Stone | Price | What it does |
 | --- | --- | --- |
-| Light Stone | 400K | Light. Knocks only nearby things |
-| Spring Stone | 500K | Bounces. The hit is weak |
-| Wide Stone | 600K | Wider, and still a light hit |
-| Glass Charm | 800K | Breaks bottles near the hit |
-| High Pop | 800K | Throws things upward |
-| Heavy Stone | 1.2M | Slow, and it hits downward hard |
-| Magnet Stone | 1.4M | Pulls nearby things in after a hit |
-| Blast Stone | 1.6M | Shoves everything nearby |
+| Light Stone | 520K | Light. Knocks only nearby things |
+| Spring Stone | 650K | Bounces. The hit is weak |
+| Wide Stone | 780K | Wider, and still a light hit |
+| Glass Charm | 1.04M | Breaks bottles near the hit |
+| High Pop | 1.04M | Throws things upward |
+| Heavy Stone | 1.56M | Slow, and it hits downward hard |
+| Magnet Stone | 1.82M | Pulls nearby things in after a hit |
+| Blast Stone | 2.08M | Shoves everything nearby |
 
-Stones and rooms you buy in the meta shop leave that list and show up in the backpack on the Settings screen. A price you cannot pay yet says how many more coins you need. Owned stones are offered in the throw shop, and the button says Equip.
+Stones and rooms you buy in the meta shop leave that list and show up in the backpack on the main menu. A price you cannot pay yet says how many more coins you need. Owned stones are offered in the throw shop, and the button says Equip.
 
 | Stone | What it does |
 | --- | --- |
@@ -65,43 +65,43 @@ Coins spent here come from the saved purse. Unlocks stay after you close the gam
 
 | Unlock | Kind | Cost |
 | --- | --- | --- |
-| Narrow Shelves | Room | 1.8M |
-| Cork Stone | Stone | 2.4M |
-| Low Loft | Room | 3.2M |
-| Floor Clutter | Room | 4.4M |
-| Market Row | Room | 5.4M |
-| Split Bay | Room | 6.6M |
-| Needle Stone | Stone | 7.8M |
-| Window Heavy | Room | 8.8M |
-| Closet | Room | 10.4M |
-| Cellar | Room | 11.8M |
-| Thud Stone | Stone | 12M |
-| Attic | Room | 13.4M |
-| Workshop | Room | 15M |
-| Split Stone | Stone | 16M |
-| Sticky Stone | Stone | 17.5M |
-| Gallery | Room | 18.2M |
-| Bounce Stone | Stone | 19.5M |
-| Greenhouse | Room | 19.8M |
-| Laundry | Room | 21.4M |
-| Ricochet Stone | Stone | 22M |
-| Library | Room | 23M |
-| Heavy Drop Stone | Stone | 24.5M |
-| Kitchen | Room | 24.6M |
-| Pebble | Stone | 26.5M |
-| Pantry | Room | 26.8M |
-| Pillow | Stone | 29M |
-| Feather | Stone | 31M |
-| Porch | Room | 31.2M |
-| Spark | Stone | 33.5M |
-| Bathroom | Room | 34.8M |
-| Skip Stone | Stone | 35.5M |
-| Hall | Room | 39.2M |
-| Study | Room | 43.8M |
+| Narrow Shelves | Room | 2.34M |
+| Cork Stone | Stone | 3.12M |
+| Low Loft | Room | 4.16M |
+| Floor Clutter | Room | 5.72M |
+| Market Row | Room | 7.02M |
+| Split Bay | Room | 8.58M |
+| Needle Stone | Stone | 10.14M |
+| Window Heavy | Room | 11.44M |
+| Closet | Room | 13.52M |
+| Cellar | Room | 15.34M |
+| Thud Stone | Stone | 15.6M |
+| Attic | Room | 17.42M |
+| Workshop | Room | 19.5M |
+| Split Stone | Stone | 20.8M |
+| Sticky Stone | Stone | 22.75M |
+| Gallery | Room | 23.66M |
+| Bounce Stone | Stone | 25.35M |
+| Greenhouse | Room | 25.74M |
+| Laundry | Room | 27.82M |
+| Ricochet Stone | Stone | 28.6M |
+| Library | Room | 29.9M |
+| Heavy Drop Stone | Stone | 31.85M |
+| Kitchen | Room | 31.98M |
+| Pebble | Stone | 34.45M |
+| Pantry | Room | 34.84M |
+| Pillow | Stone | 37.7M |
+| Feather | Stone | 40.3M |
+| Porch | Room | 40.56M |
+| Spark | Stone | 43.55M |
+| Bathroom | Room | 45.24M |
+| Skip Stone | Stone | 46.15M |
+| Hall | Room | 50.96M |
+| Study | Room | 56.94M |
 
 ## Coins from a chain
 
-One knock pays nothing. A chain of 5 pays 400K, 6 pays 500K, 8 pays 700K, and 10 pays 800K. A chain tops out at 1.3M before the small bonuses above. That is the same payout share as before, shown in short form. A chain under 5 pays nothing. Skip Stone stays 35.5M, and the Study is 43.8M, so the full set still takes more than one run.
+One knock pays nothing. A chain of 5 pays 280K, 6 pays 350K, 8 pays 490K, and 10 pays 560K. A chain tops out at 910K before the small bonuses above. A chain under 5 pays nothing. Skip Stone is 46.15M, and the Study is 56.94M, so the full set still takes more than one run.
 
 ## Room
 

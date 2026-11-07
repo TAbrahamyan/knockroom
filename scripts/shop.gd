@@ -88,7 +88,7 @@ func _write_sub() -> void:
 
 func _fill_card(card: Button, offer: Dictionary) -> void:
 	var owned_flag: bool = offer.get("owned_stone", false) == true
-	var price := Loadout.coin_value(int(offer["price"]))
+	var price := Loadout.ask_price(int(offer["price"]))
 	var afford := true if owned_flag else Loadout.can_afford(price)
 	var item_id := str(offer["id"])
 	card.set_meta("item_id", item_id)

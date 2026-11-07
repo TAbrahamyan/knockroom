@@ -89,7 +89,7 @@ func _refresh() -> void:
 		var item: Dictionary = offer
 		if Loadout.owns(str(item["id"])):
 			continue
-		if Loadout.can_afford(Loadout.coin_value(int(item["cost"]))):
+		if Loadout.can_afford(Loadout.ask_price(int(item["cost"]))):
 			can_buy += 1
 	if _status:
 		_status.text = "" if can_buy <= 0 else "● %d" % can_buy
@@ -181,7 +181,7 @@ func _shop_before(a: Dictionary, b: Dictionary) -> bool:
 func _shop_rank(offer: Dictionary) -> int:
 	if Loadout.owns(str(offer["id"])):
 		return 3
-	var cost := Loadout.coin_value(int(offer["cost"]))
+	var cost := Loadout.ask_price(int(offer["cost"]))
 	if Loadout.can_afford(cost):
 		return 0
 	if cost - Loadout.money <= Loadout.coin_value(40):
@@ -191,7 +191,7 @@ func _shop_rank(offer: Dictionary) -> int:
 
 func _fill_row(row: Button, offer: Dictionary) -> void:
 	var id := str(offer["id"])
-	var cost := Loadout.coin_value(int(offer["cost"]))
+	var cost := Loadout.ask_price(int(offer["cost"]))
 	var have := Loadout.owns(id)
 	var afford := Loadout.can_afford(cost)
 	var kind := str(offer.get("kind", "stone"))

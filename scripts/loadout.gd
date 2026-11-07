@@ -699,6 +699,13 @@ static func coin_value(raw: int) -> int:
 	return raw * COIN_SCALE
 
 
+## Item and room prices. Thirty percent above the scaled catalog number.
+static func ask_price(raw: int) -> int:
+	if raw <= 0:
+		return 0
+	return (coin_value(raw) * 13) / 10
+
+
 static func equip(id: String, display_name: String, tint: Color = Color(1.0, 0.86, 0.42)) -> void:
 	item_id = id
 	item_name = display_name
@@ -729,7 +736,7 @@ static func price_of(id: String) -> int:
 	var item := find(id)
 	if item.is_empty():
 		return 0
-	return coin_value(int(item["price"]))
+	return ask_price(int(item["price"]))
 
 
 static func speed_scale() -> float:
@@ -790,13 +797,13 @@ static func payout_for(chain_count: int) -> int:
 	return receive_coins(full)
 
 
-## 70% less than the previous payout, then the purse scale. A 1-coin bonus can become 0.
+## The old cut, then another 30% off the scaled coins. A 1-coin bonus can become 0.
 static func receive_coins(amount: int) -> int:
 	if amount <= 0:
 		return 0
 	var previous := (amount * 7 + 5) / 10
 	var cut := (previous * 3 + 5) / 10
-	return coin_value(cut)
+	return (coin_value(cut) * 7) / 10
 
 
 ## Coins added on the next clear for the heat already banked. Heat 0 pays nothing.
@@ -1071,7 +1078,7 @@ static func next_goal_line() -> String:
 	var target: Dictionary = {}
 	for offer in locked:
 		var item: Dictionary = offer
-		if coin_value(int(item["cost"])) > money:
+		if ask_price(int(item["cost"])) > money:
 			target = item
 			break
 	if target.is_empty():
@@ -1079,7 +1086,7 @@ static func next_goal_line() -> String:
 	var id := str(target["id"])
 	var kind := str(target.get("kind", "stone"))
 	var display := Locale.room_name(id) if kind == "room" else Locale.item_name(id)
-	var gap := coin_value(int(target["cost"])) - money
+	var gap := ask_price(int(target["cost"])) - money
 	return Locale.format("goal.need", [Locale.coins(gap), display])
 
 
@@ -1091,7 +1098,7 @@ static func next_goal_short() -> String:
 		var id := str(item["id"])
 		if owns(id):
 			continue
-		var cost := coin_value(int(item["cost"]))
+		var cost := ask_price(int(item["cost"]))
 		if best_id == "" or cost < best_cost:
 			best_id = id
 			best_cost = cost
@@ -1126,7 +1133,7 @@ static func unlock(id: String) -> bool:
 	var item := meta_offer(id)
 	if item.is_empty():
 		return false
-	var cost := coin_value(int(item["cost"]))
+	var cost := ask_price(int(item["cost"]))
 	if not can_afford(cost):
 		return false
 	money -= cost
