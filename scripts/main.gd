@@ -657,6 +657,7 @@ func _enter_main_menu() -> void:
 	_set_room_plate(false)
 	if _main_menu:
 		_main_menu.show_menu()
+	_set_room_drawn(false)
 	_hint_key = ""
 	chain.set_hint("")
 
@@ -665,6 +666,7 @@ func _begin_round() -> void:
 	Loadout.start_in_menu = false
 	if not Loadout.run_active:
 		Loadout.begin_run()
+	_set_room_drawn(true)
 	if _main_menu:
 		_main_menu.hide_menu()
 	if _settings and _settings.visible:
@@ -714,6 +716,16 @@ func _begin_round() -> void:
 func _freeze_room() -> void:
 	for node in get_tree().get_nodes_in_group("prop"):
 		node.freeze = true
+
+
+func _set_room_drawn(on: bool) -> void:
+	for node_name in ["Backdrop", "Floor", "Ceiling", "WallL", "WallR", "LampAnchor", "LampPin", "Thrower", "Chain"]:
+		var node := get_node_or_null(NodePath(node_name))
+		if node:
+			node.visible = on
+	for node in get_tree().get_nodes_in_group("prop"):
+		if is_instance_valid(node):
+			node.visible = on
 
 
 func _quit_game() -> void:

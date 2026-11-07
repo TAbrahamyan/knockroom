@@ -79,7 +79,7 @@ html, body {
 		$GODOT_HEAD_INCLUDE
 	</head>
 	<body>
-		<canvas id="canvas">
+		<canvas id="canvas" width="1280" height="720">
 			Your browser does not support the canvas tag.
 		</canvas>
 
@@ -96,6 +96,28 @@ html, body {
 		<script>
 const GODOT_CONFIG = $GODOT_CONFIG;
 const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
+// Keep the drawing buffer near 1280 on the long side. The CSS box still fills the window.
+GODOT_CONFIG.canvasResizePolicy = 0;
+
+function fitKnockroomCanvas() {
+	var canvas = document.getElementById("canvas");
+	if (!canvas) {
+		return;
+	}
+	var dpr = Math.min(window.devicePixelRatio || 1, 2);
+	var rawW = Math.max(1, Math.floor(window.innerWidth * dpr));
+	var rawH = Math.max(1, Math.floor(window.innerHeight * dpr));
+	var scale = Math.min(1, 1280 / rawW, 1280 / rawH);
+	var w = Math.max(1, Math.floor(rawW * scale));
+	var h = Math.max(1, Math.floor(rawH * scale));
+	if (canvas.width !== w || canvas.height !== h) {
+		canvas.width = w;
+		canvas.height = h;
+	}
+}
+
+fitKnockroomCanvas();
+window.addEventListener("resize", fitKnockroomCanvas);
 const engine = new Engine(GODOT_CONFIG);
 
 function notifyYandexReady() {

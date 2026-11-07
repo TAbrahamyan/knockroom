@@ -107,6 +107,11 @@ func _build() -> void:
 	art.set_anchors_preset(Control.PRESET_FULL_RECT)
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(art)
+	var dust := DustMotes.new()
+	dust.name = "Dust"
+	dust.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dust.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(dust)
 
 	var plate := ColorRect.new()
 	plate.name = "Plate"
@@ -367,31 +372,6 @@ class MenuMark extends Control:
 
 
 class RoomArt extends Control:
-	var _dust: Array = []
-
-	func _process(delta: float) -> void:
-		if size.x < 10.0 or size.y < 10.0:
-			return
-		if _dust.is_empty():
-			for _i in 26:
-				_dust.append({
-					"p": Vector2(randf() * size.x, randf() * size.y),
-					"v": Vector2(randf_range(-8.0, 8.0), randf_range(-14.0, -3.0)),
-					"r": randf_range(1.1, 2.4),
-				})
-		for mote in _dust:
-			var p: Vector2 = mote["p"]
-			var v: Vector2 = mote["v"]
-			p += v * delta
-			if p.y < -6.0:
-				p = Vector2(randf() * size.x, size.y + 4.0)
-			if p.x < -4.0 or p.x > size.x + 4.0:
-				v.x = -v.x
-				p.x = clampf(p.x, 0.0, size.x)
-			mote["p"] = p
-			mote["v"] = v
-		queue_redraw()
-
 	func _draw() -> void:
 		var s := size
 		if s.x < 10.0 or s.y < 10.0:
@@ -423,7 +403,34 @@ class RoomArt extends Control:
 		draw_circle(Vector2(s.x * 0.12 + 262, s.y * 0.62 - 10), 12, GOLD)
 		draw_rect(Rect2(0, s.y - 88, s.x, 88), Color(0.42, 0.24, 0.14))
 		draw_line(Vector2(28, s.y - 88), Vector2(s.x - 28, s.y - 88), Color(0.86, 0.64, 0.36), 3.0)
+
+
+class DustMotes extends Control:
+	var _dust: Array = []
+
+	func _process(delta: float) -> void:
+		if not is_visible_in_tree() or size.x < 10.0 or size.y < 10.0:
+			return
+		if _dust.is_empty():
+			for _i in 18:
+				_dust.append({
+					"p": Vector2(randf() * size.x, randf() * size.y),
+					"v": Vector2(randf_range(-8.0, 8.0), randf_range(-14.0, -3.0)),
+					"r": randf_range(1.1, 2.4),
+				})
 		for mote in _dust:
 			var p: Vector2 = mote["p"]
-			var rad: float = mote["r"]
-			draw_circle(p, rad, Color(1.0, 0.92, 0.72, 0.55))
+			var v: Vector2 = mote["v"]
+			p += v * delta
+			if p.y < -6.0:
+				p = Vector2(randf() * size.x, size.y + 4.0)
+			if p.x < -4.0 or p.x > size.x + 4.0:
+				v.x = -v.x
+				p.x = clampf(p.x, 0.0, size.x)
+			mote["p"] = p
+			mote["v"] = v
+		queue_redraw()
+
+	func _draw() -> void:
+		for mote in _dust:
+			draw_circle(mote["p"], mote["r"], Color(1.0, 0.92, 0.72, 0.55))
