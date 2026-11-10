@@ -327,7 +327,7 @@ func _on_body_entered(body: Node) -> void:
 	if not _dusted and not freeze and body.is_in_group("world") and linear_velocity.y > 130.0:
 		_dusted = true
 		var hard := linear_velocity.y > 260.0
-		var bits := 12 if hard else 8
+		var bits := 4 if hard else 2
 		var power := 42.0 if hard else 28.0
 		call_deferred("_burst", Color(0.62, 0.5, 0.36), bits, power, hard, -60.0)
 		if hard:
@@ -600,8 +600,8 @@ func _split_crate() -> void:
 	collision_mask = 0
 	visible = false
 	freeze = true
-	_burst(chip, 10, 160.0, true, 130.0)
-	_burst(Color(0.62, 0.5, 0.36), 4, 80.0, false, -120.0)
+	_burst(chip, 4, 160.0, true, 130.0)
+	_burst(Color(0.62, 0.5, 0.36), 2, 80.0, false, -120.0)
 	var round := get_tree().get_first_node_in_group("round")
 	if round and round.has_method("add_shake"):
 		round.add_shake(3.8, 0)
@@ -695,17 +695,17 @@ func _impact_shake() -> float:
 func _play_hit() -> void:
 	var speed := linear_velocity.length()
 	if kind == Kind.SHELF:
-		_burst(Color(1.0, 0.7, 0.25), 14, 140.0, true)
-		_burst(Color(0.72, 0.58, 0.36), 6, 50.0, false, -40.0)
+		_burst(Color(1.0, 0.7, 0.25), 5, 140.0, true)
+		_burst(Color(0.72, 0.58, 0.36), 2, 50.0, false, -40.0)
 	elif kind == Kind.LAMP:
-		_burst(Color(1.0, 0.95, 0.55), 12, 120.0, true)
+		_burst(Color(1.0, 0.95, 0.55), 4, 120.0, true)
 	elif kind == Kind.BARREL and (speed > 120.0 or shatters):
 		var chip := Color(0.88, 0.96, 0.94) if shatters else dye
-		_burst(chip, 12, 120.0, shatters)
+		_burst(chip, 4, 120.0, shatters)
 	elif kind == Kind.CAGE and speed > 120.0:
-		_burst(dye, 12, 110.0, true)
+		_burst(dye, 4, 110.0, true)
 	elif speed > 90.0:
-		var bits := 10 if speed > 240.0 else 6
+		var bits := 4 if speed > 240.0 else 2
 		var power := 90.0 if speed > 240.0 else 60.0
 		_burst(Color(0.9, 0.8, 0.62), bits, power)
 
@@ -730,8 +730,8 @@ func _shatter() -> void:
 	if parent == null:
 		return
 	var glass := Color(0.82, 0.98, 0.94) if look == 1 else Color(1.0, 0.94, 0.72)
-	_burst(glass, 8, 220.0, true, 140.0)
-	_burst(Color(0.78, 0.7, 0.58), 3, 80.0, false, -140.0)
+	_burst(glass, 3, 220.0, true, 140.0)
+	_burst(Color(0.78, 0.7, 0.58), 1, 80.0, false, -140.0)
 	var round := get_tree().get_first_node_in_group("round")
 	if round and round.has_method("add_shake"):
 		round.add_shake(4.2, 0)
@@ -742,9 +742,9 @@ func _shatter() -> void:
 	visible = false
 	freeze = true
 	_settle()
-	for i in 5:
+	for i in 3:
 		var bit := GlassBit.new()
-		var dir := Vector2.from_angle(float(i) / 5.0 * TAU + randf_range(-0.25, 0.25))
+		var dir := Vector2.from_angle(float(i) / 3.0 * TAU + randf_range(-0.25, 0.25))
 		parent.add_child(bit)
 		bit.global_position = origin + dir * 18.0
 		bit.linear_velocity = carry * 0.12 + dir * randf_range(70.0, 140.0) + Vector2(0, randf_range(90.0, 180.0))
@@ -1118,12 +1118,13 @@ class Burst extends Node2D:
 
 	func setup(color: Color, count: int, power: float, shards: bool = false, down: float = 90.0) -> void:
 		if shards:
-			_life = 0.7
+			_life = 0.4
 		elif down < 0.0:
-			_life = 0.55
+			_life = 0.32
 		else:
-			_life = 0.42
-		for _i in count:
+			_life = 0.26
+		var n := mini(count, 5)
+		for _i in n:
 			var dir := Vector2.from_angle(randf() * TAU)
 			var vel := dir * randf_range(power * 0.1, power * 0.28)
 			vel.y += down * randf_range(0.28, 0.55)
@@ -1161,17 +1162,7 @@ class Burst extends Node2D:
 		for bit in _bits:
 			var color: Color = bit["c"]
 			color.a = fade
-			var pos: Vector2 = bit["p"]
-			var rad: float = bit["r"]
-			if bit["s"] == true:
-				var ang: float = bit["a"]
-				var tip := Vector2(cos(ang), sin(ang)) * rad
-				var side := Vector2(-tip.y, tip.x) * 0.45
-				draw_colored_polygon(PackedVector2Array([
-					pos + tip, pos - tip * 0.45 + side, pos - tip * 0.45 - side,
-				]), color)
-			else:
-				draw_circle(pos, rad, color)
+			draw_circle(bit["p"], bit["r"], color)
 
 
 ## Glass from the bottle. Counts as already in the chain so it can knock

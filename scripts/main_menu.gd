@@ -407,6 +407,7 @@ class RoomArt extends Control:
 
 class DustMotes extends Control:
 	var _dust: Array = []
+	var _frame := 0
 
 	func _process(delta: float) -> void:
 		if not is_visible_in_tree() or size.x < 10.0 or size.y < 10.0:
@@ -429,7 +430,9 @@ class DustMotes extends Control:
 				p.x = clampf(p.x, 0.0, size.x)
 			mote["p"] = p
 			mote["v"] = v
-		queue_redraw()
+		_frame += 1
+		if _frame % 3 == 0:
+			queue_redraw()
 
 	func _draw() -> void:
 		for mote in _dust:

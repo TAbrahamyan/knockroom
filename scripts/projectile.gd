@@ -493,11 +493,11 @@ func _draw() -> void:
 	if _flash > 0.0 and _flash_r > 0.0:
 		var t := clampf(_flash / 0.32, 0.0, 1.0)
 		var ring := Color(_tint.r, _tint.g, _tint.b, 0.38 * t)
-		draw_arc(Vector2.ZERO, lerpf(_radius + 8.0, _flash_r, 1.0 - t), 0.0, TAU, 40, ring, lerpf(2.0, 8.0, t))
+		draw_arc(Vector2.ZERO, lerpf(_radius + 8.0, _flash_r, 1.0 - t), 0.0, TAU, 16, ring, lerpf(2.0, 8.0, t))
 	if _magnet_left > 0.0:
 		var fade := clampf(_magnet_left / maxf(_magnet_duration, 0.01), 0.0, 1.0)
 		var pull := Color(_tint.r, _tint.g, _tint.b, 0.28 * fade)
-		draw_arc(Vector2.ZERO, _magnet_radius, 0.0, TAU, 48, pull, 2.0)
+		draw_arc(Vector2.ZERO, _magnet_radius, 0.0, TAU, 16, pull, 2.0)
 
 
 ## One half of a split stone. Not a prop, so it never joins the loose count.
@@ -569,4 +569,4 @@ class SplitPuff extends Node2D:
 
 	func _draw() -> void:
 		var fade := clampf(1.0 - _age / 0.28, 0.0, 1.0)
-		draw_arc(Vector2.ZERO, lerpf(12.0, 34.0, 1.0 - fade), 0.0, TAU, 24, Color(0.95, 0.55, 0.72, 0.5 * fade), 3.0)
+		draw_arc(Vector2.ZERO, lerpf(12.0, 34.0, 1.0 - fade), 0.0, TAU, 10, Color(0.95, 0.55, 0.72, 0.5 * fade), 3.0)

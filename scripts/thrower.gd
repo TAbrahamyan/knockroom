@@ -20,11 +20,20 @@ const AudioKit := preload("res://scripts/audio_kit.gd")
 var can_aim := false
 var aiming := false
 var flying := false
+var _glow_at := 0
 
 
 func _process(_delta: float) -> void:
-	if can_aim or aiming:
+	if aiming:
 		queue_redraw()
+		return
+	if not can_aim:
+		return
+	var now := Time.get_ticks_msec()
+	if now - _glow_at < 80:
+		return
+	_glow_at = now
+	queue_redraw()
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -116,8 +116,21 @@ function fitKnockroomCanvas() {
 	}
 }
 
+function lockKnockroomLandscape() {
+	try {
+		if (screen.orientation && screen.orientation.lock) {
+			screen.orientation.lock("landscape").catch(function () {});
+		}
+	} catch (err) {}
+}
+
 fitKnockroomCanvas();
-window.addEventListener("resize", fitKnockroomCanvas);
+lockKnockroomLandscape();
+window.addEventListener("resize", function () {
+	fitKnockroomCanvas();
+	lockKnockroomLandscape();
+});
+window.addEventListener("pointerdown", lockKnockroomLandscape);
 const engine = new Engine(GODOT_CONFIG);
 
 function notifyYandexReady() {

@@ -40,7 +40,7 @@ var _shop_open := false
 var _shake := 0.0
 var _shake_time := 0.0
 var _shake_duration := 0.2
-var _shake_cap := 8.0
+var _shake_cap := 0.8
 var _shaking := false
 var _punch := 0.0
 var _shop
@@ -66,6 +66,7 @@ var _run_label: Label
 var _rule_label: Label
 var _status_label: Label
 var _gap_label: Label
+var _gap_shown := ""
 var _timer_label: Label
 var _timer_pill: Panel
 var _timer_style: StyleBoxFlat
@@ -112,6 +113,7 @@ var _run_is_record := false
 var _equipped: Label
 var _money: Label
 var _excellent: ColorRect
+var _flash_tween: Tween
 var layout_name := ""
 
 @onready var thrower: Node2D = $Thrower
@@ -121,6 +123,8 @@ var layout_name := ""
 
 func _ready() -> void:
 	Loadout.load_game()
+	if OS.has_feature("mobile") or OS.get_name() == "Web":
+		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_LANDSCAPE)
 	_install_font()
 	$Camera2D.make_current()
 	thrower.stone_launched.connect(_on_stone_launched)
@@ -348,19 +352,20 @@ func _look_for(n: int) -> float:
 func add_shake(amount: float, chain_count: int = 0) -> void:
 	if amount <= 0.15:
 		return
-	# Longer chains shake harder and a little longer. 10+ is the clip.
+	# A tenth of the old kick. The camera move is what costs a frame on the web build.
+	amount *= 0.1
 	if chain_count >= 10:
-		_shake_cap = 32.0
+		_shake_cap = 3.2
 		_shake_duration = 0.45
-		_shake = maxf(_shake, 22.0)
-		_punch = maxf(_punch, 6.0)
+		_shake = maxf(_shake, 2.2)
+		_punch = maxf(_punch, 0.6)
 	elif chain_count >= 6:
-		_shake_cap = 24.0
+		_shake_cap = 2.4
 		_shake_duration = 0.4
-		_shake = maxf(_shake, 16.0)
-		_punch = maxf(_punch, 4.0)
+		_shake = maxf(_shake, 1.6)
+		_punch = maxf(_punch, 0.4)
 	elif chain_count >= 4:
-		_shake_cap = maxf(_shake_cap, 16.0)
+		_shake_cap = maxf(_shake_cap, 1.6)
 		_shake_duration = maxf(_shake_duration, 0.32)
 	elif chain_count > 0:
 		_shake_duration = maxf(_shake_duration, SHAKE_TIME)
@@ -372,48 +377,55 @@ func add_shake(amount: float, chain_count: int = 0) -> void:
 func add_hit_shake(speed: float) -> void:
 	if speed < 540.0:
 		return
-	if _shake > 6.0 and _shake_time > 0.1:
+	if _shake > 0.6 and _shake_time > 0.1:
 		return
 	var amount := clampf((speed - 540.0) / 160.0, 1.5, 7.0)
 	if speed >= 900.0:
-		_shake_cap = maxf(_shake_cap, 18.0)
+		_shake_cap = maxf(_shake_cap, 1.8)
 		_shake_duration = maxf(_shake_duration, 0.28)
-		_punch = maxf(_punch, 12.0)
+		_punch = maxf(_punch, 1.2)
 	add_shake(amount, 0)
 
 
 func add_sweet_shake() -> void:
 	_sweet_hit = true
-	_shake_cap = maxf(_shake_cap, 15.0)
+	_shake_cap = maxf(_shake_cap, 1.5)
 	_shake_duration = maxf(_shake_duration, 0.34)
 	add_shake(9.5, 0)
 	_refresh_rules()
 
 
 func flash_excellent() -> void:
-	if _excellent == null:
-		return
-	_excellent.color = Color(1.0, 0.78, 0.28, 0.28)
-	var tween := create_tween()
-	tween.tween_property(_excellent, "color:a", 0.0, 0.22)
+	_pulse_flash(Color(1.0, 0.78, 0.28, 0.16), 0.16)
 
 
 func flash_master() -> void:
 	if chain != null and chain.has_method("celebrate_master"):
 		chain.celebrate_master()
-	if _excellent == null:
-		return
-	_excellent.color = Color(1.0, 0.92, 0.45, 0.28)
-	var tween := create_tween()
-	tween.tween_property(_excellent, "color:a", 0.0, 0.35)
+	_pulse_flash(Color(1.0, 0.92, 0.45, 0.16), 0.22)
 
 
 func flash_fail() -> void:
+	_pulse_flash(Color(0.72, 0.08, 0.06, 0.28), 0.2)
+
+
+func _pulse_flash(color: Color, time: float) -> void:
 	if _excellent == null:
 		return
-	_excellent.color = Color(0.72, 0.08, 0.06, 0.55)
-	var tween := create_tween()
-	tween.tween_property(_excellent, "color:a", 0.0, 0.32)
+	if _flash_tween != null and _flash_tween.is_valid():
+		_flash_tween.kill()
+	_excellent.visible = true
+	_excellent.color = color
+	_flash_tween = create_tween()
+	_flash_tween.tween_property(_excellent, "color:a", 0.0, time)
+	_flash_tween.finished.connect(_hide_flash)
+
+
+func _hide_flash() -> void:
+	if _excellent == null:
+		return
+	_excellent.visible = false
+	_excellent.color.a = 0.0
 
 
 func _build_flash() -> void:
@@ -425,6 +437,7 @@ func _build_flash() -> void:
 	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rect.color = Color(1.0, 0.72, 0.22, 0.0)
+	rect.visible = false
 	layer.add_child(rect)
 	_excellent = rect
 
@@ -537,22 +550,27 @@ func _refit_hud(vp: Vector2) -> void:
 func _update_shake(delta: float) -> void:
 	if _shake_time <= 0.0:
 		if _shaking:
-			camera.offset = Vector2.ZERO
+			if camera.offset != Vector2.ZERO:
+				camera.offset = Vector2.ZERO
 			_shake = 0.0
-			_shake_cap = 8.0
+			_shake_cap = 0.8
 			_shake_duration = SHAKE_TIME
 			_shaking = false
 		return
 	_shake_time = maxf(0.0, _shake_time - delta)
-	_punch = move_toward(_punch, 0.0, delta * 70.0)
+	_punch = move_toward(_punch, 0.0, delta * 40.0)
 	var mag := _shake * clampf(_shake_time / _shake_duration, 0.0, 1.0)
-	var ang := _pulse * 46.0
-	# Punch adds to the kick. A sideways vector was cancelling it.
-	camera.offset = Vector2.from_angle(ang) * (mag + _punch)
+	var kick := mag + _punch
+	var next := Vector2.ZERO
+	if kick >= 0.35:
+		next = (Vector2.from_angle(_pulse * 28.0) * kick).round()
+	if camera.offset != next:
+		camera.offset = next
 	if _shake_time == 0.0:
-		camera.offset = Vector2.ZERO
+		if camera.offset != Vector2.ZERO:
+			camera.offset = Vector2.ZERO
 		_shake = 0.0
-		_shake_cap = 8.0
+		_shake_cap = 0.8
 		_shake_duration = SHAKE_TIME
 		_punch = 0.0
 		_shaking = false
@@ -984,23 +1002,30 @@ func _refresh_gap() -> void:
 		return
 	var live := Loadout.run_active and phase == Phase.WATCHING and not _shop_open
 	if not live:
-		_gap_label.visible = false
+		if _gap_label.visible:
+			_gap_label.visible = false
+			_gap_shown = ""
 		return
 	var count: int = chain.count
 	var need := Loadout.chain_need()
 	if phase == Phase.SETTLED and _shown_need > 0:
 		need = _shown_need
 	var short := need - count
+	var next := ""
+	var tint := Color(1.0, 0.78, 0.28)
 	if count > 0 and (short == 1 or short == 2):
-		_gap_label.visible = true
-		_gap_label.text = Locale.format("rule.close", [short])
-		_gap_label.add_theme_color_override("font_color", Color(1.0, 0.78, 0.28))
+		next = Locale.format("rule.close", [short])
 	elif count >= need and count > 0:
-		_gap_label.visible = true
-		_gap_label.text = Locale.text("rule.clear")
-		_gap_label.add_theme_color_override("font_color", Color(0.55, 0.95, 0.62))
-	else:
-		_gap_label.visible = false
+		next = Locale.text("rule.clear")
+		tint = Color(0.55, 0.95, 0.62)
+	if next == _gap_shown:
+		return
+	_gap_shown = next
+	_gap_label.visible = next != ""
+	if next == "":
+		return
+	_gap_label.text = next
+	_gap_label.add_theme_color_override("font_color", tint)
 
 
 func _refresh_rules() -> void:
@@ -2300,7 +2325,7 @@ func _room_style(id: String) -> Dictionary:
 
 func _fill_loose(loose: Array) -> Array:
 	# Shelves and the lamp are the room. Only barrels, cages, crates, and bottles count.
-	var target := randi_range(18, 23)
+	var target := randi_range(11, 14)
 	var made := 0
 	while loose.size() < target:
 		var body := _make_extra(made)
